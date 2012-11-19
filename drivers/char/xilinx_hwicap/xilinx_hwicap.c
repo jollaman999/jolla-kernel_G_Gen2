@@ -691,7 +691,7 @@ static struct hwicap_driver_config fifo_icap_config = {
 	.reset = fifo_icap_reset,
 };
 
-static int __devexit hwicap_remove(struct device *dev)
+static int hwicap_remove(struct device *dev)
 {
 	struct hwicap_drvdata *drvdata;
 
@@ -792,7 +792,7 @@ static int __devinit hwicap_drv_probe(struct platform_device *pdev)
 			&buffer_icap_config, regs);
 }
 
-static int __devexit hwicap_drv_remove(struct platform_device *pdev)
+static int hwicap_drv_remove(struct platform_device *pdev)
 {
 	return hwicap_remove(&pdev->dev);
 }

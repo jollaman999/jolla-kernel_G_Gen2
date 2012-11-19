@@ -2238,7 +2238,7 @@ err_free:
 	return -EINVAL;
 }
 
-static void __devexit ipmi_pnp_remove(struct pnp_dev *dev)
+static void ipmi_pnp_remove(struct pnp_dev *dev)
 {
 	struct smi_info *info = pnp_get_drvdata(dev);
 
@@ -2507,7 +2507,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static void __devexit ipmi_pci_remove(struct pci_dev *pdev)
+static void ipmi_pci_remove(struct pci_dev *pdev)
 {
 	struct smi_info *info = pci_get_drvdata(pdev);
 	cleanup_one_si(info);
@@ -2629,7 +2629,7 @@ static int __devinit ipmi_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit ipmi_remove(struct platform_device *dev)
+static int ipmi_remove(struct platform_device *dev)
 {
 #ifdef CONFIG_OF
 	cleanup_one_si(dev_get_drvdata(&dev->dev));
