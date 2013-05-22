@@ -65,7 +65,8 @@ static inline int ext4_begin_ordered_truncate(struct inode *inode,
 						   new_size);
 }
 
-static void ext4_invalidatepage(struct page *page, unsigned long offset);
+static void ext4_invalidatepage(struct page *page, unsigned int offset,
+				unsigned int length);
 static int noalloc_get_block_write(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create);
 static int ext4_set_bh_endio(struct buffer_head *bh, struct inode *inode);
@@ -2579,7 +2580,8 @@ static int ext4_da_write_end(struct file *file,
 	return ret ? ret : copied;
 }
 
-static void ext4_da_invalidatepage(struct page *page, unsigned long offset)
+static void ext4_da_invalidatepage(struct page *page, unsigned int offset,
+				   unsigned int length)
 {
 	/*
 	 * Drop reserved blocks
@@ -2591,7 +2593,7 @@ static void ext4_da_invalidatepage(struct page *page, unsigned long offset)
 	ext4_da_page_release_reservation(page, offset);
 
 out:
-	ext4_invalidatepage(page, offset);
+	ext4_invalidatepage(page, offset, length);
 
 	return;
 }
@@ -2737,7 +2739,8 @@ static void ext4_invalidatepage_free_endio(struct page *page, unsigned long offs
 	} while (bh != head);
 }
 
-static void ext4_invalidatepage(struct page *page, unsigned long offset)
+static void ext4_invalidatepage(struct page *page, unsigned int offset,
+				unsigned int length)
 {
 	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
 
@@ -2757,7 +2760,7 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 	if (journal)
 		jbd2_journal_invalidatepage(journal, page, offset);
 	else
-		block_invalidatepage(page, offset);
+		block_invalidatepage(page, offset, PAGE_CACHE_SIZE - offset);
 }
 
 static int ext4_releasepage(struct page *page, gfp_t wait)
