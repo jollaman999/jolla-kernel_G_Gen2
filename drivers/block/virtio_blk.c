@@ -599,7 +599,7 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 		ida_simple_remove(&vd_index_ida, index);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtblk_freeze(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
@@ -664,7 +664,7 @@ static struct virtio_driver __refdata virtio_blk = {
 	.probe			= virtblk_probe,
 	.remove			= __devexit_p(virtblk_remove),
 	.config_changed		= virtblk_config_changed,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.freeze			= virtblk_freeze,
 	.restore		= virtblk_restore,
 #endif
