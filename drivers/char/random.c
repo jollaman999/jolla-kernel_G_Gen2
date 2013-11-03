@@ -276,6 +276,8 @@
 #define SEC_XFER_SIZE		512
 #define EXTRACT_SIZE		10
 
+#define DEBUG_RANDOM_BOOT 0
+
 #define LONGS(x) (((x) + sizeof(unsigned long) - 1)/sizeof(unsigned long))
 
 /*
@@ -1125,6 +1127,13 @@ static ssize_t extract_entropy_user(struct entropy_store *r, void __user *buf,
  */
 void get_random_bytes(void *buf, int nbytes)
 {
+#if DEBUG_RANDOM_BOOT > 0
+	if (unlikely(nonblocking_pool.initialized == 0))
+		printk(KERN_NOTICE "random: %pF get_random_bytes called "
+		       "with %d bits of entropy available\n",
+		       (void *) _RET_IP_,
+		       nonblocking_pool.entropy_total);
+#endif
 	extract_entropy(&nonblocking_pool, buf, nbytes, 0, 0);
 }
 EXPORT_SYMBOL(get_random_bytes);
