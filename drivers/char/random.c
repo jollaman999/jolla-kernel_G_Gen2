@@ -966,9 +966,6 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 	int entropy_count, orig;
 	size_t ibytes;
 
-	/* Hold lock while accounting */
-	spin_lock_irqsave(&r->lock, flags);
-
 	BUG_ON(r->entropy_count > r->poolinfo->poolfracbits);
 	DEBUG_ENT("trying to extract %zu bits from %s\n",
 		  nbytes * 8, r->name);
@@ -996,8 +993,6 @@ retry:
 
 	DEBUG_ENT("debiting %zu entropy credits from %s%s\n",
 		  ibytes * 8, r->name, r->limit ? "" : " (unlimited)");
-
-	spin_unlock_irqrestore(&r->lock, flags);
 
 	if (wakeup_write) {
 		wake_up_interruptible(&random_write_wait);
