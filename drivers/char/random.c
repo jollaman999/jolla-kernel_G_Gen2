@@ -960,8 +960,6 @@ static void push_to_pool(struct work_struct *work)
 static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		      int reserved)
 {
-	unsigned long flags;
-	int wakeup_write = 0;
 	int have_bytes;
 	int entropy_count, orig;
 	size_t ibytes;
@@ -975,26 +973,21 @@ retry:
 	entropy_count = orig = ACCESS_ONCE(r->entropy_count);
 	have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
 	ibytes = nbytes;
-	if (have_bytes < min + reserved) {
+	/* If limited, never pull more than available */
+	if (r->limit)
+		ibytes = min_t(size_t, ibytes, have_bytes - reserved);
+	if (ibytes < min)
 		ibytes = 0;
-	} else {
-		/* If limited, never pull more than available */
-		if (r->limit)
-			ibytes = min_t(size_t, ibytes, have_bytes - reserved);
-		entropy_count = max_t(int, 0,
-			    entropy_count - (ibytes << (ENTROPY_SHIFT + 3)));
-		if (cmpxchg(&r->entropy_count, orig, entropy_count) != orig)
-			goto retry;
-
-		if ((r->entropy_count >> ENTROPY_SHIFT)
-		    < random_write_wakeup_thresh)
-			wakeup_write = 1;
-	}
+	entropy_count = max_t(int, 0,
+			      entropy_count - (ibytes << (ENTROPY_SHIFT + 3)));
+	if (cmpxchg(&r->entropy_count, orig, entropy_count) != orig)
+		goto retry;
 
 	DEBUG_ENT("debiting %zu entropy credits from %s%s\n",
 		  ibytes * 8, r->name, r->limit ? "" : " (unlimited)");
 
-	if (wakeup_write) {
+	if (ibytes &&
+	    (r->entropy_count >> ENTROPY_SHIFT) < random_write_wakeup_thresh) {
 		wake_up_interruptible(&random_write_wait);
 		kill_fasync(&fasync, SIGIO, POLL_OUT);
 	}
