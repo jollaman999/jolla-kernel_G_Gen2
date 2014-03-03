@@ -29,6 +29,9 @@ extern uint8_t imx111_afcalib_data[4];
 #define ACTUATOR_MIN_MOVE_RANGE              200 // TBD
 #endif
 
+struct region_params_t tmp_region_params[MAX_ACTUATOR_REGION];
+unsigned char frun = 0;
+
 static struct msm_actuator_ctrl_t msm_actuator_t;
 static struct msm_actuator msm_vcm_actuator_table;
 static struct msm_actuator msm_piezo_actuator_table;
@@ -389,6 +392,13 @@ static int32_t msm_actuator_init_default_step_table(struct msm_actuator_ctrl_t *
 
 	CDBG("%s called\n", __func__);
 
+	if(!frun){
+	    memcpy(&tmp_region_params,&a_ctrl->region_params,sizeof(tmp_region_params));
+	    frun++;
+	}else{
+	    memcpy(&a_ctrl->region_params,&tmp_region_params,sizeof(tmp_region_params));
+	}
+
 	for (; data_size > 0; data_size--)
 		max_code_size *= 2;
 
@@ -664,6 +674,7 @@ static int32_t msm_actuator_set_default_focus(
 static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl)
 {
 	int32_t rc = 0;
+#ifdef CONFIG_SEKONIX_LENS_ACT
 	int cur_pos = a_ctrl->curr_step_pos;
 	struct msm_actuator_move_params_t move_params;
 
@@ -674,7 +685,7 @@ static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl)
 				a_ctrl, &move_params);
 		msleep(300);
 	}
-
+#endif
 	if (a_ctrl->vcm_enable) {
 		rc = gpio_direction_output(a_ctrl->vcm_pwd, 0);
 		if (!rc)
