@@ -38,11 +38,12 @@ uint32 hdmi_inp(uint32 offset);
  * Ref. HDMI 1.4a
  * Supplement-1 CEC Section 6, 7
  */
+#define CEC_MAX_OPERAND_SIZE 15
 struct hdmi_msm_cec_msg {
 	uint8 sender_id;
 	uint8 recvr_id;
 	uint8 opcode;
-	uint8 operand[15];
+	uint8 operand[CEC_MAX_OPERAND_SIZE];
 	uint8 frame_size;
 	uint8 retransmit;
 };
@@ -132,4 +133,15 @@ void hdmi_msm_cec_one_touch_play(void);
 void hdmi_msm_cec_msg_send(struct hdmi_msm_cec_msg *msg);
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT */
 void mhl_connect_api(boolean on);
+
+/* LGE_CHANGE
+ * default video resolution for each target
+ * 2012-09-22, chaeuk.lee@lge.com
+ */
+#ifdef CONFIG_MACH_LGE
+
+#define LGE_DEFAULT_HDMI_VIDEO_RESOLUTION HDMI_VFRMT_1280x720p60_16_9
+
+#endif /* CONFIG_MACH_LGE */
+
 #endif /* __HDMI_MSM_H__ */
