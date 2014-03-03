@@ -18,7 +18,7 @@
 #ifndef DEV_DBG_PREFIX
 #define DEV_DBG_PREFIX "EXT_INTERFACE: "
 #endif
-#define DEV_DBG(args...)	pr_debug(DEV_DBG_PREFIX args)
+#define DEV_DBG(args...)	pr_info(DEV_DBG_PREFIX args)
 #else
 #define DEV_DBG(args...)	(void)0
 #endif /* DEBUG */
@@ -232,7 +232,6 @@ struct external_common_state_type {
 	boolean pre_suspend_hpd_state;
 	struct kobject *uevent_kobj;
 	uint32 video_resolution;
-	boolean default_res_supported;
 	struct device *dev;
 	struct switch_dev sdev;
 	struct switch_dev audio_sdev;
@@ -251,8 +250,8 @@ struct external_common_state_type {
 	uint8 pt_scan_info;
 	uint8 it_scan_info;
 	uint8 ce_scan_info;
-	uint8 spd_vendor_name[8];
-	uint8 spd_product_description[16];
+	uint8 spd_vendor_name[9];
+	uint8 spd_product_description[17];
 	boolean present_3d;
 	boolean present_hdcp;
 	uint8 audio_data_block[MAX_AUDIO_DATA_BLOCK_SIZE];
@@ -261,6 +260,10 @@ struct external_common_state_type {
 	int sadb_size;
 	int (*read_edid_block)(int block, uint8 *edid_buf);
 	int (*hpd_feature)(int on);
+#endif
+#ifdef CONFIG_MACH_LGE
+	boolean boot_completed;
+	boolean external_block;
 #endif
 };
 

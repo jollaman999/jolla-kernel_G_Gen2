@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -173,6 +173,43 @@ const char *video_format_2string(uint32 format)
 }
 EXPORT_SYMBOL(video_format_2string);
 
+#ifdef CONFIG_MACH_LGE
+void hdmi_common_send_uevent(char *buf)
+{
+	char *envp[2];
+	int env_offset = 0;
+
+	envp[env_offset++] = buf;
+	envp[env_offset] = NULL;
+
+	kobject_uevent_env(external_common_state->uevent_kobj, KOBJ_CHANGE, envp);
+}
+EXPORT_SYMBOL(hdmi_common_send_uevent);
+
+void hdmi_common_set_hpd_on(int on)
+{
+	DEV_INFO("%s: hpd [%d]\n", __func__,on);
+
+	if (external_common_state->hpd_feature) {
+		if (on) {
+		   if(external_common_state->boot_completed){
+			  DEV_INFO("%s : hpd_power_on \n",__func__);
+			  external_common_state->hpd_feature(1);
+		   }
+		   external_common_state->hpd_feature_on = 1;
+
+		} else {
+			external_common_state->hpd_feature_on = 0;
+		}
+
+	} else {
+		DEV_INFO("%s: 'not supported'\n", __func__);
+	}
+}
+
+EXPORT_SYMBOL(hdmi_common_set_hpd_on);
+#endif
+
 static ssize_t external_common_rda_video_mode_str(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -266,6 +303,7 @@ struct hdmi_disp_mode_timing_type
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_2880x240p60_16_9),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1440x480p60_4_3),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1440x480p60_16_9),
+	//HDMI_SETTINGS_1920x1080p60_16_9,
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1920x1080p60_16_9),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_720x576p50_4_3),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_720x576p50_16_9),
@@ -282,8 +320,11 @@ struct hdmi_disp_mode_timing_type
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1440x576p50_4_3),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1440x576p50_16_9),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1920x1080p50_16_9),
-	HDMI_SETTINGS_1920x1080p24_16_9,
-	HDMI_SETTINGS_1920x1080p25_16_9,
+	//HDMI_SETTINGS_1920x1080p24_16_9,
+	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1920x1080p24_16_9),
+	//HDMI_SETTINGS_1920x1080p25_16_9,
+	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1920x1080p25_16_9),
+	//VFRMT_NOT_SUPPORTED(HDMI_VFRMT_1920x1080p30_16_9),
 	HDMI_SETTINGS_1920x1080p30_16_9,
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_2880x480p60_4_3),
 	VFRMT_NOT_SUPPORTED(HDMI_VFRMT_2880x480p60_16_9),
@@ -370,10 +411,12 @@ static ssize_t hdmi_common_wta_vendor_name(struct device *dev,
 {
 	uint8 *s = (uint8 *) buf;
 	uint8 *d = external_common_state->spd_vendor_name;
+	ssize_t sz;
 	ssize_t ret = strnlen(buf, PAGE_SIZE);
 	ret = (ret > 8) ? 8 : ret;
 
-	memset(external_common_state->spd_vendor_name, 0, 8);
+	sz = sizeof(external_common_state->spd_vendor_name);
+	memset(external_common_state->spd_vendor_name, 0, sz);
 	while (*s) {
 		if (*s & 0x60 && *s ^ 0x7f) {
 			*d = *s;
@@ -387,6 +430,7 @@ static ssize_t hdmi_common_wta_vendor_name(struct device *dev,
 
 		d++;
 	}
+	external_common_state->spd_vendor_name[sz - 1] = 0;
 
 	DEV_DBG("%s: '%s'\n", __func__,
 			external_common_state->spd_vendor_name);
@@ -411,9 +455,11 @@ static ssize_t hdmi_common_wta_product_description(struct device *dev,
 	uint8 *s = (uint8 *) buf;
 	uint8 *d = external_common_state->spd_product_description;
 	ssize_t ret = strnlen(buf, PAGE_SIZE);
+	ssize_t sz;
 	ret = (ret > 16) ? 16 : ret;
 
-	memset(external_common_state->spd_product_description, 0, 16);
+	sz = sizeof(external_common_state->spd_product_description);
+	memset(external_common_state->spd_product_description, 0, sz);
 	while (*s) {
 		if (*s & 0x60 && *s ^ 0x7f) {
 			*d = *s;
@@ -427,6 +473,7 @@ static ssize_t hdmi_common_wta_product_description(struct device *dev,
 
 		d++;
 	}
+	external_common_state->spd_product_description[sz - 1] = 0;
 
 	DEV_DBG("%s: '%s'\n", __func__,
 			external_common_state->spd_product_description);
@@ -514,7 +561,7 @@ static ssize_t hdmi_common_wta_hpd(struct device *dev,
 		hpd = 1;
 	else
 		hpd = atoi(buf);
-
+#ifndef CONFIG_MACH_LGE
 	if (external_common_state->hpd_feature) {
 		if (hpd == 0 && external_common_state->hpd_feature_on) {
 			external_common_state->hpd_feature(0);
@@ -533,7 +580,7 @@ static ssize_t hdmi_common_wta_hpd(struct device *dev,
 	} else {
 		DEV_DBG("%s: 'not supported'\n", __func__);
 	}
-
+#endif
 	return ret;
 }
 
@@ -652,8 +699,15 @@ static ssize_t hdmi_msm_wta_cec_frame(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int i;
-	int retry = ((struct hdmi_msm_cec_msg *) buf)->retransmit;
+	struct hdmi_msm_cec_msg *msg;
+	int retry;
 
+	msg = (struct hdmi_msm_cec_msg *) buf;
+	retry = msg->retransmit;
+	if (msg->frame_size > CEC_MAX_OPERAND_SIZE) {
+		pr_err("%s: cec msg too large\n", __func__);
+		return -EINVAL;
+	}
 	for (i = 0; i < RETRANSMIT_MAX_NUM; i++) {
 		hdmi_msm_cec_msg_send((struct hdmi_msm_cec_msg *) buf);
 		if (hdmi_msm_state->cec_frame_wr_status
@@ -832,6 +886,60 @@ static ssize_t hdmi_common_rda_hdmi_primary(struct device *dev,
 	return ret;
 }
 
+/* LGE_CHANGE
+ * hpd won't be on when booting is completed with the cable connected.
+ * HDMI needs to be informed completion of booting,
+ * so that hpd is re-processed after HDMI is ready.
+ * [PROCESS]
+ * property 'dev.bootcomplete'=1
+ * -> write 1 to '/sys/devices/virtual/graphics/fb1/hdmi_boot_completed'
+ * -> call hdmi_common_boot_completed()
+ * 2012-09-14, chaeuk.lee@lge.com
+ */
+#ifdef CONFIG_MACH_LGE
+static ssize_t hdmi_common_wta_boot_completed(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	ssize_t ret = strnlen(buf, PAGE_SIZE);
+
+	if(external_common_state->hpd_feature_on &&
+		!external_common_state->boot_completed){
+		DEV_INFO("%s: hpd_power_on \n",__func__);
+		external_common_state->hpd_feature(1);
+	}
+
+	external_common_state->boot_completed = 1;
+
+	return ret;
+}
+
+static ssize_t hdmi_common_wta_external_block(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	char mbuf[120];
+
+	memset(mbuf, 0, sizeof(mbuf));
+
+	if (!strncmp(buf, "block", strlen("block"))) {
+		external_common_state->external_block = 1;
+		if (external_common_state->sdev.state) {
+			DEV_INFO("%s: external block\n", __func__);
+			sprintf(mbuf, "EXTERNAL_DISPLAY action=off");
+		}
+	} else if (!strncmp(buf, "unblock", strlen("unblock"))) {
+		external_common_state->external_block = 0;
+		if (external_common_state->sdev.state) {
+			DEV_INFO("%s: external unblock\n", __func__);
+			sprintf(mbuf, "EXTERNAL_DISPLAY action=on");
+		}
+	}
+
+	hdmi_common_send_uevent(mbuf);
+
+	return count;
+}
+#endif
+
 static ssize_t hdmi_common_rda_audio_data_block(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -886,7 +994,7 @@ static ssize_t hdmi_common_rda_spkr_alloc_data_block(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(video_mode, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(video_mode, S_IRUGO | S_IWUSR | S_IWGRP,
 	external_common_rda_video_mode, external_common_wta_video_mode);
 static DEVICE_ATTR(video_mode_str, S_IRUGO, external_common_rda_video_mode_str,
 	NULL);
@@ -894,7 +1002,7 @@ static DEVICE_ATTR(connected, S_IRUGO, external_common_rda_connected, NULL);
 static DEVICE_ATTR(hdmi_mode, S_IRUGO, external_common_rda_hdmi_mode, NULL);
 #ifdef CONFIG_FB_MSM_HDMI_COMMON
 static DEVICE_ATTR(edid_modes, S_IRUGO, hdmi_common_rda_edid_modes, NULL);
-static DEVICE_ATTR(hpd, S_IRUGO | S_IWUSR, hdmi_common_rda_hpd,
+static DEVICE_ATTR(hpd, S_IRUGO | S_IWUSR | S_IWGRP, hdmi_common_rda_hpd,
 	hdmi_common_wta_hpd);
 static DEVICE_ATTR(hdcp, S_IRUGO, hdmi_common_rda_hdcp, NULL);
 static DEVICE_ATTR(pa, S_IRUGO,
@@ -912,10 +1020,16 @@ static DEVICE_ATTR(3d_present, S_IRUGO, hdmi_common_rda_3d_present, NULL);
 static DEVICE_ATTR(hdcp_present, S_IRUGO, hdmi_common_rda_hdcp_present, NULL);
 #endif
 #ifdef CONFIG_FB_MSM_HDMI_3D
-static DEVICE_ATTR(format_3d, S_IRUGO | S_IWUSR, hdmi_3d_rda_format_3d,
-	hdmi_3d_wta_format_3d);
+static DEVICE_ATTR(format_3d, S_IRUGO | S_IWUSR | S_IWGRP,
+	hdmi_3d_rda_format_3d, hdmi_3d_wta_format_3d);
 #endif
 static DEVICE_ATTR(hdmi_primary, S_IRUGO, hdmi_common_rda_hdmi_primary, NULL);
+
+#ifdef CONFIG_MACH_LGE
+static DEVICE_ATTR(hdmi_boot_completed, S_IWUGO, NULL, hdmi_common_wta_boot_completed);
+static DEVICE_ATTR(hdmi_external_block, S_IWUGO, NULL, hdmi_common_wta_external_block);
+#endif
+
 static DEVICE_ATTR(audio_data_block, S_IRUGO, hdmi_common_rda_audio_data_block,
 	NULL);
 static DEVICE_ATTR(spkr_alloc_data_block, S_IRUGO,
@@ -948,6 +1062,10 @@ static struct attribute *external_common_fs_attrs[] = {
 	&dev_attr_cec_wr_frame.attr,
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT */
 	&dev_attr_hdmi_primary.attr,
+#ifdef CONFIG_MACH_LGE
+        &dev_attr_hdmi_boot_completed.attr,
+        &dev_attr_hdmi_external_block.attr,
+#endif
 	&dev_attr_audio_data_block.attr,
 	&dev_attr_spkr_alloc_data_block.attr,
 	NULL,
@@ -1458,7 +1576,7 @@ static void hdmi_edid_detail_desc(const uint8 *data_buf, uint32 *disp_mode)
 
 static void limit_supported_video_format(uint32 *video_format)
 {
-	switch(sp_get_link_bw()){
+	switch(slimport_get_link_bw()){
 	case 0x0a:
 		if((*video_format == HDMI_VFRMT_1920x1080p60_16_9) ||
 			(*video_format == HDMI_VFRMT_2880x480p60_4_3)||
@@ -1497,20 +1615,20 @@ static void add_supported_video_format(
 	boolean mhl_supported = true;
 	limit_supported_video_format(&video_format);
 
-	if (video_format >= HDMI_VFRMT_MAX)
+	if (video_format >= HDMI_VFRMT_END)//HDMI_VFRMT_MAX
 		return;
 
 	timing = hdmi_common_get_supported_mode(video_format);
 	supported = timing != NULL;
-	DEV_DBG("EDID: format: %d [%s], %s\n",
+	DEV_INFO("EDID: format: %d [%s], %s\n",
 		video_format, video_format_2string(video_format),
 		supported ? "Supported" : "Not-Supported");
 
-	if (mhl_is_connected()) {
+	if (mhl_is_enabled()) {
 		const struct hdmi_disp_mode_timing_type *mhl_timing =
 			hdmi_mhl_get_supported_mode(video_format);
 		mhl_supported = mhl_timing != NULL;
-		DEV_DBG("EDID: format: %d [%s], %s by MHL\n",
+		DEV_INFO("EDID: format: %d [%s], %s by MHL\n",
 			video_format, video_format_2string(video_format),
 			mhl_supported ? "Supported" : "Not-Supported");
 	}
@@ -1522,7 +1640,6 @@ static void add_supported_video_format(
 			DEV_DBG("%s: Default resolution %d [%s] supported\n",
 					__func__, video_format,
 					video_format_2string(video_format));
-			external_common_state->default_res_supported = true;
 		}
 	}
 }
@@ -2026,7 +2143,6 @@ int hdmi_common_read_edid(void)
 		sizeof(external_common_state->spkr_alloc_data_block));
 	external_common_state->adb_size = 0;
 	external_common_state->sadb_size = 0;
-	external_common_state->default_res_supported = false;
 
 	status = hdmi_common_read_edid_block(0, edid_buf);
 	if (status || !check_edid_header(edid_buf)) {
@@ -2132,14 +2248,17 @@ error:
 	external_common_state->disp_mode_list.num_of_elements = 1;
 	external_common_state->disp_mode_list.disp_mode_list[0] =
 		external_common_state->video_resolution;
-	external_common_state->default_res_supported = true;
 	return status;
 }
 EXPORT_SYMBOL(hdmi_common_read_edid);
 
 bool hdmi_common_get_video_format_from_drv_data(struct msm_fb_data_type *mfd)
 {
-	uint32 format =  external_common_state->video_resolution;
+#ifdef CONFIG_MACH_LGE
+	uint32 format = external_common_state->video_resolution;//LGE_DEFAULT_HDMI_VIDEO_RESOLUTION;
+#else /* below the original */
+	uint32 format = HDMI_VFRMT_1920x1080p60_16_9;
+#endif
 	struct fb_var_screeninfo *var = &mfd->fbi->var;
 	bool changed = TRUE;
 	uint32_t userformat = 0;
@@ -2147,11 +2266,11 @@ bool hdmi_common_get_video_format_from_drv_data(struct msm_fb_data_type *mfd)
 
 	if (userformat) {
 		format = userformat-1;
-		DEV_DBG("reserved format is %d\n", format);
+		DEV_INFO("reserved format is %d\n", format);
 	} else if (hdmi_prim_resolution) {
 		format = hdmi_prim_resolution - 1;
 	} else {
-		DEV_DBG("detecting resolution from %dx%d use top 2 bytes of"
+		DEV_INFO("detecting resolution from %dx%d use top 2 bytes of"
 			" var->reserved[3] to specify mode", mfd->var_xres,
 			mfd->var_yres);
 		switch (mfd->var_xres) {
@@ -2180,31 +2299,31 @@ bool hdmi_common_get_video_format_from_drv_data(struct msm_fb_data_type *mfd)
 				: HDMI_VFRMT_1440x576i50_16_9;
 			break;
 		case 1920:
-			if (mfd->var_yres == 540) {/* interlaced */
-				format = HDMI_VFRMT_1920x1080i60_16_9;
-			} else if (mfd->var_yres == 1080) {
-				if (mfd->var_frame_rate == 50000)
-					format = HDMI_VFRMT_1920x1080p50_16_9;
-				else if (mfd->var_frame_rate == 24000)
-					format = HDMI_VFRMT_1920x1080p24_16_9;
-				else if (mfd->var_frame_rate == 25000)
-					format = HDMI_VFRMT_1920x1080p25_16_9;
-				else if (mfd->var_frame_rate == 30000)
-					format = HDMI_VFRMT_1920x1080p30_16_9;
-				else
-					format = HDMI_VFRMT_1920x1080p60_16_9;
-			}
+                        if (mfd->var_yres == 540) {/* interlaced */
+                                format = HDMI_VFRMT_1920x1080i60_16_9;
+                        } else if (mfd->var_yres == 1080) {
+                                if (mfd->var_frame_rate == 50000)
+                                        format = HDMI_VFRMT_1920x1080p50_16_9;
+                                else if (mfd->var_frame_rate == 24000)
+                                        format = HDMI_VFRMT_1920x1080p24_16_9;
+                                else if (mfd->var_frame_rate == 25000)
+                                        format = HDMI_VFRMT_1920x1080p25_16_9;
+                                else if (mfd->var_frame_rate == 30000)
+                                        format = HDMI_VFRMT_1920x1080p30_16_9;
+                                else
+                                        format = HDMI_VFRMT_1920x1080p60_16_9;
+                        }
 			break;
 		}
 	}
 
 	changed = external_common_state->video_resolution != format;
 	if (external_common_state->video_resolution != format)
-		DEV_DBG("switching %s => %s", video_format_2string(
+		DEV_INFO("switching %s => %s", video_format_2string(
 			external_common_state->video_resolution),
 			video_format_2string(format));
 	else
-		DEV_DBG("resolution %s", video_format_2string(
+		DEV_INFO("resolution %s", video_format_2string(
 			external_common_state->video_resolution));
 	external_common_state->video_resolution = format;
 	return changed;

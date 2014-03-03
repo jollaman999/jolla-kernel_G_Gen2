@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -47,8 +47,8 @@
 /* wled control registers */
 #define WLED_MOD_CTRL_REG		SSBI_REG_ADDR_WLED_CTRL(1)
 #define WLED_MAX_CURR_CFG_REG(n)	SSBI_REG_ADDR_WLED_CTRL(n + 2)
-#define WLED_BRIGHTNESS_CNTL_REG1(n)	SSBI_REG_ADDR_WLED_CTRL((2 * n) + 5)
-#define WLED_BRIGHTNESS_CNTL_REG2(n)	SSBI_REG_ADDR_WLED_CTRL((2 * n) + 6)
+#define WLED_BRIGHTNESS_CNTL_REG1(n)	SSBI_REG_ADDR_WLED_CTRL(n + 5)
+#define WLED_BRIGHTNESS_CNTL_REG2(n)	SSBI_REG_ADDR_WLED_CTRL(n + 6)
 #define WLED_SYNC_REG			SSBI_REG_ADDR_WLED_CTRL(11)
 #define WLED_OVP_CFG_REG		SSBI_REG_ADDR_WLED_CTRL(13)
 #define WLED_BOOST_CFG_REG		SSBI_REG_ADDR_WLED_CTRL(14)
@@ -81,17 +81,6 @@
 
 #define WLED_SYNC_VAL			0x07
 #define WLED_SYNC_RESET_VAL		0x00
-#define WLED_SYNC_MASK			0xF8
-
-#define ONE_WLED_STRING			1
-#define TWO_WLED_STRINGS		2
-#define THREE_WLED_STRINGS		3
-
-#define WLED_CABC_ONE_STRING		0x01
-#define WLED_CABC_TWO_STRING		0x03
-#define WLED_CABC_THREE_STRING		0x07
-
-#define WLED_CABC_SHIFT			3
 
 #define SSBI_REG_ADDR_RGB_CNTL1		0x12D
 #define SSBI_REG_ADDR_RGB_CNTL2		0x12E
@@ -315,23 +304,17 @@ led_wled_set(struct pm8xxx_led_data *led, enum led_brightness value)
 			return rc;
 		}
 	}
-	rc = pm8xxx_readb(led->dev->parent, WLED_SYNC_REG, &val);
-	if (rc) {
-		dev_err(led->dev->parent,
-			"can't read wled sync register rc=%d\n", rc);
-		return rc;
-	}
+
 	/* sync */
-	val &= WLED_SYNC_MASK;
-	val |= WLED_SYNC_VAL;
+	val = WLED_SYNC_VAL;
 	rc = pm8xxx_writeb(led->dev->parent, WLED_SYNC_REG, val);
 	if (rc) {
 		dev_err(led->dev->parent,
 			"can't read wled sync register rc=%d\n", rc);
 		return rc;
 	}
-	val &= WLED_SYNC_MASK;
-	val |= WLED_SYNC_RESET_VAL;
+
+	val = WLED_SYNC_RESET_VAL;
 	rc = pm8xxx_writeb(led->dev->parent, WLED_SYNC_REG, val);
 	if (rc) {
 		dev_err(led->dev->parent,
@@ -760,7 +743,7 @@ static int __devinit init_wled(struct pm8xxx_led_data *led)
 	/* program activation delay and maximum current */
 	for (i = 0; i < num_wled_strings; i++) {
 		rc = pm8xxx_readb(led->dev->parent,
-				WLED_MAX_CURR_CFG_REG(i), &val);
+				WLED_MAX_CURR_CFG_REG(i + 2), &val);
 		if (rc) {
 			dev_err(led->dev->parent, "can't read wled max current"
 				" config register rc=%d\n", rc);
@@ -785,40 +768,10 @@ static int __devinit init_wled(struct pm8xxx_led_data *led)
 		val = (val & ~WLED_MAX_CURR_MASK) | led->max_current;
 
 		rc = pm8xxx_writeb(led->dev->parent,
-				WLED_MAX_CURR_CFG_REG(i), val);
+				WLED_MAX_CURR_CFG_REG(i + 2), val);
 		if (rc) {
 			dev_err(led->dev->parent, "can't write wled max current"
 				" config register rc=%d\n", rc);
-			return rc;
-		}
-	}
-
-	if (led->wled_cfg->cabc_en) {
-		rc = pm8xxx_readb(led->dev->parent, WLED_SYNC_REG, &val);
-		if (rc) {
-			dev_err(led->dev->parent,
-				"can't read cabc register rc=%d\n", rc);
-			return rc;
-		}
-
-		switch (num_wled_strings) {
-		case ONE_WLED_STRING:
-			val |= (WLED_CABC_ONE_STRING << WLED_CABC_SHIFT);
-			break;
-		case TWO_WLED_STRINGS:
-			val |= (WLED_CABC_TWO_STRING << WLED_CABC_SHIFT);
-			break;
-		case THREE_WLED_STRINGS:
-			val |= (WLED_CABC_THREE_STRING << WLED_CABC_SHIFT);
-			break;
-		default:
-			break;
-		}
-
-		rc = pm8xxx_writeb(led->dev->parent, WLED_SYNC_REG, val);
-		if (rc) {
-			dev_err(led->dev->parent,
-				"can't write to enable cabc rc=%d\n", rc);
 			return rc;
 		}
 	}

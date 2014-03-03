@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  * Copyright (c) 2012, LGE Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -195,6 +195,7 @@ static struct pm8xxx_misc_platform_data apq8064_pm8921_misc_pdata = {
 
 #define PM8921_LC_LED_MAX_CURRENT 4	/* I = 4mA */
 #define PM8921_LC_LED_LOW_CURRENT 1	/* I = 1mA */
+#define PM8921_KEY_LED_MAX_CURRENT      6
 #define PM8XXX_LED_PWM_ADJUST_BRIGHTNESS_E 10	/* max duty percentage */
 #define PM8XXX_LED_PWM_PERIOD     1000
 #define PM8XXX_LED_PWM_DUTY_MS    50
@@ -214,10 +215,10 @@ static struct led_info pm8921_led_info[] = {
 		.name = "red",
 	},
 	[1] = {
-		.name = "green",
+		.name = "button-backlight",
 	},
 	[2] = {
-		.name = "blue",
+		.name = "green",
 	},
 };
 
@@ -227,8 +228,6 @@ static struct led_platform_data pm8921_led_core_pdata = {
 };
 
 static int pm8921_led0_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
-static int pm8921_led1_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
-static int pm8921_led2_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
 
 static struct pm8xxx_pwm_duty_cycles pm8921_led0_pwm_duty_cycles = {
 	.duty_pcts = (int *)&pm8921_led0_pwm_duty_pcts,
@@ -237,50 +236,31 @@ static struct pm8xxx_pwm_duty_cycles pm8921_led0_pwm_duty_cycles = {
 	.start_idx = PM8XXX_LED_PWM_START_IDX0,
 };
 
-static struct pm8xxx_pwm_duty_cycles pm8921_led1_pwm_duty_cycles = {
-	.duty_pcts = (int *)&pm8921_led1_pwm_duty_pcts,
-	.num_duty_pcts = PM8XXX_LED_PWM_DUTY_PCTS,
-	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
-	.start_idx = PM8XXX_LED_PWM_START_IDX1,
-};
-
-static struct pm8xxx_pwm_duty_cycles pm8921_led2_pwm_duty_cycles = {
-	.duty_pcts = (int *)&pm8921_led2_pwm_duty_pcts,
-	.num_duty_pcts = PM8XXX_LED_PWM_DUTY_PCTS,
-	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
-	.start_idx = PM8XXX_LED_PWM_START_IDX2,
-};
-
 static struct pm8xxx_led_config pm8921_led_configs[] = {
 	[0] = {
 		.id = PM8XXX_ID_LED_0,
 		.mode = PM8XXX_LED_MODE_PWM3,
-		.max_current = PM8921_LC_LED_MAX_CURRENT,
 		.pwm_channel = 6,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
 		.pwm_duty_cycles = &pm8921_led0_pwm_duty_cycles,
-		.pwm_adjust_brightness = 52,
+		.max_current = PM8921_LC_LED_MAX_CURRENT,
+                .pwm_adjust_brightness = 52,
 	},
 	[1] = {
 		.id = PM8XXX_ID_LED_1,
-		.mode = PM8XXX_LED_MODE_PWM2,
-		.max_current = PM8921_LC_LED_MAX_CURRENT,
-		.pwm_channel = 5,
-		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
-		.pwm_duty_cycles = &pm8921_led1_pwm_duty_cycles,
-		.pwm_adjust_brightness = 43,
+		.mode = PM8XXX_LED_MODE_MANUAL,
+		.max_current = PM8921_KEY_LED_MAX_CURRENT,
 	},
 	[2] = {
 		.id = PM8XXX_ID_LED_2,
 		.mode = PM8XXX_LED_MODE_PWM1,
-		.max_current = PM8921_LC_LED_MAX_CURRENT,
 		.pwm_channel = 4,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
-		.pwm_duty_cycles = &pm8921_led2_pwm_duty_cycles,
-		.pwm_adjust_brightness = 75,
+		.pwm_duty_cycles = &pm8921_led0_pwm_duty_cycles,
+		.max_current = PM8921_LC_LED_MAX_CURRENT,
+                .pwm_adjust_brightness = 75,
 	},
 };
-
 static __init void mako_fixed_leds(void) {
 	if (lge_get_board_revno() <= HW_REV_E) {
 		int i = 0;
@@ -438,7 +418,6 @@ static __init void mako_fixup_wlc_gpio(void) {
 
 #else
 static int wireless_charger_is_plugged(void) { return 0; }
-static __init void mako_set_wlc_gpio(void) { }
 #endif
 
 /*
@@ -617,21 +596,14 @@ struct pm8921_bms_battery_data lge_2100_mako_data =  {
 };
 
 static unsigned int keymap[] = {
-	KEY(0, 0, KEY_VOLUMEDOWN),
-	KEY(0, 1, KEY_VOLUMEUP),
+	KEY(0, 0, KEY_VOLUMEUP),
+	KEY(0, 1, KEY_VOLUMEDOWN),
 };
 
 static struct matrix_keymap_data keymap_data = {
 	.keymap_size    = ARRAY_SIZE(keymap),
 	.keymap         = keymap,
 };
-
-static __init void mako_fixed_keymap(void) {
-	if (lge_get_board_revno() < HW_REV_C) {
-		keymap[0] = KEY(0, 0, KEY_VOLUMEUP);
-		keymap[1] = KEY(0, 1, KEY_VOLUMEDOWN);
-	}
-}
 
 static struct pm8xxx_keypad_platform_data keypad_data = {
 	.input_name             = "keypad_8064",
@@ -819,10 +791,8 @@ void __init apq8064_init_pmic(void)
 {
 	pmic_reset_irq = PM8921_IRQ_BASE + PM8921_RESOUT_IRQ;
 
-	mako_fixed_keymap();
 	mako_set_adcmap();
 	mako_fixed_leds();
-	mako_fixup_wlc_gpio();
 
 	apq8064_device_ssbi_pmic1.dev.platform_data =
 		&apq8064_ssbi_pm8921_pdata;
