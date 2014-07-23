@@ -202,8 +202,6 @@ int issue_flush_thread(void *data)
 	struct f2fs_sb_info *sbi = data;
 	struct f2fs_sm_info *sm_i = SM_I(sbi);
 	wait_queue_head_t *q = &sm_i->flush_wait_queue;
-	/*struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
-	wait_queue_head_t *q = &fcc->flush_wait_queue;*/
 repeat:
 	if (kthread_should_stop())
 		return 0;

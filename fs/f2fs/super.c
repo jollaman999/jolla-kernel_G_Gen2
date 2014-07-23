@@ -683,7 +683,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 * Previous and new state of filesystem is RO,
 	 * so skip checking GC and FLUSH_MERGE conditions.
 	 */
-	if ((sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY))
+	if (f2fs_readonly(sb) && (*flags & MS_RDONLY))
 		goto skip;
 
 	/*
@@ -715,8 +715,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 			kthread_stop(sm_info->f2fs_issue_flush);
 		sm_info->issue_list = sm_info->dispatch_list = NULL;
 		sm_info->f2fs_issue_flush = NULL;
-	} else if (test_opt(sbi, FLUSH_MERGE) && 
-					!sbi->sm_info->f2fs_issue_flush) {
+	} else if (test_opt(sbi, FLUSH_MERGE) && !SM_I(sbi)->f2fs_issue_flush) {
 		dev_t dev = sbi->sb->s_bdev->bd_dev;
 		struct f2fs_sm_info *sm_info = 
 			kzalloc(sizeof(struct f2fs_sm_info), GFP_KERNEL);
@@ -1173,7 +1172,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	 * If filesystem is not mounted as read-only then
 	 * do start the gc_thread.
 	 */
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!f2fs_readonly(sb)) {
 		/* After POR, we can run background GC thread.*/
 		err = start_gc_thread(sbi);
 		if (err)
