@@ -926,7 +926,15 @@ static void __init bus_init(const struct l2_level *l2_level)
 }
 
 #ifdef CONFIG_CPU_FREQ_MSM
-static struct cpufreq_frequency_table freq_table[NR_CPUS][35];
+// jollaman999
+// Added Freq Tables
+// static struct cpufreq_frequency_table freq_table[NR_CPUS][n]
+// n = 35 + (Added Freq Tables)
+#ifdef CONFIG_CPU_OVERCLOCK
+static struct cpufreq_frequency_table freq_table[NR_CPUS][45];
+#else
+static struct cpufreq_frequency_table freq_table[NR_CPUS][42];
+#endif /* CONFIG_CPU_OVERCLOCK */
 
 static void __init cpufreq_table_init(void)
 {
