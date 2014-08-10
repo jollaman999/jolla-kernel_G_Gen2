@@ -101,7 +101,6 @@ static struct scalable scalable[] __initdata = {
  * The correct maximum rate for 8064ab in 600 MHZ.
  * We rely on the RPM rounding requests up here.
 */
-// jollaman999
 static struct msm_bus_paths bw_level_tbl[] __initdata = {
 	[0] =  BW_MBPS(640), /* At least  80 MHz on bus. */
 	[1] = BW_MBPS(1064), /* At least 133 MHz on bus. */
@@ -109,9 +108,13 @@ static struct msm_bus_paths bw_level_tbl[] __initdata = {
 	[3] = BW_MBPS(2128), /* At least 266 MHz on bus. */
 	[4] = BW_MBPS(3200), /* At least 400 MHz on bus. */
 	[5] = BW_MBPS(4264), /* At least 533 MHz on bus. */
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
 	[6] = BW_MBPS(4660), /* At least 583 MHz on bus. */
 	[7] = BW_MBPS(4800), /* At least 600 MHz on bus. */
 	[8] = BW_MBPS(4960), /* At least 620 MHz on bus. */
+#endif /* CONFIG_GPU_OVERCLOCK */
 };
 
 static struct msm_bus_scale_pdata bus_scale_data __initdata = {
