@@ -597,7 +597,13 @@ static struct pll_clk pll15_clk = {
 	.parent = &pxo_clk.c,
 	.c = {
 		.dbg_name = "pll15_clk",
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+		.rate = 1215000000,
+#else
 		.rate = 975000000,
+#endif /* CONFIG_GPU_OVERCLOCK */
 		.ops = &clk_ops_local_pll,
 		CLK_INIT(pll15_clk.c),
 	},
@@ -3530,6 +3536,12 @@ static struct clk_freq_tbl clk_tbl_gfx3d[] = {
 	F_GFX3D(320000000, pll2,  2,  5),
 	F_GFX3D(400000000, pll2,  1,  2),
 	F_GFX3D(450000000, pll15, 1,  2),
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+	F_GFX3D(533000000, pll2,  2,  3),
+	F_GFX3D(607500000, pll15, 1,  2),
+#endif /* CONFIG_GPU_OVERCLOCK */
 	F_END
 };
 
@@ -3551,6 +3563,12 @@ static struct clk_freq_tbl clk_tbl_gfx3d_8960[] = {
 	F_GFX3D(300000000, pll3, 1,  4),
 	F_GFX3D(320000000, pll2, 2,  5),
 	F_GFX3D(400000000, pll2, 1,  2),
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+	F_GFX3D(533000000, pll2,  2,  3),
+	F_GFX3D(607500000, pll15, 1,  2),
+#endif /* CONFIG_GPU_OVERCLOCK */
 	F_END
 };
 
@@ -3579,13 +3597,24 @@ static struct clk_freq_tbl clk_tbl_gfx3d_8930ab[] = {
 static unsigned long fmax_gfx3d_8064ab[VDD_DIG_NUM] = {
 	[VDD_DIG_LOW]     = 128000000,
 	[VDD_DIG_NOMINAL] = 325000000,
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+	[VDD_DIG_HIGH]    = 607500000
+#else
 	[VDD_DIG_HIGH]    = 450000000
+#endif /* CONFIG_GPU_OVERCLOCK */
 };
 
 static unsigned long fmax_gfx3d_8064[VDD_DIG_NUM] = {
 	[VDD_DIG_LOW]     = 128000000,
+// GPU Overclock
 	[VDD_DIG_NOMINAL] = 325000000,
+#ifdef CONFIG_GPU_OVERCLOCK
+	[VDD_DIG_HIGH]    = 544000000
+#else
 	[VDD_DIG_HIGH]    = 400000000
+#endif /* CONFIG_GPU_OVERCLOCK */
 };
 
 static unsigned long fmax_gfx3d_8930[VDD_DIG_NUM] = {
@@ -3644,8 +3673,15 @@ static struct rcg_clk gfx3d_clk = {
 	.c = {
 		.dbg_name = "gfx3d_clk",
 		.ops = &clk_ops_rcg,
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+		VDD_DIG_FMAX_MAP3(LOW,  128000000, NOMINAL, 300000000,
+				  HIGH, 607500000),
+#else
 		VDD_DIG_FMAX_MAP3(LOW,  128000000, NOMINAL, 300000000,
 				  HIGH, 400000000),
+#endif /* CONFIG_GPU_OVERCLOCK */
 		CLK_INIT(gfx3d_clk.c),
 		.depends = &gmem_axi_clk.c,
 	},
@@ -6565,8 +6601,25 @@ static void __init reg_init(void)
 		/* Program PLL15 to 975MHz with ref clk = 27MHz */
 		configure_sr_pll(&pll15_config, &pll15_regs, 0);
 	} else if (cpu_is_apq8064ab()) {
-		/* Program PLL15 to 900MHZ */
+// jollaman999
+// GPU Overclock
+		/* Program PLL15 to 1089MHZ */
+		/*
+		PLL15 used exclusively for GPU top frequency.
+		GPU frequency = PLL15 / 2
+		PLL15 = 27MHz * ( l(least significant bits) + m / n ) [ 27*(0x28+1/3)=1089 ]
+		
+		Got hint from : http://forum.xda-developers.com/showthread.php?t=2307086
+		*/
+#ifdef CONFIG_GPU_OVERCLOCK
+		// /* Program PLL15 to 1215MHZ */ (1215 / 27MHz = 45, 45 = 0x2D)
+		pll15_config.l = 0x2D | BVAL(31, 7, 0x620);
+#else
+		// /* Program PLL15 to 900MHZ */ (0x21 = 33, 900 / 33 = 27MHz)
 		pll15_config.l = 0x21 | BVAL(31, 7, 0x620);
+#endif /* CONFIG_GPU_OVERCLOCK */
+		// End GPU Overclock
+
 		pll15_config.m = 0x1;
 		pll15_config.n = 0x3;
 		configure_sr_pll(&pll15_config, &pll15_regs, 0);
@@ -6620,7 +6673,13 @@ static void __init msm8960_clock_pre_init(void)
 		pll3_clk.c.rate = 650000000;
 		gfx3d_clk.c.fmax[VDD_DIG_LOW] = 192000000;
 		gfx3d_clk.c.fmax[VDD_DIG_NOMINAL] = 325000000;
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+		gfx3d_clk.c.fmax[VDD_DIG_HIGH] = 607500000;
+#else
 		gfx3d_clk.c.fmax[VDD_DIG_HIGH] = 400000000;
+#endif /* CONFIG_GPU_OVERCLOCK */
 		mdp_clk.freq_tbl = clk_tbl_mdp_8960ab;
 		mdp_clk.c.fmax[VDD_DIG_LOW] = 128000000;
 		mdp_clk.c.fmax[VDD_DIG_NOMINAL] = 266667000;
@@ -6673,7 +6732,13 @@ static void __init msm8960_clock_pre_init(void)
 	else if (cpu_is_msm8930aa())
 		gfx3d_clk.c.fmax = fmax_gfx3d_8930aa;
 	if (cpu_is_msm8930() || cpu_is_msm8930aa() || cpu_is_msm8627()) {
+// jollaman999
+// GPU Overclock
+#ifdef CONFIG_GPU_OVERCLOCK
+		pll15_clk.c.rate = 1215000000;
+#else
 		pll15_clk.c.rate = 900000000;
+#endif /* CONFIG_GPU_OVERCLOCK */
 		gmem_axi_clk.c.depends = &gfx3d_axi_clk_8930.c;
 	} else if (cpu_is_msm8930ab()) {
 		gfx3d_clk.freq_tbl = clk_tbl_gfx3d_8930ab;
