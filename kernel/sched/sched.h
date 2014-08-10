@@ -958,6 +958,7 @@ static inline unsigned int do_avg_nr_running(struct rq *rq)
 
 	return ave_nr_running;
 }
+#endif
 
 static inline void inc_nr_running(struct rq *rq)
 {
