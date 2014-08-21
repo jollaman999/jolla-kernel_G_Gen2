@@ -302,6 +302,6 @@ no_delete:
 	if (is_inode_flag_set(F2FS_I(inode), FI_UPDATE_WRITE))
 		add_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
 out_clear:
-	clear_inode(inode);
+	end_writeback(inode);
 }
 
