@@ -36,8 +36,8 @@
 #define SEEK_HOLE	4	/* seek to the next hole */
 #define SEEK_MAX	SEEK_HOLE
 
-#define RENAME_NOREPLACE	(1 << 0)	/* Don't overwrite target */
-#define RENAME_EXCHANGE		(1 << 1)	/* Exchange source and dest */
+#define RENAME_NOREPLACE        (1 << 0)        /* Don't overwrite target */
+#define RENAME_EXCHANGE         (1 << 1)        /* Exchange source and dest */
 
 struct fstrim_range {
 	__u64 start;
@@ -1664,8 +1664,8 @@ struct inode_operations {
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
-	int (*rename2) (struct inode *, struct dentry *,
-			struct inode *, struct dentry *, unsigned int);
+        int (*rename2) (struct inode *, struct dentry *,
+                        struct inode *, struct dentry *, unsigned int);
 	void (*truncate) (struct inode *);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
