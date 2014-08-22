@@ -3611,7 +3611,7 @@ static unsigned long fmax_gfx3d_8064[VDD_DIG_NUM] = {
 // GPU Overclock
 	[VDD_DIG_NOMINAL] = 325000000,
 #ifdef CONFIG_GPU_OVERCLOCK
-	[VDD_DIG_HIGH]    = 544000000
+	[VDD_DIG_HIGH]    = 607500000
 #else
 	[VDD_DIG_HIGH]    = 400000000
 #endif /* CONFIG_GPU_OVERCLOCK */
