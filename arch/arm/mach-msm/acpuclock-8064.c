@@ -127,7 +127,7 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
 // jollaman999
 static struct l2_level l2_freq_tbl[] __initdata = {
 	[0]  = { {  378000, HFPLL, 2, 0x1C },  950000, 1050000, 1 },
-	[1]  = { {  384000, PLL_8, 0, 0x00 }, 1050000, 1050000, 1 },
+	[1]  = { {  384000, PLL_8, 0, 0x00 },  950000, 1050000, 1 },
 	[2]  = { {  432000, HFPLL, 2, 0x20 }, 1050000, 1050000, 2 },
 	[3]  = { {  486000, HFPLL, 2, 0x24 }, 1050000, 1050000, 2 },
 	[4]  = { {  540000, HFPLL, 2, 0x28 }, 1050000, 1050000, 2 },
@@ -684,7 +684,7 @@ static struct pvs_table pvs_tables[NUM_SPEED_BINS][NUM_PVS] __initdata = {
 	[0][PVS_SLOW]    = {tbl_slow, sizeof(tbl_slow),     0 },
 	[0][PVS_NOMINAL] = {tbl_nom,  sizeof(tbl_nom),  25000 },
 	[0][PVS_FAST]    = {tbl_fast, sizeof(tbl_fast), 25000 },
-	[0][PVS_FASTER]  = {tbl_faster, sizeof(tbl_fast), 25000 },
+	[0][PVS_FASTER]  = {tbl_faster, sizeof(tbl_faster), 25000 },
 
 	[1][0] = { tbl_PVS0_1700MHz, sizeof(tbl_PVS0_1700MHz),     0 },
 	[1][1] = { tbl_PVS1_1700MHz, sizeof(tbl_PVS1_1700MHz),     25000 },
