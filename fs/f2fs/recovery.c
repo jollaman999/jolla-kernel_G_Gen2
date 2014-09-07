@@ -514,10 +514,11 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 
 	/* step #2: recover data */
 	err = recover_data(sbi, &inode_list, CURSEG_WARM_NODE);
-	if (!list_empty(&inode_list)) {
-		f2fs_handle_error(sbi);
-		err = -EIO;
-	}
+	if (!err)
+		if (!list_empty(&inode_list)) {
+			f2fs_handle_error(sbi);
+			err = -EIO;
+		}
 out:
 	destroy_fsync_dnodes(&inode_list);
 	kmem_cache_destroy(fsync_entry_slab);
