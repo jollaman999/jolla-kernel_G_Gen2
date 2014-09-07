@@ -23,7 +23,7 @@
 #ifdef CONFIG_F2FS_CHECK_FS
 #define f2fs_bug_on(condition)	BUG_ON(condition)
 #else
-#define f2fs_bug_on(condition)
+#define f2fs_bug_on(condition)	WARN_ON(condition)
 #endif
 
 /*
