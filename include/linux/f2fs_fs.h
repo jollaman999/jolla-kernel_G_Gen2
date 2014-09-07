@@ -24,6 +24,9 @@
 #define NULL_ADDR		((block_t)0)	/* used as block_t addresses */
 #define NEW_ADDR		((block_t)-1)	/* used as block_t addresses */
 
+/* 0, 1(node nid), 2(meta nid) are reserved node id */
+#define F2FS_RESERVED_NODE_NUM	3
+
 #define F2FS_ROOT_INO(sbi)	(sbi->root_ino_num)
 #define F2FS_NODE_INO(sbi)	(sbi->node_ino_num)
 #define F2FS_META_INO(sbi)	(sbi->meta_ino_num)
@@ -87,6 +90,8 @@ struct f2fs_super_block {
 #define CP_ORPHAN_PRESENT_FLAG	0x00000002
 #define CP_UMOUNT_FLAG		0x00000001
 
+#define F2FS_CP_PACKS		2	/* # of checkpoint packs */
+
 struct f2fs_checkpoint {
 	__le64 checkpoint_ver;		/* checkpoint block version number */
 	__le64 user_block_count;	/* # of user blocks */
@@ -122,6 +127,9 @@ struct f2fs_checkpoint {
  * For orphan inode management
  */
 #define F2FS_ORPHANS_PER_BLOCK	1020
+
+#define GET_ORPHAN_BLOCKS(n)	((n + F2FS_ORPHANS_PER_BLOCK - 1) / \
+					F2FS_ORPHANS_PER_BLOCK)
 
 struct f2fs_orphan_block {
 	__le32 ino[F2FS_ORPHANS_PER_BLOCK];	/* inode numbers */
