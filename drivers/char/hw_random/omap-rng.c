@@ -189,7 +189,6 @@ MODULE_ALIAS("platform:omap_rng");
 static struct platform_driver omap_rng_driver = {
 	.driver = {
 		.name		= "omap_rng",
-		.owner		= THIS_MODULE,
 		.pm		= OMAP_RNG_PM,
 	},
 	.probe		= omap_rng_probe,
