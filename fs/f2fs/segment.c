@@ -530,12 +530,10 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 	/* Update valid block bitmap */
 	if (del > 0) {
 		if (f2fs_set_bit(offset, se->cur_valid_map))
-			if (f2fs_handle_error(sbi))
-				check_map = true;
+			f2fs_bug_on(sbi, 1);
 	} else {
 		if (!f2fs_clear_bit(offset, se->cur_valid_map))
-			if (f2fs_handle_error(sbi))
-				check_map = true;
+			f2fs_bug_on(sbi, 1);
 	}
 
 	if (unlikely(check_map)) {
