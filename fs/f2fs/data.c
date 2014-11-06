@@ -1121,7 +1121,7 @@ static void f2fs_invalidate_data_page(struct page *page, unsigned long offset)
 {
 	struct inode *inode = page->mapping->host;
 
-	if (offset % PAGE_CACHE_SIZE || length != PAGE_CACHE_SIZE)
+	if (offset % PAGE_CACHE_SIZE)
 		return;
 
 	if (PageDirty(page))
