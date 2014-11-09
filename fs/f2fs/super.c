@@ -739,8 +739,8 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 					!sbi->sm_info->cmd_control_info) {
 		err = create_flush_cmd_control(sbi);
 		if (err)
-			goto restore_gc;
-	}
+ 			goto restore_gc;
+ 	}
 skip:
 	/* Update the POSIXACL Flag */
 	 sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
