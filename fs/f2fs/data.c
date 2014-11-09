@@ -942,10 +942,10 @@ skip_write:
 }
 
 static void f2fs_write_failed(struct address_space *mapping, loff_t to)
-{
-	struct inode *inode = mapping->host;
+ {
+ 	struct inode *inode = mapping->host;
 
-	if (to > inode->i_size) {
+ 	if (to > inode->i_size) {
 		__truncate_pagecache(inode, inode->i_size);
  		truncate_blocks(inode, inode->i_size, true);
  	}
@@ -988,6 +988,7 @@ repeat:
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
 	f2fs_unlock_op(sbi);
+
 	if (err) {
 		f2fs_put_page(page, 0);
 		goto fail;
@@ -1090,7 +1091,7 @@ static int check_direct_IO(struct inode *inode, int rw,
 }
 
 static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
-	       struct iov_iter *iter, loff_t offset)
+		struct iov_iter *iter, loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
