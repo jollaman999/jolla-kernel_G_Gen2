@@ -247,9 +247,9 @@ static struct msm_bus_scale_pdata mdp_bus_scale_pdata = {
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = MDP_VSYNC_GPIO,
 	.mdp_max_clk = 266667000,
-	.mdp_max_bw = 2000000000UL,
-	.mdp_bw_ab_factor = 115,
-	.mdp_bw_ib_factor = 125,
+	.mdp_max_bw = 2000000000,
+	.mdp_bw_ab_factor = 160,
+	.mdp_bw_ib_factor = 180,
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 	.mdp_rev = MDP_REV_44,
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -771,8 +771,8 @@ static char ief_on_set5[4] = {0xE5, 0x00, 0x00, 0x00};
 static char ief_on_set6[4] = {0xE6, 0x00, 0x00, 0x00};
 
 static char ief_set1[5] = {0xE1, 0x00, 0x00, 0x01, 0x01};
-static char ief_set2[3] = {0xE2, 0x01, 0x00};
-static char ief_set3[6] = {0xE3, 0x00, 0x00, 0x42, 0x35, 0x00};
+static char ief_set2[3] = {0xE2, 0x01, 0x0F};
+static char ief_set3[6] = {0xE3, 0x00, 0x00, 0x31, 0x35, 0x00};
 static char ief_set7[9] = {0xE7, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
 static char ief_set8[9] = {0xE8, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D};
 static char ief_set9[9] = {0xE9, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B};
@@ -958,7 +958,7 @@ static struct backlight_platform_data lm3530_data = {
 #endif
 	.min_brightness = 0x02,
 	.max_brightness = 0x72,
-	.default_brightness = 0x11,
+	.default_brightness = 0x65,
 	.blmap = NULL,
 	.blmap_size = 0,
 };
