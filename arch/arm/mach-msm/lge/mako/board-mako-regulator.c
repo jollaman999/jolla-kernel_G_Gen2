@@ -106,7 +106,7 @@ VREG_CONSUMERS(L16) = {
 };
 VREG_CONSUMERS(L17) = {
 	REGULATOR_SUPPLY("8921_l17",		NULL),
-#if defined(CONFIG_IMX111)
+#if defined(CONFIG_IMX111) || (defined(CONFIG_IMX091)
 	REGULATOR_SUPPLY("cam1_vaf",	"4-000d"), /* GSBI4, Slave Addr: 0x0d, imx111 */
 #endif
 };
@@ -214,15 +214,9 @@ VREG_CONSUMERS(S6) = {
 VREG_CONSUMERS(S7) = {
 	REGULATOR_SUPPLY("8921_s7",		NULL),
 };
-#if defined(CONFIG_IMX091)
 VREG_CONSUMERS(S8) = {
 	REGULATOR_SUPPLY("8921_s8",		NULL),
 };
-#else
-VREG_CONSUMERS(S8) = {
-	REGULATOR_SUPPLY("8921_s8",		NULL),
-};
-#endif
 VREG_CONSUMERS(LVS1) = {
 	REGULATOR_SUPPLY("8921_lvs1",		NULL),
 	REGULATOR_SUPPLY("iris_vddio",		"wcnss_wlan.0"),
@@ -540,11 +534,7 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L3,  0, 1, 0, 3075000, 3500000, NULL,          0,     0),
 	RPM_LDO(L4,  1, 1, 0, 1800000, 1800000, NULL,          0, 10000),
 	RPM_LDO(L5,  0, 1, 0, 2950000, 2950000, NULL,          0,     0),
-#if defined(CONFIG_MMC_MSM_SDC3_SUPPORT)
 	RPM_LDO(L6,  0, 1, 0, 2950000, 2950000, NULL,          0,     0),
-#else
-	RPM_LDO(L6,  0, 1, 0, 2950000, 2950000, NULL,          0,     0),
-#endif
 	RPM_LDO(L7,  0, 1, 0, 1850000, 2950000, NULL,          0,     0),
 	RPM_LDO(L8,  0, 1, 0, 2800000, 3000000, NULL,          0,     0),
 	RPM_LDO(L9,  0, 1, 0, 3000000, 3000000, NULL,          0,     0),
@@ -571,7 +561,10 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L25, 1, 1, 0, 1250000, 1250000, "8921_s1", 10000, 10000),
 	RPM_LDO(L27, 0, 0, 0, 1100000, 1100000, "8921_s7",     0,     0),
 	RPM_LDO(L28, 0, 1, 0, 1050000, 1050000, "8921_s7",     0,     0),
-	RPM_LDO(L29, 0, 1, 0, 2500000, 2500000, NULL,          0,     0),
+/* LGE_CHANGE_S sungwoo.cho@lge.com 
+ * It is setting for HEADSET MICBIAS that is always on */
+ //[LGE] seungkyu.joo, 2012-12-18 , HW Request for enabling apple headset mic
+	RPM_LDO(L29, 0, 1, 1, 2700000, 2700000, NULL,          0,     0), //8921_l29
 
 	/*     ID  a_on pd ss                   supply */
 	RPM_VS(LVS1, 0, 1, 0,                   "8921_s4"),
