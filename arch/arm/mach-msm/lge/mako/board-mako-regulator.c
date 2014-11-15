@@ -106,7 +106,7 @@ VREG_CONSUMERS(L16) = {
 };
 VREG_CONSUMERS(L17) = {
 	REGULATOR_SUPPLY("8921_l17",		NULL),
-#if defined(CONFIG_IMX111) || (defined(CONFIG_IMX091)
+#if defined(CONFIG_IMX111)
 	REGULATOR_SUPPLY("cam1_vaf",	"4-000d"), /* GSBI4, Slave Addr: 0x0d, imx111 */
 #endif
 };
