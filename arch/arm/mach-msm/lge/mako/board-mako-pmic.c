@@ -208,6 +208,8 @@ static struct pm8xxx_misc_platform_data apq8064_pm8921_misc_pdata = {
 #define PM8921_LC_LED_LOW_CURRENT 1	/* I = 1mA */
 #define PM8921_KEY_LED_MAX_CURRENT      6
 #define PM8XXX_LED_PWM_ADJUST_BRIGHTNESS_E 10	/* max duty percentage */
+#define PM8XXX_LED_PWM_DUTY_MS0		50
+#define PM8XXX_LED_PWM_DUTY_MS1		50
 #define PM8XXX_LED_PWM_PERIOD     1000
 #define PM8XXX_LED_PWM_DUTY_PCTS  16
 #define PM8XXX_LED_PWM_START_IDX0 16
@@ -237,13 +239,32 @@ static struct led_platform_data pm8921_led_core_pdata = {
 	.leds = pm8921_led_info,
 };
 
-static int pm8921_led0_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
+static int pm8921_led0_pwm_duty_pcts0[60] = {
+	1, 2, 8, 10, 14, 18, 20, 24, 30, 34,
+	36, 40, 42, 48, 50, 55, 58, 60, 62, 64,
+	66, 68, 71, 73, 76, 80, 80, 80, 76, 73,
+	71, 68, 66, 64, 62, 60, 58, 56, 54, 52,
+	50, 48, 46, 44, 40, 36, 34, 30, 24, 20,
+	18, 16, 14, 12, 10, 8, 6, 4, 1
+};
+
+static int pm8921_led0_pwm_duty_pcts1[60] = {
+	60, 65, 70, 75, 80, 80, 75, 70, 65, 60,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
 
 static struct pm8xxx_pwm_duty_cycles pm8921_led0_pwm_duty_cycles = {
-	.duty_pcts = (int *)&pm8921_led0_pwm_duty_pcts,
-	.num_duty_pcts = PM8XXX_LED_PWM_DUTY_PCTS,
-	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
-	.start_idx = PM8XXX_LED_PWM_START_IDX0,
+	.duty_pcts0 = (int *)&pm8921_led0_pwm_duty_pcts0,
+	.duty_pcts1 = (int *)&pm8921_led0_pwm_duty_pcts1,
+	.num_duty_pcts0 = ARRAY_SIZE(pm8921_led0_pwm_duty_pcts0),
+	.num_duty_pcts1 = ARRAY_SIZE(pm8921_led0_pwm_duty_pcts1),
+	.duty_ms0 = PM8XXX_LED_PWM_DUTY_MS0,
+	.duty_ms1 = PM8XXX_LED_PWM_DUTY_MS1,
+	.start_idx = 0,
 };
 
 static struct pm8xxx_led_config pm8921_led_configs[] = {
