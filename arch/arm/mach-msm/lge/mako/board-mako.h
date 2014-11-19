@@ -112,7 +112,7 @@ void apq8064_init_cam(void);
 #define GPIO_CAM_FLASH_I2C_SCL  (21)
 
 #define I2C_SLAVE_ADDR_IMX111				(0x0D)
-#define I2C_SLAVE_ADDR_SEKONIX_LENS_ACT		(0x18)
+#define I2C_SLAVE_ADDR_IMX111_ACT			(0x18)
 #define I2C_SLAVE_ADDR_IMX091				(0x0D)
 #define I2C_SLAVE_ADDR_IMX091_ACT			(0x18)
 #define I2C_SLAVE_ADDR_IMX119				(0x6E)
