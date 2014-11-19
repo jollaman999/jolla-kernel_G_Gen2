@@ -416,70 +416,41 @@ static int pm8xxx_adjust_brightness(struct led_classdev *led_cdev,
 
 static int pm8xxx_led_pwm_pattern_update(struct pm8xxx_led_data * led)
 {
-	int start_idx, idx_len;
-	int *pcts = NULL;
-	int i, rc = 0;
-	int temp = 0;
-	int pwm_max = 0;
-	int total_ms, on_ms;
+	int start_idx, idx_len0, idx_len1;
+	int rc=0;
 
-	if (!led->pwm_duty_cycles || !led->pwm_duty_cycles->duty_pcts) {
+	if (!led->pwm_duty_cycles || !led->pwm_duty_cycles->duty_pcts0 || \
+						!led->pwm_duty_cycles->duty_pcts1) {
 		dev_err(led->cdev.dev, "duty_cycles and duty_pcts is not exist\n");
 		return -EINVAL;
 	}
 
-	if (led->pwm_grppwm > 0 && led->pwm_grpfreq > 0) {
-		total_ms = led->pwm_grpfreq * 50;
-		on_ms = (led->pwm_grppwm * total_ms) >> 8;
-		if (PM8XXX_LED_PWM_FLAGS & PM_PWM_LUT_REVERSE) {
-			led->pwm_duty_cycles->duty_ms = on_ms /
-				(led->pwm_duty_cycles->num_duty_pcts << 1);
-			led->pwm_pause_lo = on_ms %
-				(led->pwm_duty_cycles->num_duty_pcts << 1);
-		} else {
-			led->pwm_duty_cycles->duty_ms = on_ms /
-				(led->pwm_duty_cycles->num_duty_pcts);
-			led->pwm_pause_lo = on_ms %
-				(led->pwm_duty_cycles->num_duty_pcts);
-		}
-		led->pwm_pause_hi = total_ms - on_ms;
-		dev_dbg(led->cdev.dev, "duty_ms %d, pause_hi %d, pause_lo %d, total_ms %d, on_ms %d\n",
-				led->pwm_duty_cycles->duty_ms, led->pwm_pause_hi, led->pwm_pause_lo,
-				total_ms, on_ms);
-	}
-
-	pwm_max = pm8xxx_adjust_brightness(&led->cdev, led->cdev.brightness);
 	start_idx = led->pwm_duty_cycles->start_idx;
-	idx_len = led->pwm_duty_cycles->num_duty_pcts;
-	pcts = led->pwm_duty_cycles->duty_pcts;
+	idx_len0 = led->pwm_duty_cycles->num_duty_pcts0;
+	idx_len1 = led->pwm_duty_cycles->num_duty_pcts1;
 
-	if (led->blink) {
-		int mid = (idx_len - 1) >> 1;
-		for (i = 0; i <= mid; i++) {
-			temp = ((pwm_max * i) << 1) / mid + 1;
-			pcts[i] = temp >> 1;
-			pcts[idx_len - 1 - i] = temp >> 1;
-		}
-	} else {
-		for (i = 0; i < idx_len; i++) {
-			pcts[i] = pwm_max;
-		}
-	}
-
-	if (idx_len >= PM_PWM_LUT_SIZE && start_idx) {
-		pr_err("Wrong LUT size or index\n");
+	if (idx_len0 >= PM_PWM_LUT_SIZE && start_idx) {
+		printk("Wrong LUT size or index\n");
 		return -EINVAL;
 	}
-	if ((start_idx + idx_len) > PM_PWM_LUT_SIZE) {
-		pr_err("Exceed LUT limit\n");
+	if ((start_idx + idx_len0) > PM_PWM_LUT_SIZE) {
+		printk("Exceed LUT limit\n");
+		return -EINVAL;
+	}
+	if (idx_len1 >= PM_PWM_LUT_SIZE && start_idx) {
+		printk("Wrong LUT size or index\n");
+		return -EINVAL;
+	}
+	if ((start_idx + idx_len1) > PM_PWM_LUT_SIZE) {
+		printk("Exceed LUT limit\n");
 		return -EINVAL;
 	}
 
 	rc = pm8xxx_pwm_lut_config(led->pwm_dev, led->pwm_period_us,
-			led->pwm_duty_cycles->duty_pcts,
-			led->pwm_duty_cycles->duty_ms,
-			start_idx, idx_len, led->pwm_pause_lo, led->pwm_pause_hi,
-			PM8XXX_LED_PWM_FLAGS);
+				led->pwm_duty_cycles->duty_pcts0,
+				led->pwm_duty_cycles->duty_ms0,
+				start_idx, idx_len0, 0, 0,
+				PM8XXX_LED_PWM_FLAGS);
 
 	return rc;
 }
@@ -584,8 +555,31 @@ static void pm8xxx_led_set(struct led_classdev *led_cdev,
 	enum led_brightness value)
 {
 	struct	pm8xxx_led_data *led;
+	int idx_len0;
+	int idx_len1;
 
 	led = container_of(led_cdev, struct pm8xxx_led_data, cdev);
+
+	if (led->id == PM8XXX_ID_LED_2 || led->id == PM8XXX_ID_LED_0) {
+		idx_len0 = led->pwm_duty_cycles->num_duty_pcts0;
+		idx_len1 = led->pwm_duty_cycles->num_duty_pcts1;
+
+		if(value == 0xFE) { //notification
+			pm8xxx_pwm_lut_config(led->pwm_dev, led->pwm_period_us,
+				led->pwm_duty_cycles->duty_pcts1,
+				led->pwm_duty_cycles->duty_ms1,
+				0, idx_len1, 0, 0,
+				PM8XXX_LED_PWM_FLAGS);
+				value = led->cdev.max_brightness;
+		}
+		else { //charging
+			pm8xxx_pwm_lut_config(led->pwm_dev, led->pwm_period_us,
+				led->pwm_duty_cycles->duty_pcts0,
+				led->pwm_duty_cycles->duty_ms0,
+				0, idx_len0, 0, 0,
+				PM8XXX_LED_PWM_FLAGS);
+		}
+	}
 
 	if (value < LED_OFF || value > led->cdev.max_brightness) {
 		dev_err(led->cdev.dev, "Invalid brightness value exceeds");
