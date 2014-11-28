@@ -20,9 +20,6 @@
 #include <linux/leds.h>
 #include <linux/leds-pm8xxx.h>
 #include <linux/mfd/pm8xxx/pm8xxx-adc.h>
-#include <linux/mfd/pm8xxx/pm8921-bms.h>
-#include <linux/power/bq51051b_charger.h>
-#include <linux/platform_data/battery_temp_ctrl.h>
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <asm/mach/mmc.h>
@@ -31,10 +28,12 @@
 #include <mach/gpio.h>
 #include <mach/gpiomux.h>
 #include <mach/restart.h>
+#include <mach/socinfo.h>
+#include <mach/board_lge.h>
+#include <linux/i2c.h>
 #include <mach/board_lge.h>
 #include "devices.h"
 #include "board-mako.h"
-#include "board-mako-pmic.h"
 
 struct pm8xxx_gpio_init {
 	unsigned gpio;
@@ -145,6 +144,18 @@ static struct pm8xxx_gpio_init pm8921_gpios_wlc_rev11[] __initdata = {
 	PM8921_GPIO_OUTPUT(26, 0, HIGH), /* WLC CHG_STAT */
 };
 #endif
+
+void __init apq8064_configure_gpios(struct pm8xxx_gpio_init *data, int len)
+{
+	int i, rc;
+
+	for (i = 0; i < len; i++) {
+		rc = pm8xxx_gpio_config(data[i].gpio, &data[i].config);
+		if (rc)
+			pr_err("%s: pm8xxx_gpio_config(%u) failed: rc=%d\n",
+				__func__, data[i].gpio, rc);
+	}
+}
 
 void __init apq8064_pm8xxx_gpio_mpp_init(void)
 {
@@ -371,73 +382,20 @@ static int apq8064_pm8921_therm_mitigation[] = {
 	1100,
 	700,
 	600,
-	400,
+	325,
 };
 
-static int batt_temp_ctrl_level[] = {
-	600,
-	570,
-	550,
-	450,
-	440,
-	-50,
-	-80,
-	-100,
-};
-
-#ifdef CONFIG_WIRELESS_CHARGER
-#define GPIO_WLC_ACTIVE        PM8921_GPIO_PM_TO_SYS(PM8921_GPIO_WLC_ACTIVE)
-#define GPIO_WLC_ACTIVE_11     PM8921_GPIO_PM_TO_SYS(PM8921_GPIO_WLC_ACTIVE_11)
-#define GPIO_WLC_STATE         PM8921_GPIO_PM_TO_SYS(26)
-
-static int wireless_charger_is_plugged(void);
-
-static struct bq51051b_wlc_platform_data bq51051b_wlc_pmic_pdata = {
-	.chg_state_gpio  = GPIO_WLC_STATE,
-	.active_n_gpio   = GPIO_WLC_ACTIVE,
-	.wlc_is_plugged  = wireless_charger_is_plugged,
-};
-
-struct platform_device wireless_charger = {
-	.name		= "bq51051b_wlc",
-	.id		= -1,
-	.dev = {
-		.platform_data = &bq51051b_wlc_pmic_pdata,
-	},
-};
-
-static int wireless_charger_is_plugged(void)
-{
-	static bool initialized = false;
-	unsigned int wlc_active_n = 0;
-	int ret = 0;
-
-	wlc_active_n = bq51051b_wlc_pmic_pdata.active_n_gpio;
-	if (!wlc_active_n) {
-		pr_warn("wlc : active_n gpio is not defined yet");
-		return 0;
-	}
-
-	if (!initialized) {
-		ret =  gpio_request_one(wlc_active_n, GPIOF_DIR_IN,
-				"active_n_gpio");
-		if (ret < 0) {
-			pr_err("wlc: active_n gpio request failed\n");
-			return 0;
-		}
-		initialized = true;
-	}
-
-	return !(gpio_get_value(wlc_active_n));
-}
-
-static __init void mako_fixup_wlc_gpio(void) {
-	if (lge_get_board_revno() >= HW_REV_1_1)
-		bq51051b_wlc_pmic_pdata.active_n_gpio = GPIO_WLC_ACTIVE_11;
-}
-
-#else
-static int wireless_charger_is_plugged(void) { return 0; }
+/*
+ * J1 battery characteristic
+ * Typ.1900mAh capacity, Li-Ion Polymer 3.8V
+ * Battery/VDD voltage programmable range, 20mV steps.
+ * it will be changed in future
+ */
+#define MAX_VOLTAGE_MV		4360
+#define CHG_TERM_MA		100
+#ifdef CONFIG_LGE_PM
+	/* MAKO patch */
+#define EOC_CHECK_SOC	1
 #endif
 
 /*
@@ -453,30 +411,75 @@ static int wireless_charger_is_plugged(void) { return 0; }
 #define EOC_CHECK_SOC	1
 
 static struct pm8921_charger_platform_data apq8064_pm8921_chg_pdata __devinitdata = {
-	.safety_time  = 512,
-	.update_time  = 60000,
-	.max_voltage  = MAX_VOLTAGE_MV,
-	.min_voltage  = 3200,
-	.alarm_voltage  = 3500,
-	.resume_voltage_delta  = VBATDET_DELTA_MV,
-	.term_current  = CHG_TERM_MA,
 
-	.cool_temp  = INT_MIN,
-	.warm_temp  = INT_MIN,
-	.cool_bat_chg_current  = 350,
-	.warm_bat_chg_current  = WARM_BATT_CHG_I_MA,
-	.cold_thr  = 1,
-	.hot_thr  = 0,
-	.ext_batt_temp_monitor  = 1,
-	.temp_check_period  = 1,
-	.max_bat_chg_current  = MAX_BATT_CHG_I_MA,
-	.cool_bat_voltage  = 4100,
-	.warm_bat_voltage  = 4100,
-	.thermal_mitigation  = apq8064_pm8921_therm_mitigation,
-	.thermal_levels  = ARRAY_SIZE(apq8064_pm8921_therm_mitigation),
-	.led_src_config  = LED_SRC_5V,
-	.rconn_mohm	 = 37,
-	.eoc_check_soc  = EOC_CHECK_SOC,
+	/* max charging time in minutes incl. fast and trkl. it will be changed in future  */
+	.safety_time		= 512, /* 300 change max value for charging time */
+	.update_time		= 60000,
+	.max_voltage		= MAX_VOLTAGE_MV,
+
+	/* the voltage (mV) where charging method switches from trickle to fast.
+	 * This is also the minimum voltage the system operates at */
+	.min_voltage		= 3200,
+	/* the (mV) drop to wait for before resume charging after the battery has been fully charged */
+	.resume_voltage_delta	= 60, // 100, 50,
+	.resume_charge_percent	= 99,
+	.term_current		= CHG_TERM_MA,
+
+	/* the voltage of charger_gone_irq */
+	.vin_min			= 4400,
+#ifdef CONFIG_LGE_CHARGER_TEMP_SCENARIO
+	/* Configuration of cool and warm thresholds (JEITA compliance only) */
+/* CONFIG_LGE_PM Start Qulcomm charging scenario off kwangjae1.lee@lge.com */
+	.cool_temp		= 0, /* 10 */	/* 10 degree celsius */
+	.warm_temp		= 0, /* 40 */	/* 40 degree celsius */
+	.cool_bat_chg_current	= 350,	/* 350 mA (max value = 2A) */
+	.warm_bat_chg_current	= 350,
+/* CONFIG_LGE_PM end Qulcomm charging scenario off kwangjae1.lee@lge.com */
+	.temp_level_1		= 550,
+	.temp_level_2		= 450,
+	.temp_level_3		= 420,
+	.temp_level_4		= -50,
+	.temp_level_5		= -100,
+
+	/* Temperature Thresholds (JEITA compliance) (-10'C ~ 60'C) */
+	.cold_thr		= 1,	/* 80% */
+	.hot_thr		= 0,	/* 20% */
+#else /* qualcomm original value */
+	.cool_temp		= 10,
+	.warm_temp		= 40,
+	.cool_bat_chg_current	= 350,
+	.warm_bat_chg_current	= 350,
+#endif
+
+	.temp_check_period	= 1,
+
+#ifdef CONFIG_LGE_PM_LOW_BATT_CHG
+	.weak_voltage = 3000,
+	.trkl_voltage = 2800,	// trickle voltage 2800mV
+	.trkl_current = 200,	// trickle current 200mA
+#endif
+
+	/*  Battery charge current programmable range 50mA steps */
+	/*  max_bat_chg_current:
+	 *    Max charge current of the battery in mA
+	 *    Usually 70% of full charge capacity
+	 */
+	.max_bat_chg_current	= 1350,
+
+	.cool_bat_voltage	= 4100,
+	.warm_bat_voltage	= 4100,
+	.thermal_mitigation	= apq8064_pm8921_therm_mitigation,
+	.thermal_levels		= ARRAY_SIZE(apq8064_pm8921_therm_mitigation),
+	/* for led on, off control */
+	.led_src_config = LED_SRC_5V,
+	/*LGE_CHANGE_E, jungwoo.yun@lge.com for led on, off control*/
+/* Be omitted OCT code */
+	.rconn_mohm    = 18,
+#ifdef CONFIG_LGE_PM
+	/* MAKO patch */
+	.eoc_check_soc	= EOC_CHECK_SOC,
+#endif
+
 };
 
 static struct pm8xxx_ccadc_platform_data
@@ -485,134 +488,35 @@ apq8064_pm8xxx_ccadc_pdata = {
 	.calib_delay_ms		= 600000,
 };
 
+/* 1. Calculate the Rtotal.
+* Rbatt : 206.78mohm  (Normal rbatt was 200mohm)
+* ( = default_rbatt_mohm X cut off voltage level ) from Rbatt and OCV table
+* ex : 98 X 211% (In 2100mAh table )
+* (= 98mohm X In OCV table of 3.6V cut off near 3601, it was 5%. So, rbatt was 211)
+* Rpwb : 20mohm
+* Rlong : 60mohm
+* Rtotal  = 286.78mohm
+* calc I-test : 697mA
+* cut off voltage = v_failure + I-test * Rtotal
+*/
+#define BMS_2100MAH_OFF3500
+
 static struct pm8921_bms_platform_data
 apq8064_pm8921_bms_pdata __devinitdata = {
-	.battery_type  = BATT_LGE,
-	.r_sense  = 10,
-	.v_cutoff  = 3500,
-	.max_voltage_uv  = MAX_VOLTAGE_MV * 1000,
-	.rconn_mohm  = 37,
-	.shutdown_soc_valid_limit  = 20,
-	.adjust_soc_low_threshold  = 25,
-	.chg_term_ua  = CHG_TERM_MA * 1000,
+	.battery_type	= BATT_2100_LGE,
+	.v_cutoff		= 3500,
+	.ignore_shutdown_soc = 0,
+	.r_sense		= 10,
+	.max_voltage_uv		= MAX_VOLTAGE_MV * 1000,
+	.shutdown_soc_valid_limit = 20,
+	.adjust_soc_low_threshold = 25,
+	.rconn_mohm    = 44,
+	.chg_term_ua   = CHG_TERM_MA * 1000,
+#ifdef CONFIG_LGE_PM
+	/* MAKO patch */
+	.first_fixed_iavg_ma = 500,
 	.eoc_check_soc  = EOC_CHECK_SOC,
-	.bms_support_wlc  = 1,
-	.wlc_term_ua = 110000,
-	.wlc_max_voltage_uv = 4290000,
-	.wlc_is_plugged  = wireless_charger_is_plugged,
-	.first_fixed_iavg_ma  = 500,
-};
-
-/* battery data */
-static struct single_row_lut batt_2100_fcc_temp = {
-	.x = {-20, 0, 25, 40, 60 },
-	.y = {2068, 2064, 2103, 2072, 2084},
-	.cols = 5
-};
-
-static struct single_row_lut batt_2100_fcc_sf = {
-	.x     = {0 },
-	.y     = {100 },
-	.cols  = 1
-};
-
-static struct sf_lut batt_2100_rbatt_sf =  {
-	.rows = 28,
-	.cols = 5,
-	.row_entries = {-20, 0, 25, 40, 60 },
-	.percent =  {100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50,
-		     45, 40, 35, 30, 25, 20, 15, 10,
-		     9, 8, 7, 6, 5, 4, 3, 2, 1 },
-	.sf = {
-		{639,265,100,75,66},
-		{700,262,104,79,68},
-		{727,259,106,81,70},
-		{746,258,106,82,72},
-		{764,260,106,83,74},
-		{785,263,106,84,74},
-		{818,268,100,84,75},
-		{855,272,99,83,74},
-		{901,275,100,76,68},
-		{955,280,103,78,69},
-		{1016,287,107,80,71},
-		{1080,297,112,83,73},
-		{1147,309,116,87,75},
-		{1221,324,120,90,73},
-		{1308,345,124,90,72},
-		{1436,397,125,89,73},
-		{1673,500,128,87,70},
-		{2288,587,156,102,78},
-		{1681,361,140,94,75},
-		{1886,368,145,95,75},
-		{2140,377,148,94,73},
-		{2462,388,151,93,73},
-		{2877,412,160,96,74},
-		{3422,473,174,99,77},
-		{4273,562,195,105,81},
-		{5469,719,228,112,84},
-		{8749,1722,274,120,93},
-		{20487,18766,897,170,1139},
-	}
-};
-static struct pc_temp_ocv_lut batt_2100_pc_temp_ocv = {
-	.rows = 29,
-	.cols = 5,
-	.temp = {-20, 0, 25, 40, 60 },
-	.percent = {100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50,
-		    45, 40, 35, 30, 25, 20, 15, 10,
-		    9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },
-	.ocv = {
-		{4331, 4325, 4327, 4317, 4315},
-		{4237, 4252, 4261, 4253, 4253},
-		{4163, 4190, 4202, 4195, 4196},
-		{4091, 4132, 4147, 4140, 4141},
-		{4034, 4074, 4093, 4088, 4088},
-		{3990, 4017, 4043, 4039, 4039},
-		{3952, 3964, 3992, 3993, 3993},
-		{3920, 3923, 3937, 3953, 3952},
-		{3890, 3887, 3895, 3913, 3914},
-		{3863, 3854, 3860, 3864, 3865},
-		{3839, 3825, 3831, 3832, 3833},
-		{3815, 3804, 3809, 3808, 3809},
-		{3794, 3786, 3791, 3789, 3790},
-		{3775, 3772, 3775, 3774, 3774},
-		{3757, 3758, 3764, 3763, 3755},
-		{3739, 3741, 3750, 3747, 3735},
-		{3720, 3724, 3725, 3721, 3710},
-		{3694, 3707, 3689, 3686, 3673},
-		{3654, 3684, 3674, 3669, 3659},
-		{3645, 3679, 3670, 3667, 3657},
-		{3635, 3673, 3664, 3663, 3653},
-		{3620, 3662, 3648, 3655, 3640},
-		{3601, 3643, 3612, 3631, 3611},
-		{3575, 3611, 3563, 3591, 3570},
-		{3538, 3562, 3501, 3540, 3521},
-		{3484, 3495, 3430, 3480, 3460},
-		{3405, 3403, 3347, 3401, 3377},
-		{3284, 3276, 3223, 3280, 3244},
-		{3000, 3000, 3000, 3000, 3000}
-	}
-};
-
-static struct sf_lut batt_2100_pc_sf = {
-	.rows = 1,
-	.cols = 1,
-	.row_entries = {0 },
-	.percent = {100 },
-	.sf = {
-		{100 }
-	}
-};
-
-/* used in drivers/power/pm8921-bms.c */
-struct pm8921_bms_battery_data lge_2100_mako_data =  {
-	.fcc = 2100,
-	.fcc_temp_lut = &batt_2100_fcc_temp,
-	.fcc_sf_lut = &batt_2100_fcc_sf,
-	.pc_temp_ocv_lut = &batt_2100_pc_temp_ocv,
-	.pc_sf_lut = &batt_2100_pc_sf,
-	.rbatt_sf_lut = &batt_2100_rbatt_sf,
-	.default_rbatt_mohm = 182,
+#endif
 };
 
 static unsigned int keymap[] = {
@@ -691,127 +595,10 @@ static struct msm_ssbi_platform_data apq8064_ssbi_pm8821_pdata __devinitdata = {
 	},
 };
 
-static int batt_temp_charger_enable(void)
-{
-	int ret = 0;
-
-	pr_info("%s\n", __func__);
-
-	ret = pm8921_charger_enable(1);
-	if (ret)
-		pr_err("%s: failed to enable charging\n", __func__);
-
-	return ret;
-}
-
-static int batt_temp_charger_disable(void)
-{
-	int ret = 0;
-
-	pr_info("%s\n", __func__);
-
-	ret = pm8921_charger_enable(0);
-	if (ret)
-		pr_err("%s: failed to disable charging\n", __func__);
-
-	return ret;
-}
-
-static int batt_temp_ext_power_plugged(void)
-{
-	if (pm8921_is_usb_chg_plugged_in() ||
-			pm8921_is_dc_chg_plugged_in())
-		return 1;
-	else
-		return 0;
-}
-
-static int batt_temp_set_current_limit(int value)
-{
-	int ret = 0;
-
-	pr_info("%s: value = %d\n", __func__, value);
-
-	ret = pm8921_set_max_battery_charge_current(value);
-	if (ret)
-		pr_err("%s: failed to set i limit\n", __func__);
-	return ret;
-}
-
-static int batt_temp_get_current_limit(void)
-{
-	static struct power_supply *psy;
-	union power_supply_propval ret = {0,};
-	int rc = 0;
-
-	if (psy == NULL) {
-		psy = power_supply_get_by_name("usb");
-		if (!psy) {
-			pr_err("%s: failed to get usb power supply\n", __func__);
-			return 0;
-		}
-	}
-
-	rc = psy->get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
-	if (rc) {
-		pr_err("%s: failed to get usb property\n", __func__);
-		return 0;
-	}
-	pr_info("%s: value = %d\n", __func__, ret.intval);
-	return ret.intval;
-}
-
-static int batt_temp_set_state(int health, int i_value)
-{
-	int ret = 0;
-
-	ret = pm8921_set_ext_battery_health(health, i_value);
-	if (ret)
-		pr_err("%s: failed to set health\n", __func__);
-
-	return ret;
-}
-
-static struct batt_temp_pdata mako_batt_temp_pada = {
-	.set_chg_i_limit = batt_temp_set_current_limit,
-	.get_chg_i_limit = batt_temp_get_current_limit,
-	.set_health_state = batt_temp_set_state,
-	.enable_charging = batt_temp_charger_enable,
-	.disable_charging = batt_temp_charger_disable,
-	.is_ext_power = batt_temp_ext_power_plugged,
-	.update_time = 10000, // 10 sec
-	.temp_level = batt_temp_ctrl_level,
-	.temp_nums = ARRAY_SIZE(batt_temp_ctrl_level),
-	.thr_mvolt = 4000, //4.0V
-	.i_decrease = WARM_BATT_CHG_I_MA,
-	.i_restore = MAX_BATT_CHG_I_MA,
-};
-
-struct platform_device batt_temp_ctrl = {
-	.name = "batt_temp_ctrl",
-	.id = -1,
-	.dev = {
-		.platform_data = &mako_batt_temp_pada,
-	},
-};
-
-void __init mako_set_adcmap(void)
-{
-	pm8xxx_set_adcmap_btm_threshold(adcmap_btm_threshold,
-			ARRAY_SIZE(adcmap_btm_threshold));
-	pm8xxx_set_adcmap_pa_therm(adcmap_pa_therm,
-			ARRAY_SIZE(adcmap_pa_therm));
-	/*
-	pm8xxx_set_adcmap_ntcg_104ef_104fb(adcmap_ntcg_104ef_104fb,
-			ARRAY_SIZE(adcmap_ntcg_104ef_104fb));
-	*/
-}
-
 void __init apq8064_init_pmic(void)
 {
 	pmic_reset_irq = PM8921_IRQ_BASE + PM8921_RESOUT_IRQ;
 
-	mako_set_adcmap();
 	mako_fixed_leds();
 
 	apq8064_device_ssbi_pmic1.dev.platform_data =
