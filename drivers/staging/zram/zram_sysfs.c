@@ -107,8 +107,7 @@ static ssize_t reset_store(struct device *dev,
 		return -EINVAL;
 
 	/* Make sure all pending I/O is finished */
-	if (bdev)
-		fsync_bdev(bdev);
+	fsync_bdev(bdev);
 
 	down_write(&zram->init_lock);
 	if (zram->init_done)
