@@ -77,7 +77,7 @@ static unsigned long dir_block_index(unsigned int level,
 	return bidx;
 }
 
-static early_match_name(size_t namelen, f2fs_hash_t namehash,
+static bool early_match_name(size_t namelen, f2fs_hash_t namehash,
 				struct f2fs_dir_entry *de)
 {
 	if (le16_to_cpu(de->name_len) != namelen)
@@ -101,7 +101,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	dentry_blk = (struct f2fs_dentry_block *)kmap(dentry_page);
 
 	make_dentry_ptr(&d, (void *)dentry_blk, 1);
-	de = find_target_dentry(name, max_slots, &d);
+	de = find_target_dentry(dentry_page, name, max_slots, *res_page, &d, nocase);
 
 	if (de)
 		*res_page = dentry_page;
@@ -116,9 +116,16 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	return de;
 }
 
+/*
 struct f2fs_dir_entry *find_target_dentry(struct qstr *name, int *max_slots,
-						struct f2fs_dentry_ptr *d)
+						struct f2fs_dentry_ptr *d, bool nocase)
+*/
+struct f2fs_dir_entry *find_target_dentry(struct page *dentry_page,
+				struct qstr *name, int *max_slots,
+				struct page **res_page,
+				struct f2fs_dentry_ptr *d, bool nocase)
 {
+	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dir_entry *de;
 	unsigned long bit_pos = 0;
 	f2fs_hash_t namehash = f2fs_dentry_hash(name);
@@ -744,7 +751,7 @@ bool f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 		if (bit_pos >= d->max)
 			break;
 
-		de = &dentry[bit_pos];
+		de = &d->dentry[bit_pos];
 		if (de->file_type < F2FS_FT_MAX)
 			d_type = f2fs_filetype_table[de->file_type];
 		else
@@ -765,14 +772,15 @@ static int f2fs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	unsigned long pos = file->f_pos;
 	struct inode *inode = file->f_dentry->d_inode;
 	unsigned long npages = dir_blocks(inode);
-	unsigned char *types = f2fs_filetype_table;
-	int over = 0;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct page *dentry_page = NULL;
 	struct file_ra_state *ra = &file->f_ra;
 	unsigned int n = (pos / NR_DENTRY_IN_BLOCK);
 	struct f2fs_dentry_ptr d;
-	int slots;
+	struct dir_context *ctx = NULL;
+
+	ctx->pos = file->f_pos;
+	
 	
 	if (f2fs_has_inline_dentry(inode))
 		return f2fs_read_inline_dir(file, ctx);
