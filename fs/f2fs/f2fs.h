@@ -1347,8 +1347,8 @@ struct dentry *f2fs_get_parent(struct dentry *child);
  */
 extern unsigned char f2fs_filetype_table[F2FS_FT_MAX];
 void set_de_type(struct f2fs_dir_entry *, struct inode *);
-struct f2fs_dir_entry *find_target_dentry(struct qstr *, int *,
-			struct f2fs_dentry_ptr *);
+struct f2fs_dir_entry *find_target_dentry(struct page *, struct qstr *, int *,
+			struct page **, struct f2fs_dentry_ptr *, bool);
 bool f2fs_fill_dentries(struct dir_context *, struct f2fs_dentry_ptr *,
 			unsigned int);
 void do_make_empty_dir(struct inode *, struct inode *,
