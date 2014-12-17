@@ -505,14 +505,14 @@ bool f2fs_empty_inline_dir(struct inode *dir)
 	return true;
 }
 
-int f2fs_read_inline_dir(struct file *file, void *dirent, filldir_t filldir)
+int f2fs_read_inline_dir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct f2fs_inline_dentry *inline_dentry = NULL;
 	struct page *ipage = NULL;
 	struct f2fs_dentry_ptr d;
 
-	if (file->f_pos == NR_INLINE_DENTRY)
+	if (ctx->pos == NR_INLINE_DENTRY)
 		return 0;
 
 	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
@@ -523,8 +523,8 @@ int f2fs_read_inline_dir(struct file *file, void *dirent, filldir_t filldir)
 
 	make_dentry_ptr(&d, (void *)inline_dentry, 2);
 
-	if (!f2fs_fill_dentries(file, &d, 0, dirent, filldir))
-		file->f_pos = NR_INLINE_DENTRY;
+	if (!f2fs_fill_dentries(ctx, &d, 0))
+		ctx->pos = NR_INLINE_DENTRY;
 
 	f2fs_put_page(ipage, 1);
 	return 0;
