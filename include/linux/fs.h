@@ -2708,12 +2708,5 @@ static inline void inode_has_no_xattr(struct inode *inode)
 		inode->i_flags |= S_NOSEC;
 }
 
-static inline bool __dir_emit(filldir_t filldir, struct file *file,
-				const char *name, int namelen,
-				u64 ino, unsigned type)
-{
-	return filldir(file, name, namelen, file->f_pos, ino, type) == 0;
-}
-
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FS_H */
