@@ -15,6 +15,9 @@
 #include "acl.h"
 #include "xattr.h"
 
+// For Android sdcard emu
+bool nocase;
+
 static unsigned long dir_blocks(struct inode *inode)
 {
 	return ((unsigned long long) (i_size_read(inode) + PAGE_CACHE_SIZE - 1))
@@ -91,8 +94,7 @@ static bool early_match_name(size_t namelen, f2fs_hash_t namehash,
 
 static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 				struct qstr *name, int *max_slots,
-				struct page **res_page,
-				bool nocase)
+				struct page **res_page)
 {
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dir_entry *de;
@@ -101,7 +103,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	dentry_blk = (struct f2fs_dentry_block *)kmap(dentry_page);
 
 	make_dentry_ptr(&d, (void *)dentry_blk, 1);
-	de = find_target_dentry(dentry_page, name, max_slots, res_page, &d, nocase);
+	de = __find_target_dentry(dentry_page, name, max_slots, res_page, &d);
 
 	if (de)
 		*res_page = dentry_page;
@@ -116,17 +118,57 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	return de;
 }
 
-/*
 struct f2fs_dir_entry *find_target_dentry(struct qstr *name, int *max_slots,
-						struct f2fs_dentry_ptr *d, bool nocase)
-*/
-struct f2fs_dir_entry *find_target_dentry(struct page *dentry_page,
-				struct qstr *name, int *max_slots,
-				struct page **res_page,
-				struct f2fs_dentry_ptr *d, bool nocase)
+						struct f2fs_dentry_ptr *d)
 {
-	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dir_entry *de;
+	unsigned long bit_pos = 0;
+	f2fs_hash_t namehash = f2fs_dentry_hash(name);
+	int max_len = 0;
+
+	if (max_slots)
+		*max_slots = 0;
+	while (bit_pos < d->max) {
+		if (!test_bit_le(bit_pos, d->bitmap)) {
+			if (bit_pos == 0)
+				max_len = 1;
+			else if (!test_bit_le(bit_pos - 1, d->bitmap))
+				max_len++;
+			bit_pos++;
+			continue;
+		}
+		de = &d->dentry[bit_pos];
+		if (early_match_name(name->len, namehash, de) &&
+			!memcmp(d->filename[bit_pos], name->name, name->len))
+			goto found;
+
+		if (max_slots && *max_slots >= 0 && max_len > *max_slots) {
+			*max_slots = max_len;
+			max_len = 0;
+		}
+
+		/* remain bug on condition */
+		if (unlikely(!de->name_len))
+			d->max = -1;
+
+		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
+	}
+
+	de = NULL;
+found:
+	if (max_slots && max_len > *max_slots)
+		*max_slots = max_len;
+	return de;
+}
+
+struct f2fs_dir_entry *__find_target_dentry(struct page *dentry_page,
+					struct qstr *name, int *max_slots,
+					struct page **res_page,
+					struct f2fs_dentry_ptr *d)
+
+{
+	struct f2fs_dir_entry *de;
+	struct f2fs_dentry_block *dentry_blk = kmap(dentry_page);
 	unsigned long bit_pos = 0;
 	f2fs_hash_t namehash = f2fs_dentry_hash(name);
 	int max_len = 0;
@@ -196,7 +238,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	end_block = bidx + nblock;
 
 	for (; bidx < end_block; bidx++) {
-		bool nocase = false;
+		nocase = false;
 
 		/* no need to allocate new dentry pages to all the indices */
 		dentry_page = find_data_page(dir, bidx, true);
@@ -210,7 +252,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 		    F2FS_I(dir)->i_advise & FADVISE_ANDROID_EMU)
 			nocase = true;
 
-		de = find_in_block(dentry_page, name, &max_slots, res_page, nocase);
+		de = find_in_block(dentry_page, name, &max_slots, res_page);
 		if (de)
 			break;
 
@@ -237,17 +279,13 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 			struct qstr *child, struct page **res_page)
 {
 	unsigned long npages = dir_blocks(dir);
-	struct page *dentry_page = NULL;
 	struct f2fs_dir_entry *de = NULL;
 	f2fs_hash_t name_hash;
 	unsigned int max_depth;
 	unsigned int level;
-	int *max_slots = NULL;
-	struct f2fs_dentry_ptr d;
-	bool nocase;
 
 	if (f2fs_has_inline_dentry(dir))
-		return find_in_inline_dir(dir, dentry_page, child, max_slots, res_page, nocase);
+		return find_in_inline_dir(dir, child, res_page);
 
 	if (npages == 0)
 		return NULL;
@@ -773,19 +811,16 @@ bool f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 
 static int f2fs_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
-	unsigned long pos = file->f_pos;
+	struct dir_context *ctx = NULL;
 	struct inode *inode = file->f_dentry->d_inode;
 	unsigned long npages = dir_blocks(inode);
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct page *dentry_page = NULL;
 	struct file_ra_state *ra = &file->f_ra;
-	unsigned int n = (pos / NR_DENTRY_IN_BLOCK);
+	unsigned int n = ((unsigned long)file->f_pos / NR_DENTRY_IN_BLOCK);
 	struct f2fs_dentry_ptr d;
-	struct dir_context *ctx = NULL;
-
 	ctx->pos = file->f_pos;
-	
-	
+
 	if (f2fs_has_inline_dentry(inode))
 		return f2fs_read_inline_dir(file, ctx);
 
@@ -805,7 +840,8 @@ static int f2fs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 		if (f2fs_fill_dentries(ctx, &d, n * NR_DENTRY_IN_BLOCK))
 			goto stop;
-		file->f_pos = (n + 1) * NR_DENTRY_IN_BLOCK;
+
+		ctx->pos = (n + 1) * NR_DENTRY_IN_BLOCK;
 		kunmap(dentry_page);
 		f2fs_put_page(dentry_page, 1);
 		dentry_page = NULL;
