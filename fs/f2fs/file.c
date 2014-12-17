@@ -399,7 +399,7 @@ static loff_t f2fs_llseek(struct file *file, loff_t offset, int whence)
 
 static int f2fs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file->f_dentry->d_inode;
 
 	/* we don't need to use inline_data strictly */
 	if (f2fs_has_inline_data(inode)) {
