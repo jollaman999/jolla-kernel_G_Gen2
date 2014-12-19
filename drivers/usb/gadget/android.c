@@ -78,7 +78,7 @@
 #include "u_bam_data.c"
 #include "f_hid.h"
 #include "f_hid_android_keyboard.c"
-#include "f_hid_android_mouse.c
+#include "f_hid_android_mouse.c"
 #include "f_mbim.c"
 #include "f_qc_ecm.c"
 #include "f_qc_rndis.c"
@@ -1872,7 +1872,7 @@ static struct android_usb_function *supported_functions[] = {
 	&accessory_function,
 	&audio_source_function,
 	&uasp_function,
-	&hid_funtion,
+	&hid_function,
 	NULL
 };
 
