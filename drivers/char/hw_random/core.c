@@ -105,7 +105,6 @@ static inline void cleanup_rng(struct kref *kref)
 static void set_current_rng(struct hwrng *rng)
 {
 	BUG_ON(!mutex_is_locked(&rng_mutex));
-	kref_get(&rng->ref);
 	current_rng = rng;
 }
 
@@ -152,11 +151,19 @@ static inline int hwrng_init(struct hwrng *rng)
 {
 	int err;
 
+	if (kref_get_unless_zero(&rng->ref))
+		goto skip_init;
+
 	if (rng->init) {
 		err = rng->init(rng);
 		if (err)
 			return err;
 	}
+
+	kref_init(&rng->ref);
+	reinit_completion(&rng->cleanup_done);
+
+skip_init:
 
 	current_quality = rng->quality ? : default_quality;
 	current_quality &= 1023;
@@ -466,6 +473,9 @@ int hwrng_register(struct hwrng *rng)
 			goto out_unlock;
 	}
 
+	init_completion(&rng->cleanup_done);
+	complete(&rng->cleanup_done);
+
 	old_rng = current_rng;
 	err = 0;
 	if (!old_rng) {
@@ -492,8 +502,6 @@ int hwrng_register(struct hwrng *rng)
 		 */
 		add_early_randomness(rng);
 	}
-
-	init_completion(&rng->cleanup_done);
 
 out_unlock:
 	mutex_unlock(&rng_mutex);
