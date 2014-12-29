@@ -277,14 +277,7 @@ static int set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 		 * So, reinitialize it with new information.
 		 */
 		e->ni = *ni;
-		if (ni->blk_addr != NULL_ADDR) {
-			f2fs_msg(sbi->sb, KERN_ERR, "node block address is "
-				"already set: %u", ni->blk_addr);
-			f2fs_handle_error(sbi);
-			/* just give up on this node */
-			write_unlock(&nm_i->nat_tree_lock);
-			return -EIO;
-		}
+		f2fs_bug_on(sbi, ni->blk_addr != NULL_ADDR);
 	}
 
 	/* sanity check */

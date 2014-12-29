@@ -264,8 +264,15 @@ process_inline:
 	return false;
 }
 
+/*
 struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 				struct qstr *name, struct page **res_page)
+*/
+struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
+				struct page *dentry_page,
+				struct qstr *name, int *max_slots,
+				struct page **res_page,
+				bool nocase)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	struct f2fs_inline_dentry *inline_dentry;
@@ -280,7 +287,7 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 	inline_dentry = inline_data_addr(ipage);
 
 	make_dentry_ptr(&d, (void *)inline_dentry, 2);
-	de = find_target_dentry(name, NULL, &d);
+	de = find_target_dentry(dentry_page, name, NULL, res_page, &d, nocase);
 
 	unlock_page(ipage);
 	if (de)
@@ -507,7 +514,7 @@ bool f2fs_empty_inline_dir(struct inode *dir)
 
 int f2fs_read_inline_dir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct f2fs_inline_dentry *inline_dentry = NULL;
 	struct page *ipage = NULL;
 	struct f2fs_dentry_ptr d;
