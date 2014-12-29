@@ -101,7 +101,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	dentry_blk = (struct f2fs_dentry_block *)kmap(dentry_page);
 
 	make_dentry_ptr(&d, (void *)dentry_blk, 1);
-	de = find_target_dentry(dentry_page, name, max_slots, *res_page, &d, nocase);
+	de = find_target_dentry(dentry_page, name, max_slots, res_page, &d, nocase);
 
 	if (de)
 		*res_page = dentry_page;
@@ -237,13 +237,17 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 			struct qstr *child, struct page **res_page)
 {
 	unsigned long npages = dir_blocks(dir);
+	struct page *dentry_page = NULL;
 	struct f2fs_dir_entry *de = NULL;
 	f2fs_hash_t name_hash;
 	unsigned int max_depth;
 	unsigned int level;
+	int *max_slots = NULL;
+	struct f2fs_dentry_ptr d;
+	bool nocase;
 
 	if (f2fs_has_inline_dentry(dir))
-		return find_in_inline_dir(dir, child, res_page);
+		return find_in_inline_dir(dir, dentry_page, child, max_slots, res_page, nocase);
 
 	if (npages == 0)
 		return NULL;
