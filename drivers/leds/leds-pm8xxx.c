@@ -398,6 +398,9 @@ static int pm8xxx_adjust_brightness(struct led_classdev *led_cdev,
 	if (!led->adjust_brightness)
 		return value;
 
+	if (!led->cdev.max_brightness)
+		return value;
+
 	if (led->adjust_brightness == led->cdev.max_brightness)
 		return value;
 
