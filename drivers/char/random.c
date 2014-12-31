@@ -737,13 +737,13 @@ void add_device_randomness(const void *buf, unsigned int size)
 	unsigned long flags;
 
 	spin_lock_irqsave(&input_pool.lock, flags);
-	_mix_pool_bytes(&input_pool, buf, size, NULL);
-	_mix_pool_bytes(&input_pool, &time, sizeof(time), NULL);
+	__mix_pool_bytes(&input_pool, buf, size, NULL);
+	__mix_pool_bytes(&input_pool, &time, sizeof(time), NULL);
 	spin_unlock_irqrestore(&input_pool.lock, flags);
 
 	spin_lock_irqsave(&nonblocking_pool.lock, flags);
-	_mix_pool_bytes(&nonblocking_pool, buf, size, NULL);
-	_mix_pool_bytes(&nonblocking_pool, &time, sizeof(time), NULL);
+	__mix_pool_bytes(&nonblocking_pool, buf, size, NULL);
+	__mix_pool_bytes(&nonblocking_pool, &time, sizeof(time), NULL);
 	spin_unlock_irqrestore(&nonblocking_pool.lock, flags);
 }
 EXPORT_SYMBOL(add_device_randomness);
