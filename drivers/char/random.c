@@ -880,12 +880,13 @@ void add_interrupt_randomness(int irq, int irq_flags)
 
 	/*
 	 * If we have architectural seed generator, produce a seed and
-	 * add it to the pool.  For the sake of paranoia count it as
-	 * 50% entropic.
+	 * add it to the pool.  For the sake of paranoia don't let the
+	 * architectural seed generator dominate the input from the
+	 * interrupt noise.
 	 */
 	if (arch_get_random_seed_long(&seed)) {
 		__mix_pool_bytes(r, &seed, sizeof(seed), NULL);
-		credit += sizeof(seed) * 4;
+		credit = 1;
 	}
 
 	credit_entropy_bits(r, credit);
@@ -1302,34 +1303,6 @@ void rand_initialize_disk(struct gendisk *disk)
 }
 #endif
 
-/*
- * Attempt an emergency refill using arch_get_random_seed_long().
- *
- * As with add_interrupt_randomness() be paranoid and only
- * credit the output as 50% entropic.
- */
-static int arch_random_refill(void)
-{
-	const unsigned int nlongs = 64;	/* Arbitrary number */
-	unsigned int n = 0;
-	unsigned int i;
-	unsigned long buf[nlongs];
-
-	for (i = 0; i < nlongs; i++) {
-		if (arch_get_random_seed_long(&buf[n]))
-			n++;
-	}
-
-	if (n) {
-		unsigned int rand_bytes = n * sizeof(unsigned long);
-
-		mix_pool_bytes(&input_pool, buf, rand_bytes, NULL);
-		credit_entropy_bits(&input_pool, rand_bytes*4);
-	}
-
-	return n;
-}
-
 static ssize_t
 random_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
@@ -1349,11 +1322,6 @@ random_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 			return n;
 
 		/* Pool is (near) empty.  Maybe wait and retry. */
-
-		/* First try an emergency refill */
-		if (arch_random_refill())
-			continue;
-
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
