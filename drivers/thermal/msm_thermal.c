@@ -64,38 +64,38 @@ EXPORT_SYMBOL(cpufreq_max_changed);
 /* MSM cpu freq tables */
 /* See arch/arm/mach-msm/acpuclock-8064.c */
 uint32_t msm_thermal_cpufreq[] = {
-/*	81000,
-	162000,
-	270000,	
-	384000,	*/ 	// Below 486000 is too low. So ignore these.
-	486000,		// 0
-	594000,		// 1
-	702000,		// 2
-	810000,		// 3
-	918000,		// 4
-	1026000,	// 5
-	1134000,	// 6
-	1242000,	// 7
-	1350000,	// 8
-	1458000,	// 9
-	1512000,	// 10
+	81000,		// 0
+	162000,		// 1
+	270000,		// 2
+	384000,		// 3
+	486000,		// 4
+	594000,		// 5
+	702000,		// 6
+	810000,		// 7
+	918000,		// 8
+	1026000,	// 9
+	1134000,	// 10
+	1242000,	// 11
+	1350000,	// 12
+	1458000,	// 13
+	1512000,	// 14
 #ifdef CONFIG_CPU_OVERCLOCK
-	1566000,	// 11
-	1620000,	// 12
-	1674000,	// 13
-	1728000,	// 14
-	1782000,	// 15
-	1836000,	// 16
-	1890000,	// 17
+	1566000,	// 15
+	1620000,	// 16
+	1674000,	// 17
+	1728000,	// 18
+	1782000,	// 19
+	1836000,	// 20
+	1890000,	// 21
 #endif /* CONFIG_CPU_OVERCLOCK */
-	0		// 18
+	0		// 22
 };
 
 // Dynamic thermal control - By jollaman999
 #ifdef CONFIG_CPU_OVERCLOCK
-#define MSM_THERMAL_FREQ_TABLES 18
+#define MSM_THERMAL_FREQ_TABLES 22
 #else
-#define MSM_THERMAL_FREQ_TABLES 11
+#define MSM_THERMAL_FREQ_TABLES 15
 #endif /* CONFIG_CPU_OVERCLOCK */
 
 static void update_stats(void)
@@ -192,6 +192,10 @@ void dynamic_thermal(void)
 		if(cpu_policy->max == msm_thermal_cpufreq[i])
 			break;
 	}
+
+	// Below 486000 is too low frequency. So ignore it.
+	if(i <= 4)
+		return;
 
 	msm_thermal_info.allowed_low_freq = msm_thermal_cpufreq[i];
 
