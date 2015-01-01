@@ -1,4 +1,5 @@
 /* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, Dynamic thermal control - By jollaman999
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -54,6 +55,44 @@ static struct msm_thermal_stat msm_thermal_stats = {
 
 static struct delayed_work check_temp_work;
 static struct workqueue_struct *check_temp_workq;
+
+// Dynamic thermal control - By jollaman999
+/* MSM cpu freq tables */
+/* See arch/arm/mach-msm/acpuclock-8064.c */
+uint32_t msm_thermal_cpufreq[] = {
+	81000,		// 0
+	162000,		// 1
+	270000,		// 2
+	384000,		// 3
+	486000,		// 4
+	594000,		// 5
+	702000,		// 6
+	810000,		// 7
+	918000,		// 8
+	1026000,	// 9
+	1134000,	// 10
+	1242000,	// 11
+	1350000,	// 12
+	1458000,	// 13
+	1512000,	// 14
+#ifdef CONFIG_CPU_OVERCLOCK
+	1566000,	// 15
+	1620000,	// 16
+	1674000,	// 17
+	1728000,	// 18
+	1782000,	// 19
+	1836000,	// 20
+	1890000,	// 21
+#endif /* CONFIG_CPU_OVERCLOCK */
+	0		// 22
+};
+
+// Dynamic thermal control - By jollaman999
+#ifdef CONFIG_CPU_OVERCLOCK
+#define MSM_THERMAL_FREQ_TABLES 22
+#else
+#define MSM_THERMAL_FREQ_TABLES 15
+#endif /* CONFIG_CPU_OVERCLOCK */
 
 static void update_stats(void)
 {
@@ -126,6 +165,51 @@ static int update_cpu_min_freq(struct cpufreq_policy *cpu_policy,
 
 DECLARE_PER_CPU(struct msm_mpdec_cpudata_t, msm_mpdec_cpudata);
 #endif
+
+// Dynamic thermal control - By jollaman999
+void dynamic_thermal(void)
+{
+	struct cpufreq_policy *cpu_policy = NULL;
+	int i, cpu = 0;
+
+	// Get current cpu policy.
+	for_each_possible_cpu(cpu) {
+		cpu_policy = cpufreq_cpu_get(cpu);
+		if(cpu_policy)
+			break;
+		else {
+		    pr_debug("msm_thermal: NULL policy on cpu %d\n", cpu);
+		    continue;
+		}
+	}
+
+	// Get current max cpu frequency.
+	for(i=0; i<=MSM_THERMAL_FREQ_TABLES; i++) {
+		if(cpu_policy->max == msm_thermal_cpufreq[i])
+			break;
+	}
+
+	// Below 486000 is too low frequency. So ignore it.
+	if(i <= 4)
+		return;
+
+	msm_thermal_info.allowed_low_freq = msm_thermal_cpufreq[i];
+
+	msm_thermal_info.allowed_low_low = 30 + 2 * i;
+	msm_thermal_info.allowed_low_high = msm_thermal_info.allowed_low_low + 6;
+
+	msm_thermal_info.allowed_mid_low = msm_thermal_info.allowed_low_low + 4;
+	msm_thermal_info.allowed_mid_high = msm_thermal_info.allowed_mid_low + 4;
+
+	msm_thermal_info.allowed_max_low = msm_thermal_info.allowed_mid_low + 2;
+	msm_thermal_info.allowed_max_high = msm_thermal_info.allowed_max_low + 12;
+
+	msm_thermal_info.allowed_mid_freq = msm_thermal_cpufreq[i-1];
+	msm_thermal_info.allowed_max_freq = msm_thermal_cpufreq[i-2];
+
+	return;
+}
+
 static void __cpuinit check_temp(struct work_struct *work)
 {
     struct cpufreq_policy *cpu_policy = NULL;
@@ -175,6 +259,10 @@ static void __cpuinit check_temp(struct work_struct *work)
         /* save pre-throttled max freq value */
         if ((bricked_thermal_throttled == 0) && (cpu == 0))
             pre_throttled_max = cpu_policy->max;
+
+	// Dynamic thermal control - By jollaman999
+	if(msm_thermal_info.dynamic_thermal_control)
+		dynamic_thermal();
 
         //low trip point
         if ((temp >= msm_thermal_info.allowed_low_high) &&
@@ -355,6 +443,8 @@ show_one(allowed_low_high, allowed_low_high);
 show_one(allowed_low_low, allowed_low_low);
 show_one(allowed_low_freq, allowed_low_freq);
 show_one(poll_ms, poll_ms);
+// Dynamic thermal control - By jollaman999
+show_one(dynamic_thermal_control, dynamic_thermal_control);
 
 static ssize_t store_shutdown_temp(struct kobject *a, struct attribute *b,
                                    const char *buf, size_t count)
@@ -510,6 +600,18 @@ static ssize_t store_poll_ms(struct kobject *a, struct attribute *b,
     return count;
 }
 
+// Dynamic thermal control - By jollaman999
+static ssize_t store_dynamic_thermal_control(struct kobject *a, struct attribute *b,
+                             const char *buf, size_t count)
+{
+    if (buf[0] == '0' && buf[1] == '\n')
+        msm_thermal_info.dynamic_thermal_control = 0;
+    else if (buf[0] == '1' && buf[1] == '\n')
+        msm_thermal_info.dynamic_thermal_control = 1;
+
+    return count;
+}
+
 define_one_global_rw(shutdown_temp);
 define_one_global_rw(allowed_max_high);
 define_one_global_rw(allowed_max_low);
@@ -521,6 +623,8 @@ define_one_global_rw(allowed_low_high);
 define_one_global_rw(allowed_low_low);
 define_one_global_rw(allowed_low_freq);
 define_one_global_rw(poll_ms);
+// Dynamic thermal control - By jollaman999
+define_one_global_rw(dynamic_thermal_control);
 
 static struct attribute *msm_thermal_attributes[] = {
     &shutdown_temp.attr,
@@ -534,6 +638,8 @@ static struct attribute *msm_thermal_attributes[] = {
     &allowed_low_low.attr,
     &allowed_low_freq.attr,
     &poll_ms.attr,
+    // Dynamic thermal control - By jollaman999
+    &dynamic_thermal_control.attr,
     NULL
 };
 
@@ -646,6 +752,12 @@ static int __devinit msm_thermal_dev_probe(struct platform_device *pdev)
 
 	key = "qcom,poll-ms";
 	ret = of_property_read_u32(node, key, &data.poll_ms);
+	if (ret)
+		goto fail;
+
+	// Dynamic thermal control - By jollaman999
+	key = "qcom,dynamic_thermal_control";
+	ret = of_property_read_u32(node, key, &data.dynamic_thermal_control);
 	if (ret)
 		goto fail;
 

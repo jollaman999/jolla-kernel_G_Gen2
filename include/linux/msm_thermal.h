@@ -32,6 +32,9 @@ struct msm_thermal_data {
 	uint32_t allowed_low_high;
 	uint32_t allowed_low_low;
 	uint32_t allowed_low_freq;
+
+	// Dynamic thermal control - By jollaman999
+	uint32_t dynamic_thermal_control;
 };
 
 struct msm_thermal_stat {
