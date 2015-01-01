@@ -57,6 +57,10 @@ static struct delayed_work check_temp_work;
 static struct workqueue_struct *check_temp_workq;
 
 // Dynamic thermal control - By jollaman999
+bool cpufreq_max_changed = false;
+EXPORT_SYMBOL(cpufreq_max_changed);
+
+// Dynamic thermal control - By jollaman999
 /* MSM cpu freq tables */
 /* See arch/arm/mach-msm/acpuclock-8064.c */
 uint32_t msm_thermal_cpufreq[] = {
@@ -257,7 +261,7 @@ static void __cpuinit check_temp(struct work_struct *work)
             pre_throttled_max = cpu_policy->max;
 
 	// Dynamic thermal control - By jollaman999
-	if(msm_thermal_info.dynamic_thermal_control)
+	if(msm_thermal_info.dynamic_thermal_control && cpufreq_max_changed)
 		dynamic_thermal();
 
         //low trip point
