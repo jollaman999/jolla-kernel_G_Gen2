@@ -1368,7 +1368,7 @@ static struct platform_device msm_tsens_device = {
 static struct msm_thermal_data msm_thermal_pdata = {
 	.sensor_id = 7,
 	.poll_ms = 1200,
-	.shutdown_temp = 80,
+	.shutdown_temp = 90,
 
 	.allowed_max_high = 68,
 	.allowed_max_low = 56,
@@ -1381,6 +1381,9 @@ static struct msm_thermal_data msm_thermal_pdata = {
 	.allowed_low_high = 56,
 	.allowed_low_low = 50,
 	.allowed_low_freq = 1134000,
+
+	// Dynamic thermal control - By jollaman999
+	.dynamic_thermal_control = 1,
 };
 
 #define MSM_SHARED_RAM_PHYS 0x80000000
