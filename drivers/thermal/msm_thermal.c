@@ -95,6 +95,9 @@ uint32_t msm_thermal_cpufreq[] = {
 };
 
 // Dynamic thermal control - By jollaman999
+unsigned int mid_freq_index;
+
+// Dynamic thermal control - By jollaman999
 #ifdef CONFIG_CPU_OVERCLOCK
 #define MSM_THERMAL_FREQ_TABLES 22
 #else
@@ -174,35 +177,55 @@ DECLARE_PER_CPU(struct msm_mpdec_cpudata_t, msm_mpdec_cpudata);
 #endif
 
 // Dynamic thermal control - By jollaman999
-void dynamic_thermal(void)
+unsigned int max_freq_finder(uint32_t msm_thermal_cpufreq[],
+				uint32_t cpufreq_max,
+				unsigned int low_freq_index,
+				unsigned int high_freq_index)
 {
-	struct cpufreq_policy *cpu_policy = NULL;
-	int i, cpu = 0;
+	// Return index of msm_thermal_cpufreq[mid_freq_index] = cpufreq_max
+	if(low_freq_index <= high_freq_index) {
+		mid_freq_index = (low_freq_index + high_freq_index) / 2;
 
-	// Get current cpu policy.
-	for_each_possible_cpu(cpu) {
-		cpu_policy = cpufreq_cpu_get(cpu);
-		if(cpu_policy)
-			break;
-		else {
-		    pr_debug("msm_thermal: NULL policy on cpu %d\n", cpu);
-		    continue;
+		if(cpufreq_max == msm_thermal_cpufreq[mid_freq_index]) {
+			return mid_freq_index;
+		} else if(cpufreq_max < msm_thermal_cpufreq[mid_freq_index]) {
+			return max_freq_finder(msm_thermal_cpufreq, cpufreq_max,
+						low_freq_index, mid_freq_index - 1);
+		} else if(cpufreq_max > msm_thermal_cpufreq[mid_freq_index]) {
+			return max_freq_finder(msm_thermal_cpufreq, cpufreq_max,
+						mid_freq_index + 1, high_freq_index);
 		}
 	}
 
-	// Get current max cpu frequency.
-	for(i=0; i<=MSM_THERMAL_FREQ_TABLES; i++) {
-		if(cpu_policy->max == msm_thermal_cpufreq[i])
-			break;
-	}
+	return 10; // If fail to find max freq, return 10 index value.
+}
+
+// Dynamic thermal control - By jollaman999
+void dynamic_thermal(void)
+{
+	struct cpufreq_policy *cpu_policy = NULL;
+	int cpu = 0;
+	unsigned int low_freq_index = 0, high_freq_index = MSM_THERMAL_FREQ_TABLES;
+	unsigned int freq_find_index = 0;
+
+	// Get current cpu policy from cpu0.
+	cpu_policy = cpufreq_cpu_get(cpu);
+
+	// Find current max cpu frequency.
+	if(cpu_policy) {
+		freq_find_index = max_freq_finder(msm_thermal_cpufreq, cpu_policy->max,
+							low_freq_index, high_freq_index);
+	} else // If fail to get cpu policy, set find index to midium freq.
+		freq_find_index = (low_freq_index + high_freq_index) / 2;
 
 	// Below 486000 is too low frequency. So ignore it.
-	if(i <= 4)
+	if(freq_find_index <= 4)
 		return;
 
-	msm_thermal_info.allowed_low_freq = msm_thermal_cpufreq[i];
+	msm_thermal_info.allowed_low_freq = msm_thermal_cpufreq[freq_find_index];
 
-	msm_thermal_info.allowed_low_low = 30 + 2 * i;
+	// Adjust thermal temperatures.
+	msm_thermal_info.allowed_low_low = 30 + 2 * freq_find_index;
 	msm_thermal_info.allowed_low_high = msm_thermal_info.allowed_low_low + 6;
 
 	msm_thermal_info.allowed_mid_low = msm_thermal_info.allowed_low_low + 4;
@@ -211,8 +234,8 @@ void dynamic_thermal(void)
 	msm_thermal_info.allowed_max_low = msm_thermal_info.allowed_mid_low + 2;
 	msm_thermal_info.allowed_max_high = msm_thermal_info.allowed_max_low + 12;
 
-	msm_thermal_info.allowed_mid_freq = msm_thermal_cpufreq[i-1];
-	msm_thermal_info.allowed_max_freq = msm_thermal_cpufreq[i-2];
+	msm_thermal_info.allowed_mid_freq = msm_thermal_cpufreq[freq_find_index-1];
+	msm_thermal_info.allowed_max_freq = msm_thermal_cpufreq[freq_find_index-2];
 
 	return;
 }
