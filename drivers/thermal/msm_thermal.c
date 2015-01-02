@@ -57,8 +57,11 @@ static struct delayed_work check_temp_work;
 static struct workqueue_struct *check_temp_workq;
 
 // Dynamic thermal control - By jollaman999
+/* Working with drivers/cpufreq/cpufreq.c */
 bool cpufreq_max_changed = false;
+bool msm_thermal_throttle_called = false;
 EXPORT_SYMBOL(cpufreq_max_changed);
+EXPORT_SYMBOL(msm_thermal_throttle_called);
 
 // Dynamic thermal control - By jollaman999
 /* MSM cpu freq tables */
@@ -272,6 +275,7 @@ static void __cpuinit check_temp(struct work_struct *work)
         if ((temp >= msm_thermal_info.allowed_low_high) &&
             (temp < msm_thermal_info.allowed_mid_high) &&
             (bricked_thermal_throttled < 1)) {
+            msm_thermal_throttle_called = true; // Dynamic thermal control - By jollaman999
             update_policy = true;
             max_freq = msm_thermal_info.allowed_low_freq;
             if (cpu == (CONFIG_NR_CPUS-1)) {
@@ -282,6 +286,7 @@ static void __cpuinit check_temp(struct work_struct *work)
         //low clr point
         } else if ((temp < msm_thermal_info.allowed_low_low) &&
                (bricked_thermal_throttled > 0)) {
+            msm_thermal_throttle_called = true; // Dynamic thermal control - By jollaman999
             if (pre_throttled_max != 0)
                 max_freq = pre_throttled_max;
             else {
@@ -309,11 +314,11 @@ static void __cpuinit check_temp(struct work_struct *work)
                 }
             }
 #endif
-
         //mid trip point
         } else if ((temp >= msm_thermal_info.allowed_mid_high) &&
                (temp < msm_thermal_info.allowed_max_high) &&
                (bricked_thermal_throttled < 2)) {
+            msm_thermal_throttle_called = true; // Dynamic thermal control - By jollaman999
             update_policy = true;
             max_freq = msm_thermal_info.allowed_mid_freq;
             if (cpu == (CONFIG_NR_CPUS-1)) {
@@ -324,6 +329,7 @@ static void __cpuinit check_temp(struct work_struct *work)
         //mid clr point
         } else if ((temp < msm_thermal_info.allowed_mid_low) &&
                (bricked_thermal_throttled > 1)) {
+            msm_thermal_throttle_called = true; // Dynamic thermal control - By jollaman999
             max_freq = msm_thermal_info.allowed_low_freq;
             update_policy = true;
             if (cpu == (CONFIG_NR_CPUS-1)) {
@@ -333,6 +339,7 @@ static void __cpuinit check_temp(struct work_struct *work)
             }
         //max trip point
         } else if (temp >= msm_thermal_info.allowed_max_high) {
+            msm_thermal_throttle_called = true; // Dynamic thermal control - By jollaman999
             update_policy = true;
             max_freq = msm_thermal_info.allowed_max_freq;
             if (cpu == (CONFIG_NR_CPUS-1)) {
@@ -343,6 +350,7 @@ static void __cpuinit check_temp(struct work_struct *work)
         //max clr point
         } else if ((temp < msm_thermal_info.allowed_max_low) &&
                (bricked_thermal_throttled > 2)) {
+            msm_thermal_throttle_called = true; // Dynamic thermal control - By jollaman999
             max_freq = msm_thermal_info.allowed_mid_freq;
             update_policy = true;
             if (cpu == (CONFIG_NR_CPUS-1)) {
@@ -350,6 +358,8 @@ static void __cpuinit check_temp(struct work_struct *work)
                 pr_warn("msm_thermal: Max thermal throttle ended! temp:%lu by:%u\n",
                         temp, msm_thermal_info.sensor_id);
             }
+        } else {
+            msm_thermal_throttle_called = false; // Dynamic thermal control - By jollaman999
         }
         update_stats();
         start_stats(bricked_thermal_throttled);
