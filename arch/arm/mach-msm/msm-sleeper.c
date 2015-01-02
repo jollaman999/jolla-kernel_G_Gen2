@@ -25,7 +25,6 @@
 
 extern uint32_t maxscroff;
 extern uint32_t maxscroff_freq;
-static uint32_t oldmax_freq;
 static int limit_set = 0;
 
 struct notifier_block notif;
@@ -33,11 +32,6 @@ struct notifier_block notif;
 static void msm_sleeper_suspend(void)
 {
 	int cpu;
-
-	struct cpufreq_policy *policy;
-
-	policy = cpufreq_cpu_get(0);
-	oldmax_freq = policy->max;
 
 	for_each_possible_cpu(cpu) {
 		msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, maxscroff_freq);
@@ -53,7 +47,7 @@ static void msm_sleeper_resume(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, oldmax_freq);
+		msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, MSM_CPUFREQ_NO_LIMIT);
 		pr_info("Restore max frequency to %d\n", MSM_CPUFREQ_NO_LIMIT);
 	}
 	limit_set = 0;
