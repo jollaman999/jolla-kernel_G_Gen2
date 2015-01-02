@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/cpufreq.h>
 #include <mach/cpufreq.h>
-#include <linux/lcd_notify.h>
+#include <linux/earlysuspend.h>
 
 #define MSM_SLEEPER_MAJOR_VERSION	3
 #define MSM_SLEEPER_MINOR_VERSION	2
@@ -28,9 +28,8 @@ extern uint32_t maxscroff_freq;
 extern uint32_t ex_max_freq;
 static int limit_set = 0;
 
-struct notifier_block notif;
-
-static void msm_sleeper_suspend(void)
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void __cpuinit msm_sleeper_early_suspend(struct early_suspend *h)
 {
 	int cpu;
 
@@ -43,7 +42,7 @@ static void msm_sleeper_suspend(void)
 	return; 
 }
 
-static void msm_sleeper_resume(void)
+static void __cpuinit msm_sleeper_late_resume(struct early_suspend *h)
 {
 	int cpu;
 
@@ -56,28 +55,12 @@ static void msm_sleeper_resume(void)
 	return; 
 }
 
-static int lcd_notifier_callback(struct notifier_block *this,
-				unsigned long event, void *data)
-{
-	switch (event) {
-	case LCD_EVENT_ON_START:
-		if (limit_set)
-			msm_sleeper_resume();
-		break;
-	case LCD_EVENT_ON_END:
-		break;
-	case LCD_EVENT_OFF_START:
-		if (maxscroff)
-			msm_sleeper_suspend();
-		break;
-	case LCD_EVENT_OFF_END:
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
+static struct early_suspend msm_sleeper_early_suspend_driver = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 10,
+	.suspend = msm_sleeper_early_suspend,
+	.resume = msm_sleeper_late_resume,
+};
+#endif
 
 
 static int __init msm_sleeper_init(void)
@@ -86,10 +69,9 @@ static int __init msm_sleeper_init(void)
 		 MSM_SLEEPER_MAJOR_VERSION,
 		 MSM_SLEEPER_MINOR_VERSION);
 
-	notif.notifier_call = lcd_notifier_callback;
-
-	if (lcd_register_client(&notif))
-		printk("[msm-sleeper] error\n");
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	register_early_suspend(&msm_sleeper_early_suspend_driver);
+#endif
 
 	return 0;
 }
