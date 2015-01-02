@@ -33,7 +33,7 @@
 #include "acpuclock.h"
 
 /* maxscroff */
-uint32_t maxscroff_freq = 702000;
+uint32_t maxscroff_freq = 729600;
 uint32_t maxscroff = 0; 
 
 /* ex max freq */
