@@ -34,8 +34,8 @@
 
 // Dynamic thermal control - By jollaman999
 /* Working with drivers/thermal/msm_thermal.c */
-extern bool cpufreq_max_changed;
-extern bool msm_thermal_throttle_called;
+extern bool cpufreq_max_changed_by_user;
+extern bool cpufreq_max_changed_by_msm_thermal;
 
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
@@ -485,8 +485,8 @@ static ssize_t store_scaling_max_freq
 
 	ret = __cpufreq_set_policy(policy, &new_policy);
 
-	if(!msm_thermal_throttle_called)
-		cpufreq_max_changed = true;
+	cpufreq_max_changed_by_user = true;
+	cpufreq_max_changed_by_msm_thermal = false;
 
 	return ret ? ret : count;
 }
