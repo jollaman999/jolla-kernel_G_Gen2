@@ -52,10 +52,6 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 		       unsigned int relation);
 #endif
 
-// Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
-bool smartmax_screen_off = false;
-EXPORT_SYMBOL(smartmax_screen_off);
-
 /******************** Tunable parameters: ********************/
 
 /*
@@ -71,7 +67,6 @@ EXPORT_SYMBOL(smartmax_screen_off);
 #define DEFAULT_MAX_CPU_LOAD 85
 #define DEFAULT_MIN_CPU_LOAD 35
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_UP_RATE_SCREEN_OFF 200000 // Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
 #define DEFAULT_DOWN_RATE 80000
 #define DEFAULT_SAMPLING_RATE 70000
 #define DEFAULT_INPUT_BOOST_DURATION 90000
@@ -111,14 +106,6 @@ static unsigned int min_cpu_load;
  * Notice we ignore this when we are below the ideal frequency.
  */
 static unsigned int up_rate;
-
-// Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
-/*
- * The minimum amount of time in usecs to spend at a frequency before we can ramp up
- * when screen off.
- * Notice we ignore this when we are below the ideal frequency.
- */
-static unsigned int up_rate_screen_off;
 
 /*
  * The minimum amount of time in usecs to spend at a frequency before we can ramp down.
@@ -467,21 +454,16 @@ static inline void cpufreq_smartmax_get_ramp_direction(struct smartmax_info_s *t
 {
 	unsigned int cur_load = this_smartmax->cur_cpu_load;
 	unsigned int cur = this_smartmax->old_freq;
-	unsigned int up_rate_tmp = up_rate; // Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
 	struct cpufreq_policy *policy = this_smartmax->cur_policy;
-
-	// Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
-	if(smartmax_screen_off)
-		up_rate_tmp = up_rate_screen_off;
 	
 	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
 	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
 	// for at least up_rate:
 	if (cur_load > max_cpu_load && cur < policy->max
 			&& (cur < this_smartmax->ideal_speed
-				|| (now - this_smartmax->freq_change_time) >= up_rate_tmp)) { // Use up_rate_screen_off
-		dprintk(SMARTMAX_DEBUG_ALG,						      // when screen off
-				"%d: ramp up: load %d\n", cur, cur_load);		      // - by jollaman999 & gu5t3r
+				|| (now - this_smartmax->freq_change_time) >= up_rate)) {
+		dprintk(SMARTMAX_DEBUG_ALG,
+				"%d: ramp up: load %d\n", cur, cur_load);
 		this_smartmax->ramp_dir = 1;
 	}
 	// Similarly for scale down: load should be below min and if we are at or below ideal
@@ -679,25 +661,6 @@ static ssize_t store_up_rate(struct kobject *kobj, struct attribute *attr,
 	res = strict_strtoul(buf, 0, &input);
 	if (res >= 0 && input >= 0 && input <= 100000000)
 		up_rate = input;
-	else
-		return -EINVAL;
-	return count;
-}
-
-// Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
-static ssize_t show_up_rate_screen_off(struct kobject *kobj, struct attribute *attr,
-		char *buf) {
-	return sprintf(buf, "%u\n", up_rate_screen_off);
-}
-
-// Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
-static ssize_t store_up_rate_screen_off(struct kobject *kobj, struct attribute *attr,
-		const char *buf, size_t count) {
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res >= 0 && input >= 0 && input <= 100000000)
-		up_rate_screen_off = input;
 	else
 		return -EINVAL;
 	return count;
@@ -1025,7 +988,6 @@ static struct global_attr _name##_attr =	\
 
 define_global_rw_attr(debug_mask);
 define_global_rw_attr(up_rate);
-define_global_rw_attr(up_rate_screen_off); // Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
 define_global_rw_attr(down_rate);
 define_global_rw_attr(ramp_up_step);
 define_global_rw_attr(ramp_down_step);
@@ -1046,7 +1008,6 @@ define_global_ro_attr(min_sampling_rate);
 static struct attribute * smartmax_attributes[] = { 
 	&debug_mask_attr.attr,
 	&up_rate_attr.attr, 
-	&up_rate_screen_off_attr.attr, // Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
 	&down_rate_attr.attr, 
 	&ramp_up_step_attr.attr, 
 	&ramp_down_step_attr.attr,
@@ -1419,7 +1380,6 @@ static int __init cpufreq_smartmax_init(void) {
 	}
 
 	up_rate = DEFAULT_UP_RATE;
-	up_rate_screen_off = DEFAULT_UP_RATE_SCREEN_OFF; // Use up_rate_screen_off when screen off - by jollaman999 & gu5t3r
 	down_rate = DEFAULT_DOWN_RATE;
 	suspend_ideal_freq = DEFAULT_SUSPEND_IDEAL_FREQ;
 	awake_ideal_freq = DEFAULT_AWAKE_IDEAL_FREQ;
