@@ -52,6 +52,10 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 		       unsigned int relation);
 #endif
 
+// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+bool smartmax_screen_off = false;
+EXPORT_SYMBOL(smartmax_screen_off);
+
 /******************** Tunable parameters: ********************/
 
 /*
@@ -69,6 +73,7 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 #define DEFAULT_UP_RATE 30000
 #define DEFAULT_DOWN_RATE 80000
 #define DEFAULT_SAMPLING_RATE 70000
+#define DEFAULT_SAMPLING_RATE_SCREEN_OFF 200000 // Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 702000
 #define DEFAULT_BOOST_FREQ 918000
@@ -115,6 +120,10 @@ static unsigned int down_rate;
 
 /* in usecs */
 static unsigned int sampling_rate;
+
+// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+/* in usecs */
+static unsigned int sampling_rate_screen_off;
 
 /* in usecs */
 static unsigned int input_boost_duration;
@@ -330,6 +339,10 @@ inline static unsigned int validate_freq(struct cpufreq_policy *policy,
 /* We want all CPUs to do sampling nearly on same jiffy */
 static inline unsigned int get_timer_delay(void) {
 	unsigned int delay = usecs_to_jiffies(sampling_rate);
+
+	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+	if(smartmax_screen_off)
+		delay = usecs_to_jiffies(sampling_rate_screen_off);
 
 	if (num_online_cpus() > 1)
 		delay -= jiffies % delay;
@@ -810,6 +823,25 @@ static ssize_t store_sampling_rate(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+static ssize_t show_sampling_rate_screen_off(struct kobject *kobj, struct attribute *attr,
+		char *buf) {
+	return sprintf(buf, "%u\n", sampling_rate_screen_off);
+}
+
+// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+static ssize_t store_sampling_rate_screen_off(struct kobject *kobj, struct attribute *attr,
+		const char *buf, size_t count) {
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res >= 0 && input >= min_sampling_rate)
+		sampling_rate_screen_off = input;
+	else
+		return -EINVAL;
+	return count;
+}
+
 static ssize_t show_touch_poke_freq(struct kobject *kobj,
 		struct attribute *attr, char *buf) {
 	return sprintf(buf, "%u\n", touch_poke_freq);
@@ -994,6 +1026,7 @@ define_global_rw_attr(ramp_down_step);
 define_global_rw_attr(max_cpu_load);
 define_global_rw_attr(min_cpu_load);
 define_global_rw_attr(sampling_rate);
+define_global_rw_attr(sampling_rate_screen_off); // Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 define_global_rw_attr(touch_poke_freq);
 define_global_rw_attr(input_boost_duration);
 define_global_rw_attr(boost_freq);
@@ -1013,7 +1046,8 @@ static struct attribute * smartmax_attributes[] = {
 	&ramp_down_step_attr.attr,
 	&max_cpu_load_attr.attr, 
 	&min_cpu_load_attr.attr,
-	&sampling_rate_attr.attr, 
+	&sampling_rate_attr.attr,
+	&sampling_rate_screen_off_attr.attr, // Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 	&touch_poke_freq_attr.attr,
 	&input_boost_duration_attr.attr, 
 	&boost_freq_attr.attr, 
@@ -1299,7 +1333,11 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 
 			/* Bring kernel and HW constraints together */
 			min_sampling_rate = max(min_sampling_rate, MIN_LATENCY_MULTIPLIER * latency);
-			sampling_rate = max(min_sampling_rate, sampling_rate);
+			// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+			if(smartmax_screen_off)
+				sampling_rate_screen_off = max(min_sampling_rate, sampling_rate_screen_off);
+			else
+				sampling_rate = max(min_sampling_rate, sampling_rate);
 		}
 
 		mutex_unlock(&dbs_mutex);
@@ -1389,6 +1427,7 @@ static int __init cpufreq_smartmax_init(void) {
 	max_cpu_load = DEFAULT_MAX_CPU_LOAD;
 	min_cpu_load = DEFAULT_MIN_CPU_LOAD;
 	sampling_rate = DEFAULT_SAMPLING_RATE;
+	sampling_rate_screen_off = DEFAULT_SAMPLING_RATE_SCREEN_OFF; // Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 	input_boost_duration = DEFAULT_INPUT_BOOST_DURATION;
 	io_is_busy = DEFAULT_IO_IS_BUSY;
 	ignore_nice = DEFAULT_IGNORE_NICE;
