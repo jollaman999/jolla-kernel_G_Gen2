@@ -555,7 +555,12 @@ struct venc_capability{
 };
 
 struct venc_entropycfg{
+#ifdef  __KERNEL__
 	unsigned longentropysel;
+#else
+        /* Userspace wants this renamed... */
+	unsigned long entropysel;
+#endif
 	unsigned long	cabacmodel;
 };
 
