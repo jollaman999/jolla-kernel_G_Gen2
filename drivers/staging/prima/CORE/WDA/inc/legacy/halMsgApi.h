@@ -1213,6 +1213,15 @@ typedef struct sBaActivityInd
 } tBaActivityInd, * tpBaActivityInd;
 
 
+// Mesg Type = SIR_LIM_IBSS_PEER_INACTIVITY_IND
+typedef struct sIbssPeerInactivityInd
+{
+   tANI_U8     bssIdx;
+   tANI_U8     staIdx;
+   tSirMacAddr staAddr;
+}tIbssPeerInactivityInd, *tpIbssPeerInactivityInd;
+
+
 typedef struct tHalIndCB
 {
 
@@ -1299,6 +1308,11 @@ typedef struct sAddStaSelfParams
    tVOS_CON_MODE currDeviceMode;
    tANI_U32 status;
 }tAddStaSelfParams, *tpAddStaSelfParams;
+
+typedef struct sAbortScanParams
+{
+   tANI_U8 SessionId;
+}tAbortScanParams, *tpAbortScanParams;
 
 typedef struct sDelStaSelfParams
 {
