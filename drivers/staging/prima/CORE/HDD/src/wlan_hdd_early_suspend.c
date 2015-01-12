@@ -428,7 +428,7 @@ VOS_STATUS hdd_exit_deep_sleep(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter)
                                 &pAdapter->sessionId);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )
    {
-      hddLog(VOS_TRACE_LEVEL_FATAL,"sme_OpenSession() failed with status code %08d [x%08lx]",
+      hddLog(VOS_TRACE_LEVEL_FATAL,"sme_OpenSession() failed with status code %08d [x%08x]",
                     halStatus, halStatus );
       goto err_voss_stop;
 
@@ -648,13 +648,14 @@ void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
                     hddLog (VOS_TRACE_LEVEL_INFO,
                     "configuredMcastBcastFilter: %d",pHddCtx->configuredMcastBcastFilter);
 
-                    if((HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST ==
-                              pHddCtx->configuredMcastBcastFilter) ||
-                        (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST ==
-                        pHddCtx->configuredMcastBcastFilter))
+                    if ((VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid)
+                       && ((HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST ==
+                          pHddCtx->sus_res_mcastbcast_filter) ||
+                          (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST ==
+                          pHddCtx->sus_res_mcastbcast_filter)))
                     {
                         hddLog (VOS_TRACE_LEVEL_INFO,
-                        "Set offLoadRequest with SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE \n", __func__);
+                        "Set offLoadRequest with SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE \n");
                         offLoadRequest.enableOrDisable =
                          SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE;
                     }
@@ -737,15 +738,21 @@ VOS_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
 
            hddLog(VOS_TRACE_LEVEL_INFO, "%s: Enabled \n", __func__);
 
-           if((HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST ==
-              pHddCtx->configuredMcastBcastFilter) ||
-              (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST ==
-              pHddCtx->configuredMcastBcastFilter))
+           if (((HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST ==
+                pHddCtx->sus_res_mcastbcast_filter) ||
+               (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST ==
+                pHddCtx->sus_res_mcastbcast_filter)) &&
+               (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid))
            {
                offLoadRequest.enableOrDisable =
-               SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
+                   SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
+               hddLog(VOS_TRACE_LEVEL_INFO,
+                      "offload: inside arp offload conditional check");
            }
-           
+
+           hddLog(VOS_TRACE_LEVEL_INFO, "offload: arp filter programmed = %d",
+                  offLoadRequest.enableOrDisable);
+
            //converting u32 to IPV4 address
            for(i = 0 ; i < 4; i++)
            {
@@ -871,8 +878,16 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
     tpSirWlanSuspendParam wlanSuspendParam =
       vos_mem_malloc(sizeof(tSirWlanSuspendParam));
 
-    pHddCtx->sus_res_mcastbcast_filter =
-        pHddCtx->configuredMcastBcastFilter;
+    if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
+        pHddCtx->sus_res_mcastbcast_filter =
+            pHddCtx->configuredMcastBcastFilter;
+        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
+        hddLog(VOS_TRACE_LEVEL_INFO, "offload: hdd_conf_suspend_ind");
+        hddLog(VOS_TRACE_LEVEL_INFO, "configuredMCastBcastFilter saved = %d",
+               pHddCtx->configuredMcastBcastFilter);
+
+    }
+
 
     if(NULL == wlanSuspendParam)
     {
@@ -881,7 +896,7 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
         return;
     }
 
-    hddLog(VOS_TRACE_LEVEL_INFO, 
+    hddLog(VOS_TRACE_LEVEL_INFO,
       "%s: send wlan suspend indication", __func__);
 
     if((pHddCtx->cfg_ini->nEnableSuspend == WLAN_MAP_SUSPEND_TO_MCAST_BCAST_FILTER))
@@ -917,30 +932,36 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
     hddLog(VOS_TRACE_LEVEL_INFO,
       "%s: send wlan resume indication", __func__);
 
-    if (pHddCtx->hdd_mcastbcast_filter_set == TRUE)
+    wlanResumeParam = vos_mem_malloc(sizeof(tSirWlanResumeParam));
+
+    if (NULL == wlanResumeParam)
     {
-        wlanResumeParam = vos_mem_malloc(sizeof(tSirWlanResumeParam));
-
-        if(NULL == wlanResumeParam)
-        {
-            hddLog(VOS_TRACE_LEVEL_FATAL,
-               "%s: vos_mem_alloc failed ", __func__);
-            return;
-        }
-
-        //Disable supported OffLoads
-        hdd_conf_hostoffload(pAdapter, FALSE);
-
-        wlanResumeParam->configuredMcstBcstFilterSetting =
-                                   pHddCtx->configuredMcastBcastFilter;
-        halStatus = sme_ConfigureResumeReq(pHddCtx->hHal, wlanResumeParam);
-        if (eHAL_STATUS_SUCCESS != halStatus)
-            vos_mem_free(wlanResumeParam);
-        pHddCtx->hdd_mcastbcast_filter_set = FALSE;
+        hddLog(VOS_TRACE_LEVEL_FATAL,
+             "%s: memory allocation failed for wlanResumeParam ", __func__);
+        return;
     }
+
+    //Disable supported OffLoads
+    hdd_conf_hostoffload(pAdapter, FALSE);
+
+    wlanResumeParam->configuredMcstBcstFilterSetting =
+                               pHddCtx->configuredMcastBcastFilter;
+    halStatus = sme_ConfigureResumeReq(pHddCtx->hHal, wlanResumeParam);
+    if (eHAL_STATUS_SUCCESS != halStatus)
+    {
+        vos_mem_free(wlanResumeParam);
+    }
+
+    pHddCtx->hdd_mcastbcast_filter_set = FALSE;
 
     pHddCtx->configuredMcastBcastFilter =
       pHddCtx->sus_res_mcastbcast_filter;
+    pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
+
+    hddLog(VOS_TRACE_LEVEL_INFO,
+           "offload: in hdd_conf_resume_ind, restoring configuredMcastBcastFilter");
+    hddLog(VOS_TRACE_LEVEL_INFO, "configuredMcastBcastFilter = %d",
+                  pHddCtx->configuredMcastBcastFilter);
 
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
@@ -990,45 +1011,6 @@ void hdd_suspend_wlan(void)
    while ( NULL != pAdapterNode && VOS_STATUS_SUCCESS == status )
    {
        pAdapter = pAdapterNode->pAdapter;
-
-#ifdef FEATURE_WLAN_LPHB
-       if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
-           (pHddCtx->lphbEnableReq.enable))
-       {
-           tSirLPHBReq *hb_params = NULL;
-
-           hb_params = (tSirLPHBReq *)vos_mem_malloc(sizeof(tSirLPHBReq));
-           if (NULL == hb_params)
-           {
-               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                         "%s: hb_params alloc failed", __func__);
-           }
-           else
-           {
-               eHalStatus smeStatus;
-
-               hb_params->cmd    = LPHB_SET_EN_PARAMS_INDID;
-               hb_params->params.lphbEnableReq.enable  =
-                                    pHddCtx->lphbEnableReq.enable;
-               hb_params->params.lphbEnableReq.item    =
-                                    pHddCtx->lphbEnableReq.item;
-               hb_params->params.lphbEnableReq.session =
-                                    pHddCtx->lphbEnableReq.session;
-               /* If WLAN is suspend state, send enable command immediately */
-               smeStatus = sme_LPHBConfigReq((tHalHandle)(pHddCtx->hHal),
-                                             hb_params,
-                                             NULL);
-               if (eHAL_STATUS_SUCCESS != smeStatus)
-               {
-                   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                             "LPHB Config Fail, disable");
-                   pHddCtx->lphbEnableReq.enable = 0;
-                   vos_mem_free(hb_params);
-               }
-           }
-       }
-#endif /* FEATURE_WLAN_LPHB */
-
        if ( (WLAN_HDD_INFRA_STATION != pAdapter->device_mode)
          && (WLAN_HDD_SOFTAP != pAdapter->device_mode)
          && (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode) )
@@ -1105,7 +1087,19 @@ static void hdd_PowerStateChangedCB
    spin_lock(&pHddCtx->filter_lock);
    if((newState == BMPS) &&  pHddCtx->hdd_wlan_suspended) {
       spin_unlock(&pHddCtx->filter_lock);
-      pHddCtx->sus_res_mcastbcast_filter = pHddCtx->configuredMcastBcastFilter;
+      if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
+          pHddCtx->sus_res_mcastbcast_filter =
+              pHddCtx->configuredMcastBcastFilter;
+          pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
+
+          hddLog(VOS_TRACE_LEVEL_INFO, "offload: callback to associated");
+          hddLog(VOS_TRACE_LEVEL_INFO, "saving configuredMcastBcastFilter = %d",
+                 pHddCtx->configuredMcastBcastFilter);
+          hddLog(VOS_TRACE_LEVEL_INFO,
+                 "offload: calling hdd_conf_mcastbcast_filter");
+
+      }
+
       hdd_conf_mcastbcast_filter(pHddCtx, TRUE);
       if(pHddCtx->hdd_mcastbcast_filter_set != TRUE)
          hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Not able to set mcast/bcast filter ", __func__);
@@ -1340,44 +1334,6 @@ void hdd_resume_wlan(void)
       }
 
       hdd_conf_resume_ind(pAdapter);
-
-#ifdef FEATURE_WLAN_LPHB
-      if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
-          (pHddCtx->lphbEnableReq.enable))
-      {
-         tSirLPHBReq *hb_params = NULL;
-
-         hb_params = (tSirLPHBReq *)vos_mem_malloc(sizeof(tSirLPHBReq));
-         if (NULL == hb_params)
-         {
-            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "%s: hb_params alloc failed", __func__);
-         }
-         else
-         {
-            eHalStatus smeStatus;
-
-            hb_params->cmd    = LPHB_SET_EN_PARAMS_INDID;
-            hb_params->params.lphbEnableReq.enable  = 0;
-            hb_params->params.lphbEnableReq.item    =
-                              pHddCtx->lphbEnableReq.item;
-            hb_params->params.lphbEnableReq.session =
-                              pHddCtx->lphbEnableReq.session;
-            /* If WLAN is suspend state, send enable command immediately */
-            smeStatus = sme_LPHBConfigReq((tHalHandle)(pHddCtx->hHal),
-                                          hb_params,
-                                          NULL);
-            if (eHAL_STATUS_SUCCESS != smeStatus)
-            {
-               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                         "LPHB Config Fail, disable");
-               pHddCtx->lphbEnableReq.enable = 0;
-               vos_mem_free(hb_params);
-            }
-         }
-      }
-#endif /* FEATURE_WLAN_LPHB */
-
       status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
       pAdapterNode = pNext;
    }
@@ -1645,6 +1601,8 @@ VOS_STATUS hdd_wlan_re_init(void)
    }
 #endif
 
+   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+
    /* The driver should always be initialized in STA mode after SSR */
    hdd_set_conparam(0);
 
@@ -1787,6 +1745,7 @@ VOS_STATUS hdd_wlan_re_init(void)
                                         __func__);
       goto err_unregister_pmops;
    }
+   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    goto success;
 
 err_unregister_pmops:
@@ -1839,6 +1798,7 @@ err_vosclose:
 err_re_init:
    /* Allow the phone to go to sleep */
    hdd_allow_suspend();
+   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    VOS_BUG(0);
    return -EPERM;
 

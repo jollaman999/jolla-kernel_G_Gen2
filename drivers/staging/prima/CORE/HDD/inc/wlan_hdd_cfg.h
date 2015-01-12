@@ -282,12 +282,6 @@
 #define CFG_ENABLE_ADAPT_RX_DRAIN_MAX       WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STAMAX
 #define CFG_ENABLE_ADAPT_RX_DRAIN_DEFAULT   WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STADEF
 
-//Enable Prop IE
-#define CFG_ENABLE_OXYNWK_NAME                   "gEnableOxygenNwk"
-#define CFG_ENABLE_OXYNWK_MIN                    ( 0 )
-#define CFG_ENABLE_OXYNWK_MAX                    ( 1 )
-#define CFG_ENABLE_OXYNWK_DEFAULT                ( 0 )
-
 typedef enum
 {
     eHDD_DOT11_MODE_AUTO = 0, //covers all things we support
@@ -421,11 +415,6 @@ typedef enum
 #define CFG_INTF3_MAC_ADDR_MIN                   "000000000000"
 #define CFG_INTF3_MAC_ADDR_MAX                   "ffffffffffff"
 #define CFG_INTF3_MAC_ADDR_DEFAULT               "000AF5898983"
-
-#define CFG_CRDA_DEFAULT_COUNTRY_CODE            "gCrdaDefaultCountryCode"
-#define CFG_CRDA_DEFAULT_COUNTRY_CODE_MIN        "00"
-#define CFG_CRDA_DEFAULT_COUNTRY_CODE_MAX        "ZZ"
-#define CFG_CRDA_DEFAULT_COUNTRY_CODE_DEFAULT    "ZZ"
 
 #define CFG_AP_QOS_UAPSD_MODE_NAME             "gEnableApUapsd" // ACs to setup U-APSD for at assoc
 #define CFG_AP_QOS_UAPSD_MODE_MIN              ( 0 )
@@ -797,6 +786,11 @@ typedef enum
 #define CFG_LFR_FEATURE_ENABLED_MIN                         (0)
 #define CFG_LFR_FEATURE_ENABLED_MAX                         (1)
 #define CFG_LFR_FEATURE_ENABLED_DEFAULT                     (0) //disabled
+
+#define CFG_LFR_MAWC_FEATURE_ENABLED_NAME                   "MAWCEnabled"
+#define CFG_LFR_MAWC_FEATURE_ENABLED_MIN                    (0)
+#define CFG_LFR_MAWC_FEATURE_ENABLED_MAX                    (1)
+#define CFG_LFR_MAWC_FEATURE_ENABLED_DEFAULT                (0) /* disabled */
 #endif // FEATURE_WLAN_LFR
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
@@ -835,6 +829,12 @@ typedef enum
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MIN                    (0)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MAX                    (125)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_DEFAULT                (0)
+
+/*This parameter is used to set Wireless Extended Security Mode.*/
+#define CFG_ENABLE_WES_MODE_NAME                            "gWESModeEnabled"
+#define CFG_ENABLE_WES_MODE_NAME_MIN                        (0)
+#define CFG_ENABLE_WES_MODE_NAME_MAX                        (1)
+#define CFG_ENABLE_WES_MODE_NAME_DEFAULT                    (0)
 
 #define CFG_ROAM_SCAN_N_PROBES                             "gRoamScanNProbes"
 #define CFG_ROAM_SCAN_N_PROBES_MIN                          (1)
@@ -1408,7 +1408,7 @@ typedef enum
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_NAME                "isP2pDeviceAddrAdministrated"
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MIN                 ( 0 )
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MAX                 ( 1 )
-#define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_DEFAULT             ( 0 )
+#define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_DEFAULT             ( 1 )
 
 
 #define CFG_ENABLE_SSR                      "gEnableSSR"
@@ -1443,6 +1443,7 @@ typedef enum
 #define CFG_VOS_TRACE_ENABLE_HDD_NAME     "vosTraceEnableHDD"
 #define CFG_VOS_TRACE_ENABLE_SME_NAME     "vosTraceEnableSME"
 #define CFG_VOS_TRACE_ENABLE_PE_NAME      "vosTraceEnablePE"
+#define CFG_VOS_TRACE_ENABLE_PMC_NAME     "vosTraceEnablePMC"
 #define CFG_VOS_TRACE_ENABLE_WDA_NAME     "vosTraceEnableWDA"
 #define CFG_VOS_TRACE_ENABLE_SYS_NAME     "vosTraceEnableSYS"
 #define CFG_VOS_TRACE_ENABLE_VOSS_NAME    "vosTraceEnableVOSS"
@@ -1919,6 +1920,19 @@ typedef enum
 #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX          ( 0xffffffff )
 #endif
 
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
+
+/* Prefer connecting to 5G AP even if its RSSI is lower by
+ gSelect5GHzMargin dBm than 2.4G AP.
+This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
+#define CFG_STRICT_5GHZ_PREF_BY_MARGIN                 "gSelect5GHzMargin"
+#define CFG_STRICT_5GHZ_PREF_BY_MARGIN_MIN             (0)
+#define CFG_STRICT_5GHZ_PREF_BY_MARGIN_MAX             (60)
+#define CFG_STRICT_5GHZ_PREF_BY_MARGIN_DEFAULT         (0) //set 0 to disable
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2010,10 +2024,8 @@ typedef struct
    v_MACADDR_t   IbssBssid;
    v_U32_t       AdHocChannel5G;
    v_U32_t       AdHocChannel24G;
-   
    v_U8_t        intfAddrMask;
    v_MACADDR_t   intfMacAddr[VOS_MAX_CONCURRENCY_PERSONA];
-   v_U8_t        crdaDefaultCountryCode [3];
 
    v_BOOL_t      apUapsdEnabled;
    v_BOOL_t      apRandomBssidEnabled;
@@ -2023,7 +2035,7 @@ typedef struct
    v_U8_t        MinFramesProcThres;
    v_U8_t        apCntryCode[4];
    v_BOOL_t      apDisableIntraBssFwd;
-   v_U8_t        nEnableListenMode;    
+   v_U8_t        nEnableListenMode;
    v_U32_t       nAPAutoShutOff;
    v_U8_t        apStartChannelNum;
    v_U8_t        apEndChannelNum;
@@ -2114,6 +2126,7 @@ typedef struct
    v_U32_t                      InfraUapsdBkSuspIntv;
 #ifdef FEATURE_WLAN_LFR
    v_BOOL_t                     isFastRoamIniFeatureEnabled;
+   v_BOOL_t                     MAWCEnabled;
 #endif
 #ifdef FEATURE_WLAN_CCX
    v_U32_t                      InfraInactivityInterval;
@@ -2123,6 +2136,7 @@ typedef struct
    v_BOOL_t                     isFastTransitionEnabled;
    v_U8_t                       RoamRssiDiff;
    v_U8_t                       nImmediateRoamRssiDiff;
+   v_BOOL_t                     isWESModeEnabled;
 #endif
 #ifdef FEATURE_WLAN_OKC
    v_BOOL_t                     isOkcIniFeatureEnabled;
@@ -2206,6 +2220,7 @@ typedef struct
    v_U16_t                     vosTraceEnableHDD;
    v_U16_t                     vosTraceEnableSME;
    v_U16_t                     vosTraceEnablePE;
+   v_U16_t                     vosTraceEnablePMC;
    v_U16_t                     vosTraceEnableWDA;
    v_U16_t                     vosTraceEnableSYS;
    v_U16_t                     vosTraceEnableVOSS;
@@ -2310,7 +2325,6 @@ typedef struct
                                                  //splitscan
    //Traffic monitor timer for split scan
    v_U32_t                     trafficMntrTmrForSplitScan;
-   v_BOOL_t                    enableOxygenNwk;
    v_U8_t                      flexConnectPowerFactor;
    v_BOOL_t                    enableIbssHeartBeatOffload;
    v_U32_t                     antennaDiversity;
@@ -2319,6 +2333,8 @@ typedef struct
 #if FEATURE_WLAN_SCAN_PNO
    v_U32_t                     configPNOScanTimerRepeatValue;
 #endif
+   v_U8_t                      isAmsduSupportInAMPDU;
+   v_U8_t                      nSelect5GHzMargin;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
