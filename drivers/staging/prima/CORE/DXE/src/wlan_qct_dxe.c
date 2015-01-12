@@ -2216,13 +2216,10 @@ static wpt_status dxeRXFrameReady
        * Do not try reload driver at here*/
       if(!(chStat & WLANDXE_CH_CTRL_EN_MASK))
       {
-         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
+         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXFrameReady %s RING Wrapped, RX Free Low 0x%x",
                   channelType[channelEntry->channelType], chStat);
-         /* This is not empty interrupt case
-          * If handle this as empty interrupt, false SSR might be issued
-          * Frame count '1' is dummy frame count to avoid SSR */
-         channelEntry->numFragmentCurrentChain = 1;
+         channelEntry->numFragmentCurrentChain = 0;
          return eWLAN_PAL_STATUS_SUCCESS;
       }
 

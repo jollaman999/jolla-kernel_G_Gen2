@@ -452,6 +452,7 @@ typedef struct sSirRemainOnChnReq
     tANI_U8  chnNum;
     tANI_U8  phyMode;
     tANI_U32 duration;
+    tANI_U8  isProbeRequestAllowed;
     tANI_U8  probeRspIe[1];
 }tSirRemainOnChnReq, *tpSirRemainOnChnReq;
 
@@ -1020,6 +1021,11 @@ typedef struct sSirSmeJoinReq
     tAniEdType          UCEncryptionType;
 
     tAniEdType          MCEncryptionType;
+
+#ifdef WLAN_FEATURE_11W
+    tAniEdType          MgmtEncryptionType;
+#endif
+
 #ifdef WLAN_FEATURE_VOWIFI_11R
     tAniBool            is11Rconnection;
 #endif
@@ -2114,6 +2120,7 @@ typedef struct sAniChangeCountryCodeReq
     tANI_U16                msgType;    // message type is same as the request type
     tANI_U16                msgLen;     // length of the entire request
     tANI_U8                 countryCode[WNI_CFG_COUNTRY_CODE_LEN];   //3 char country code
+    tAniBool                countryFromUserSpace;
     void                    *changeCCCallback;
     void                    *pDevContext; //device context
     void                    *pVosContext; //voss context
@@ -2313,6 +2320,14 @@ typedef struct sSirP2PNoaStart
    tANI_U32      status;
    tANI_U32      bssIdx;
 } tSirP2PNoaStart, *tpSirP2PNoaStart;
+
+typedef struct sSirTdlsInd
+{
+   tANI_U16      status;
+   tANI_U16      assocId;
+   tANI_U16      staIdx;
+   tANI_U16      reasonCode;
+} tSirTdlsInd, *tpSirTdlsInd;
 
 typedef struct sSirP2PNoaAttr
 {
@@ -3249,9 +3264,7 @@ typedef struct sSirUpdateAPWPARSNIEsReq
 #define SIR_OFFLOAD_DISABLE                         0
 #define SIR_OFFLOAD_ENABLE                          1
 #define SIR_OFFLOAD_BCAST_FILTER_ENABLE             0x2
-#define SIR_OFFLOAD_MCAST_FILTER_ENABLE             0x4
 #define SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE     (SIR_OFFLOAD_ENABLE|SIR_OFFLOAD_BCAST_FILTER_ENABLE)
-#define SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE      (SIR_OFFLOAD_ENABLE|SIR_OFFLOAD_MCAST_FILTER_ENABLE)
 
 #ifdef WLAN_NS_OFFLOAD
 typedef struct sSirNsOffloadReq
@@ -3363,6 +3376,16 @@ typedef struct sSirSmeMgmtFrameInd
     tANI_U8  frameBuf[1]; //variable
 }tSirSmeMgmtFrameInd, *tpSirSmeMgmtFrameInd;
 
+#ifdef WLAN_FEATURE_11W
+typedef struct sSirSmeUnprotMgmtFrameInd
+{
+    tANI_U8         sessionId;
+    tANI_U8         frameType;
+    tANI_U8         frameLen;
+    tANI_U8         frameBuf[1]; //variable
+}tSirSmeUnprotMgmtFrameInd, *tpSirSmeUnprotMgmtFrameInd;
+#endif
+
 #define SIR_IS_FULL_POWER_REASON_DISCONNECTED(eReason) \
     ( ( eSME_LINK_DISCONNECTED_BY_HDD == (eReason) ) || \
       ( eSME_LINK_DISCONNECTED_BY_OTHER == (eReason) ) || \
@@ -3425,7 +3448,6 @@ typedef struct sSirWlanSetRxpFilters
 #define CHANNEL_LIST_DYNAMIC_UPDATE           4 /* Occupied channel list can be learnt after update */
 #define SIR_ROAM_SCAN_24G_DEFAULT_CH     1
 #define SIR_ROAM_SCAN_5G_DEFAULT_CH      36
-#define SIR_ROAM_SCAN_CHANNEL_SWITCH_TIME 3
 #define SIR_ROAM_SCAN_RESERVED_BYTES     61
 #endif
 
@@ -3866,6 +3888,33 @@ typedef struct sSirTdlsAddStaRsp
     tANI_U8                bcastSig;
     eTdlsAddOper           tdlsAddOper;
 } tSirTdlsAddStaRsp ;
+
+/* TDLS Request struct SME-->PE */
+typedef struct
+{
+    tANI_U16            messageType;   // eWNI_SME_TDLS_LINK_ESTABLISH_REQ
+    tANI_U16            length;
+    tANI_U8             sessionId;     // Session ID
+    tANI_U16            transactionId; // Transaction ID for cmd
+    tANI_U8             uapsdQueues;   // Peer's uapsd Queues Information
+    tANI_U8             maxSp;         // Peer's Supported Maximum Service Period
+    tANI_U8             isBufSta;      // Does Peer Support as Buffer Station.
+    tANI_U8             isResponder;   // Is Peer a responder.
+    tSirMacAddr         bssid;         // For multi-session, for PE to locate peSession ID
+    tSirMacAddr         peerMac;
+}tSirTdlsLinkEstablishReq, *tpSirTdlsLinkEstablishReq;
+
+/* TDLS Request struct SME-->PE */
+typedef struct
+{
+    tANI_U16            messageType;   // eWNI_SME_TDLS_LINK_ESTABLISH_RSP
+    tANI_U16            length;
+    tANI_U8             sessionId;     // Session ID
+    tANI_U16            transactionId; // Transaction ID for cmd
+    tSirResultCodes        statusCode;
+    tSirMacAddr            peerMac;
+}tSirTdlsLinkEstablishReqRsp, *tpSirTdlsLinkEstablishReqRsp;
+
 /* TDLS Request struct SME-->PE */
 typedef struct sSirTdlsDelStaReq
 {
@@ -3902,6 +3951,16 @@ typedef struct sSirTdlsDelAllPeerInd
    tANI_U16               length;
    tANI_U8                sessionId;     // Session ID
 } tSirTdlsDelAllPeerInd, *tpSirTdlsDelAllPeerInd;
+#ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
+typedef struct sSirTdlsDisappearAPInd
+{
+   tANI_U16               messageType;
+   tANI_U16               length;
+   tANI_U8                sessionId;     // Session ID
+   tANI_U16               staId;
+   tSirMacAddr            staAddr;
+} tSirTdlsDisappearAPInd, *tpSirTdlsDisappearAPInd;
+#endif
 typedef struct sSirMgmtTxCompletionInd
 {
    tANI_U16               messageType;
@@ -4093,5 +4152,90 @@ typedef struct sSirSmeCandidateFoundInd
     tANI_U16            length;
     tANI_U8             sessionId;  // Session Identifier
 } tSirSmeCandidateFoundInd, *tpSirSmeCandidateFoundInd;
+
+#ifdef WLAN_FEATURE_11W
+typedef struct sSirWlanExcludeUnencryptParam
+{
+    tANI_BOOLEAN    excludeUnencrypt;
+    tSirMacAddr     bssId;
+}tSirWlanExcludeUnencryptParam,*tpSirWlanExcludeUnencryptParam;
+#endif
+
+typedef struct sAniHandoffReq
+{
+    // Common for all types are requests
+    tANI_U16  msgType; // message type is same as the request type
+    tANI_U16  msgLen;  // length of the entire request
+    tANI_U8   sessionId;
+    tANI_U8   bssid[WNI_CFG_BSSID_LEN];
+    tANI_U8   channel;
+} tAniHandoffReq, *tpAniHandoffReq;
+
+typedef struct sSirScanOffloadReq {
+    tANI_U8 sessionId;
+    tSirMacAddr bssId;
+    tANI_U8 numSsid;
+    tSirMacSSid ssId[SIR_SCAN_MAX_NUM_SSID];
+    tANI_U8 hiddenSsid;
+    tSirMacAddr selfMacAddr;
+    tSirBssType bssType;
+    tANI_U8 dot11mode;
+    tSirScanType scanType;
+    tANI_U32 minChannelTime;
+    tANI_U32 maxChannelTime;
+    tANI_BOOLEAN p2pSearch;
+    tANI_U16 uIEFieldLen;
+    tANI_U16 uIEFieldOffset;
+    tSirChannelList channelList;
+    /*-----------------------------
+      sSirScanOffloadReq....
+      -----------------------------
+      uIEFieldLen
+      -----------------------------
+      uIEFieldOffset               ----+
+      -----------------------------    |
+      channelList.numChannels          |
+      -----------------------------    |
+      ... variable size up to          |
+      channelNumber[numChannels-1]     |
+      This can be zero, if             |
+      numChannel is zero.              |
+      ----------------------------- <--+
+      ... variable size uIEField
+      up to uIEFieldLen (can be 0)
+      -----------------------------*/
+} tSirScanOffloadReq, *tpSirScanOffloadReq;
+
+typedef enum sSirScanEventType {
+    SCAN_EVENT_STARTED=0x1,          /* Scan command accepted by FW */
+    SCAN_EVENT_COMPLETED=0x2,        /* Scan has been completed by FW */
+    SCAN_EVENT_BSS_CHANNEL=0x4,      /* FW is going to move to HOME channel */
+    SCAN_EVENT_FOREIGN_CHANNEL = 0x8,/* FW is going to move to FORIEGN channel */
+    SCAN_EVENT_DEQUEUED=0x10,       /* scan request got dequeued */
+    SCAN_EVENT_PREEMPTED=0x20,      /* preempted by other high priority scan */
+    SCAN_EVENT_START_FAILED=0x40,   /* scan start failed */
+    SCAN_EVENT_RESTARTED=0x80,      /*scan restarted*/
+    SCAN_EVENT_MAX=0x8000
+} tSirScanEventType;
+
+typedef struct sSirScanOffloadEvent{
+    tSirScanEventType event;
+    tSirResultCodes reasonCode;
+    tANI_U32 chanFreq;
+    tANI_U32 requestor;
+    tANI_U32 scanId;
+} tSirScanOffloadEvent, *tpSirScanOffloadEvent;
+
+typedef struct sSirUpdateChanParam
+{
+    tANI_U8 chanId;
+    tANI_U8 pwr;
+} tSirUpdateChanParam, *tpSirUpdateChanParam;
+
+typedef struct sSirUpdateChan
+{
+    tANI_U8 numChan;
+    tSirUpdateChanParam chanParam[1];
+} tSirUpdateChanList, *tpSirUpdateChanList;
 
 #endif /* __SIR_API_H */

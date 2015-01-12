@@ -39,8 +39,8 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+
 /*
- * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limAssocUtils.cc contains the utility functions
  * LIM uses while processing (Re) Association messages.
  * Author:        Chandra Modumudi
@@ -441,10 +441,17 @@ limCheckMCSSet(tpAniSirGlobal pMac, tANI_U8* supportedMCSSet)
  */
 
 tANI_U8
-limCheckRxRSNIeMatch(tpAniSirGlobal pMac, tDot11fIERSN rxRSNIe,tpPESession pSessionEntry, tANI_U8 staIsHT)
+limCheckRxRSNIeMatch(tpAniSirGlobal pMac, tDot11fIERSN rxRSNIe,tpPESession pSessionEntry,
+                     tANI_U8 staIsHT, tANI_BOOLEAN *pmfConnection)
 {
     tDot11fIERSN    *pRSNIe;
     tANI_U8         i, j, match, onlyNonHtCipher = 1;
+#ifdef WLAN_FEATURE_11W
+    tANI_BOOLEAN weRequirePMF;
+    tANI_BOOLEAN weArePMFCapable;
+    tANI_BOOLEAN theyRequirePMF;
+    tANI_BOOLEAN theyArePMFCapable;
+#endif
 
 
     //RSN IE should be received from PE
@@ -500,6 +507,23 @@ limCheckRxRSNIeMatch(tpAniSirGlobal pMac, tDot11fIERSN rxRSNIe,tpPESession pSess
     {
         return eSIR_MAC_INVALID_RSN_IE_CAPABILITIES_STATUS;
     }
+
+    *pmfConnection = eANI_BOOLEAN_FALSE;
+#ifdef WLAN_FEATURE_11W
+    weRequirePMF = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
+    weArePMFCapable = (pRSNIe->RSN_Cap[0] >> 7) & 0x1;
+    theyRequirePMF = (rxRSNIe.RSN_Cap[0] >> 6) & 0x1;
+    theyArePMFCapable = (rxRSNIe.RSN_Cap[0] >> 7) & 0x1;
+
+    if ((theyRequirePMF && !weArePMFCapable) || (weRequirePMF && !theyArePMFCapable))
+    {
+        limLog(pMac, LOG1, FL("Association fail, robust management frames policy violation"));
+        return eSIR_MAC_ROBUST_MGMT_FRAMES_POLICY_VIOLATION;
+    }
+
+    if(theyArePMFCapable && weArePMFCapable)
+        *pmfConnection = eANI_BOOLEAN_TRUE;
+#endif
 
     return eSIR_SUCCESS;
 } /****** end limCheckRxRSNIeMatch() ******/
@@ -1627,40 +1651,68 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
 {
     tSirMacRateSet          tempRateSet;
     tSirMacRateSet          tempRateSet2;
-    tANI_U32                i,j,val,min,isArate;
+    tANI_U32                     i,j,val,min,isArate;
     tANI_U32 phyMode = 0;
-    tANI_U32 selfStaDot11Mode=0;
 
+    tANI_U32 selfStaDot11Mode=0;
     isArate = 0;
 
     wlan_cfgGetInt(pMac, WNI_CFG_DOT11_MODE, &selfStaDot11Mode);
     limGetPhyMode(pMac, &phyMode, psessionEntry);
 
-    /* Include 11b rates only when the device configured in
-           auto, 11a/b/g or 11b_only */
-    if ( (selfStaDot11Mode == WNI_CFG_DOT11_MODE_ALL) ||
-         (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11A) ||
-         (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11AC) ||
-         (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11B) )
+    // Get own rate set
+    #if 0
+    val = WNI_CFG_OPERATIONAL_RATE_SET_LEN;
+    if (wlan_cfgGetStr(pMac, WNI_CFG_OPERATIONAL_RATE_SET,
+                  (tANI_U8 *) &tempRateSet.rate,
+                  &val) != eSIR_SUCCESS)
     {
-        val = WNI_CFG_SUPPORTED_RATES_11B_LEN;
-        wlan_cfgGetStr( pMac, WNI_CFG_SUPPORTED_RATES_11B,
-                       (tANI_U8 *)&tempRateSet.rate, &val );
-        tempRateSet.numRates = (tANI_U8) val;
+        /// Could not get rateset from CFG. Log error.
+        limLog(pMac, LOGP, FL("could not retrieve rateset"));
+    }
+    #endif // TO SUPPORT BT-AMP
+    
+    /* copy operational rate set from psessionEntry */
+    if ( psessionEntry->rateSet.numRates < SIR_MAC_RATESET_EID_MAX )
+    {
+        palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet.rate,(tANI_U8*)(psessionEntry->rateSet.rate), psessionEntry->rateSet.numRates);
+        tempRateSet.numRates = psessionEntry->rateSet.numRates;
     }
     else
-        tempRateSet.numRates = 0;
+    {
+        limLog(pMac, LOGE, FL("more than SIR_MAC_RATESET_EID_MAX rates\n"));
+        goto error;
+    }
 
-     /* Include 11a rates when the device configured in non-11b mode */
-    if (!IS_DOT11_MODE_11B(selfStaDot11Mode))
+    if (phyMode == WNI_CFG_PHY_MODE_11G)
     {
-        val = WNI_CFG_SUPPORTED_RATES_11A_LEN;
-        wlan_cfgGetStr( pMac, WNI_CFG_SUPPORTED_RATES_11A,
-                (tANI_U8 *)&tempRateSet2.rate, &val );
+
+        // get own extended rate set
+        #if 0
+        val = WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET_LEN;
+        if (wlan_cfgGetStr(pMac, WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET,
+                      (tANI_U8 *) &tempRateSet2.rate,
+                      &val) != eSIR_SUCCESS)
+        {
+            /// Could not get extended rateset from CFG. Log error.
+            limLog(pMac, LOGP, FL("could not retrieve extended rateset"));
+        }
         tempRateSet2.numRates = (tANI_U8) val;
+        #endif
+        if (psessionEntry->extRateSet.numRates < SIR_MAC_RATESET_EID_MAX)
+        {
+            palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet2.rate, (tANI_U8*)(psessionEntry->extRateSet.rate), psessionEntry->extRateSet.numRates);
+            tempRateSet2.numRates = psessionEntry->extRateSet.numRates;
+        }
+        else {
+           limLog(pMac, LOGE, FL("psessionEntry->extRateSet.numRates more than SIR_MAC_RATESET_EID_MAX rates\n"));
+           goto error;
+        }
+
     }
     else
-         tempRateSet2.numRates = 0;
+        tempRateSet2.numRates = 0;
+
 
     if ((tempRateSet.numRates + tempRateSet2.numRates) > 12)
     {
@@ -1669,6 +1721,7 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
         //panic
         goto error;
     }
+
 
     //copy all rates in tempRateSet, there are 12 rates max
     for (i = 0;i < tempRateSet2.numRates; i++)
@@ -1961,11 +2014,8 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
       }
       else
       {
-        for(j = 0; ((j < pExtRateSet->numRates) && (j < SIR_MAC_RATESET_EID_MAX)
-            && ((i+j) < SIR_MAC_RATESET_EID_MAX)); j++)
-        {
+        for(j = 0; ((j < pExtRateSet->numRates) && (j < SIR_MAC_RATESET_EID_MAX) && ((i+j) < SIR_MAC_RATESET_EID_MAX)); j++)
             tempRateSet.rate[i+j] = pExtRateSet->rate[j];
-        }
 
         tempRateSet.numRates += pExtRateSet->numRates;
       }
@@ -1976,9 +2026,9 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
         tANI_U8 aRateIndex = 0;
         tANI_U8 bRateIndex = 0;
         palZeroMemory( pMac->hHdd, (tANI_U8 *) rates, sizeof(tSirSupportedRates));
-        for(i = 0; (i < tempRateSet2.numRates && i < SIR_MAC_RATESET_EID_MAX ); i++)
+        for(i = 0;(i < tempRateSet2.numRates && i < SIR_MAC_RATESET_EID_MAX ); i++)
         {
-            for(j = 0; (j < tempRateSet.numRates && j < SIR_MAC_RATESET_EID_MAX); j++)
+            for(j = 0;(j < tempRateSet.numRates && j < SIR_MAC_RATESET_EID_MAX); j++)
             {
                 if ((tempRateSet2.rate[i] & 0x7F) ==
                     (tempRateSet.rate[j] & 0x7F))
@@ -2299,7 +2349,14 @@ limAddSta(
         limLog( pMac, LOG1, FL( "uAPSD = 0x%x, maxSpLen = %d" ),
             pAddStaParams->uAPSD, pAddStaParams->maxSPLen);
     }
-  //we need to defer the message until we get the response back from HAL.
+
+#ifdef WLAN_FEATURE_11W
+    pAddStaParams->rmfEnabled = pStaDs->rmfEnabled;
+    limLog( pMac, LOG1, FL( "Adding station, station index %d, PMF enabled %d"),
+            pAddStaParams->staIdx, pAddStaParams->rmfEnabled);
+#endif
+
+    //we need to defer the message until we get the response back from HAL.
     if (pAddStaParams->respReqd)
         SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
 
@@ -2629,8 +2686,7 @@ limAddStaSelf(tpAniSirGlobal pMac,tANI_U16 staIdx, tANI_U8 updateSta, tpPESessio
 #ifdef WLAN_FEATURE_11AC
     pAddStaParams->vhtCapable = IS_DOT11_MODE_VHT(selfStaDot11Mode);
     if (pAddStaParams->vhtCapable){
-        pAddStaParams->vhtTxChannelWidthSet =
-            pMac->roam.configParam.nVhtChannelWidth;
+        pAddStaParams->vhtTxChannelWidthSet = psessionEntry->vhtTxChannelWidthSet;
         limLog( pMac, LOG1, FL("VHT WIDTH SET %d"),pAddStaParams->vhtTxChannelWidthSet);
     }
     pAddStaParams->vhtTxBFCapable = psessionEntry->txBFIniFeatureEnabled;
@@ -3278,29 +3334,32 @@ tSirRetStatus limStaSendAddBss( tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
         pAddBssParams->staContext.maxSPLen = 0;
         pAddBssParams->staContext.shortPreambleSupported = (tANI_U8)pAssocRsp->capabilityInfo.shortPreamble;
         pAddBssParams->staContext.updateSta = updateEntry;
-
-        if (IS_DOT11_MODE_HT(psessionEntry->dot11mode) && ( pBeaconStruct->HTCaps.present ))
+        if (IS_DOT11_MODE_HT(psessionEntry->dot11mode) && pBeaconStruct->HTCaps.present)
         {
             pAddBssParams->staContext.us32MaxAmpduDuration = 0;
             pAddBssParams->staContext.htCapable = 1;
             pAddBssParams->staContext.greenFieldCapable  = ( tANI_U8 )pAssocRsp->HTCaps.greenField;
             pAddBssParams->staContext.lsigTxopProtection = ( tANI_U8 )pAssocRsp->HTCaps.lsigTXOPProtection;
+#ifdef WLAN_FEATURE_11AC
+            if (psessionEntry->vhtCapability && pBeaconStruct->VHTCaps.present)
+            {
+                pAddBssParams->staContext.vhtCapable = 1;
+                if ((pAssocRsp->VHTCaps.suBeamFormerCap ||
+                     pAssocRsp->VHTCaps.muBeamformerCap) &&
+                     psessionEntry->txBFIniFeatureEnabled)
+                {
+                    pAddBssParams->staContext.vhtTxBFCapable = 1;
+                }
+            }
+#endif
             if( (pAssocRsp->HTCaps.supportedChannelWidthSet) &&
                 (chanWidthSupp) )
             {
                 pAddBssParams->staContext.txChannelWidthSet = ( tANI_U8 )pAssocRsp->HTInfo.recommendedTxWidthSet;
-                
 #ifdef WLAN_FEATURE_11AC
-                if (psessionEntry->vhtCapability && ( pBeaconStruct->VHTCaps.present ))
+                if (pAddBssParams->staContext.vhtCapable)
                 {
-                    pAddBssParams->staContext.vhtCapable = 1;
                     pAddBssParams->staContext.vhtTxChannelWidthSet = pAssocRsp->VHTOperation.chanWidth; //pMac->lim.apChanWidth;
-                    if ( (pAssocRsp->VHTCaps.suBeamFormerCap ||
-                          pAssocRsp->VHTCaps.muBeamformerCap) &&
-                          psessionEntry->txBFIniFeatureEnabled )
-                    {
-                        pAddBssParams->staContext.vhtTxBFCapable = 1;
-                    }
                 }
 #endif
             }
@@ -3375,12 +3434,22 @@ tSirRetStatus limStaSendAddBss( tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 
     if (VOS_P2P_CLIENT_MODE == psessionEntry->pePersona)
     {
-        pAddBssParams->staContext.p2pCapableSta = 1;
+        pAddBssParams->staContext.p2pCapableSta = 1;       
     }
-    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled;
+
+    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled || 
+        limIsconnectedOnDFSChannel(bssDescription->channelId);
 
 #if defined WLAN_FEATURE_VOWIFI_11R
     pAddBssParams->extSetStaKeyParamValid = 0;
+#endif
+
+#ifdef WLAN_FEATURE_11W
+    if (psessionEntry->limRmfEnabled)
+    {
+        pAddBssParams->rmfEnabled = 1;
+        pAddBssParams->staContext.rmfEnabled = 1;
+    }
 #endif
 
     // Set a new state for MLME
@@ -3571,23 +3640,29 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
             pAddBssParams->staContext.htCapable = 1;
             pAddBssParams->staContext.greenFieldCapable  = ( tANI_U8 ) pBeaconStruct->HTCaps.greenField;
             pAddBssParams->staContext.lsigTxopProtection = ( tANI_U8 ) pBeaconStruct->HTCaps.lsigTXOPProtection;
+#ifdef WLAN_FEATURE_11AC
+            if (psessionEntry->vhtCapability && pBeaconStruct->VHTCaps.present)
+            {
+                pAddBssParams->staContext.vhtCapable = 1;
+                if ((pBeaconStruct->VHTCaps.suBeamFormerCap ||
+                     pBeaconStruct->VHTCaps.muBeamformerCap) &&
+                     psessionEntry->txBFIniFeatureEnabled )
+                {
+                    pAddBssParams->staContext.vhtTxBFCapable = 1;
+                }
+            }
+#endif
             if( (pBeaconStruct->HTCaps.supportedChannelWidthSet) &&
                 (chanWidthSupp) )
             {
                 pAddBssParams->staContext.txChannelWidthSet = ( tANI_U8 )pBeaconStruct->HTInfo.recommendedTxWidthSet;
-          #ifdef WLAN_FEATURE_11AC
-                if (psessionEntry->vhtCapability && ( pBeaconStruct->VHTCaps.present ))
+#ifdef WLAN_FEATURE_11AC
+                if (pAddBssParams->staContext.vhtCapable)
                 {
-                    pAddBssParams->staContext.vhtCapable = 1;
-                    pAddBssParams->staContext.vhtTxChannelWidthSet = pBeaconStruct->VHTOperation.chanWidth; 
-                    if ((pBeaconStruct->VHTCaps.suBeamFormerCap ||
-                         pBeaconStruct->VHTCaps.muBeamformerCap) &&
-                         psessionEntry->txBFIniFeatureEnabled )
-                    {
-                        pAddBssParams->staContext.vhtTxBFCapable = 1;
-                    }
+                    pAddBssParams->staContext.vhtTxChannelWidthSet =
+                                     pBeaconStruct->VHTOperation.chanWidth;
                 }
-          #endif
+#endif
             }
             else
             {
@@ -3657,19 +3732,29 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
 
     pAddBssParams->staContext.sessionId = psessionEntry->peSessionId;
     pAddBssParams->sessionId = psessionEntry->peSessionId;
-
+    
     pAddBssParams->halPersona = (tANI_U8)psessionEntry->pePersona; //update persona
-    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled;
+
+    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled || 
+        limIsconnectedOnDFSChannel(bssDescription->channelId);
 
 #if defined WLAN_FEATURE_VOWIFI_11R
     pAddBssParams->extSetStaKeyParamValid = 0;
+#endif
+
+#ifdef WLAN_FEATURE_11W
+    if (psessionEntry->limRmfEnabled)
+    {
+        pAddBssParams->rmfEnabled = 1;
+        pAddBssParams->staContext.rmfEnabled = 1;
+    }
 #endif
 
     // Set a new state for MLME
 
     //pMac->lim.gLimMlmState = eLIM_MLM_WT_ADD_BSS_RSP_PREASSOC_STATE;
     psessionEntry->limMlmState = eLIM_MLM_WT_ADD_BSS_RSP_PREASSOC_STATE;
-
+    
     MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
 
     //we need to defer the message until we get the response back from HAL.
@@ -3945,3 +4030,49 @@ void limFillRxHighestSupportedRate(tpAniSirGlobal pMac, tANI_U16 *rxHighestRate,
 
     return;
 }
+
+#ifdef WLAN_FEATURE_11W
+/** -------------------------------------------------------------
+\fn     limSendSmeUnprotectedMgmtFrameInd
+\brief  Forwards the unprotected management frame to SME.
+\param  tpAniSirGlobal    pMac
+\param  frameType - 802.11 frame type
+\param  frame - frame buffer
+\param  sessionId - id for the current session
+\param  psessionEntry - PE session context
+\return none
+  -------------------------------------------------------------*/
+void limSendSmeUnprotectedMgmtFrameInd(
+                        tpAniSirGlobal pMac, tANI_U8 frameType,
+                        tANI_U8  *frame, tANI_U32 frameLen, tANI_U16 sessionId,
+                        tpPESession psessionEntry)
+{
+    tSirMsgQ mmhMsg;
+    tSirSmeUnprotMgmtFrameInd * pSirSmeMgmtFrame = NULL;
+    tANI_U16 length;
+
+    length = sizeof(tSirSmeUnprotMgmtFrameInd) + frameLen;
+
+    if (eHAL_STATUS_SUCCESS !=
+         palAllocateMemory(pMac->hHdd, (void **)&pSirSmeMgmtFrame, length))
+    {
+        limLog(pMac, LOGP,
+               FL("palAllocateMemory failed for tSirSmeUnprotectedMgmtFrameInd"));
+        return;
+    }
+    palZeroMemory(pMac->hHdd, (void*)pSirSmeMgmtFrame, length);
+
+    pSirSmeMgmtFrame->sessionId = sessionId;
+    pSirSmeMgmtFrame->frameType = frameType;
+
+    vos_mem_copy(pSirSmeMgmtFrame->frameBuf, frame, frameLen);
+    pSirSmeMgmtFrame->frameLen = frameLen;
+
+    mmhMsg.type = eWNI_SME_UNPROT_MGMT_FRM_IND;
+    mmhMsg.bodyptr = pSirSmeMgmtFrame;
+    mmhMsg.bodyval = 0;
+
+    limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
+    return;
+}
+#endif

@@ -1228,24 +1228,6 @@ static iw_softap_set_max_tx_power(struct net_device *dev,
 }
 
 int
-static iw_display_data_path_snapshot(struct net_device *dev,
-                        struct iw_request_info *info,
-                        union iwreq_data *wrqu, char *extra)
-{
-
-    /* Function intitiating dumping states of
-     *  HDD(WMM Tx Queues)
-     *  TL State (with Per Client infor)
-     *  DXE Snapshot (Called at the end of TL Snapshot)
-     */
-    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
-    hddLog(LOGE, "%s: called for SAP",__func__);
-    hdd_wmm_tx_snapshot(pHostapdAdapter);
-    WLANTL_TLDebugMessage(VOS_TRUE);
-    return 0;
-}
-
-int
 static iw_softap_set_tx_power(struct net_device *dev,
                         struct iw_request_info *info,
                         union iwreq_data *wrqu, char *extra)
@@ -2872,8 +2854,6 @@ static const struct iw_priv_args hostapd_private_args[] = {
         IW_PRIV_TYPE_INT| IW_PRIV_SIZE_FIXED | 1,
         0,
         "setTxMaxPower" },
-    { QCSAP_IOCTL_DATAPATH_SNAP_SHOT,
-      IW_PRIV_TYPE_NONE | IW_PRIV_TYPE_NONE, 0, "dataSnapshot" },
 };
 
 static const iw_handler hostapd_private[] = {
@@ -2899,7 +2879,6 @@ static const iw_handler hostapd_private[] = {
    [QCSAP_IOCTL_PRIV_GET_SOFTAP_LINK_SPEED - SIOCIWFIRSTPRIV]     = iw_get_softap_linkspeed,
    [QCSAP_IOCTL_SET_TX_POWER - SIOCIWFIRSTPRIV]   = iw_softap_set_tx_power,
    [QCSAP_IOCTL_SET_MAX_TX_POWER - SIOCIWFIRSTPRIV]   = iw_softap_set_max_tx_power,
-   [QCSAP_IOCTL_DATAPATH_SNAP_SHOT - SIOCIWFIRSTPRIV]  =   iw_display_data_path_snapshot,
 };
 const struct iw_handler_def hostapd_handler_def = {
    .num_standard     = sizeof(hostapd_handler) / sizeof(hostapd_handler[0]),
@@ -2955,9 +2934,9 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
     ENTER();
        // Allocate the Wireless Extensions state structure   
     phostapdBuf = WLAN_HDD_GET_HOSTAP_STATE_PTR( pAdapter );
-
-    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->device_mode);
  
+    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->device_mode);
+
     // Zero the memory.  This zeros the profile structure.
     memset(phostapdBuf, 0,sizeof(hdd_hostapd_state_t));
     

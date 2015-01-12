@@ -39,8 +39,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+
+
 /*
- * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limLinkMonitoringAlgo.cc contains the code for
  * Link monitoring algorithm on AP and heart beat failure
  * handling on STA.
@@ -131,6 +132,9 @@ limDeleteStaContext(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
         case HAL_DEL_STA_REASON_CODE_KEEP_ALIVE:
         case HAL_DEL_STA_REASON_CODE_TIM_BASED:
              PELOGE(limLog(pMac, LOGE, FL(" Deleting station: staId = %d, reasonCode = %d"), pMsg->staId, pMsg->reasonCode);)
+             if (eLIM_STA_IN_IBSS_ROLE == psessionEntry->limSystemRole)
+                 return;
+
              pStaDs = dphLookupAssocId(pMac, pMsg->staId, &pMsg->assocId, &psessionEntry->dph.dphHashTable);
 
              if (!pStaDs)
@@ -187,6 +191,14 @@ limDeleteStaContext(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
                     mlmDeauthInd.deauthTrigger =  pStaDs->mlmStaContext.cleanupTrigger;
 
 #ifdef FEATURE_WLAN_TDLS
+#ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
+                    if ((TRUE == pMac->lim.gLimTDLSOxygenSupport) &&
+                        (limGetTDLSPeerCount(pMac, psessionEntry) != 0)) {
+                            limTDLSDisappearAPTrickInd(pMac, pStaDs, psessionEntry);
+                            palFreeMemory(pMac->hHdd, pMsg);
+                            return ;
+                    }
+#endif
                     /* Delete all TDLS peers connected before leaving BSS*/
                     limDeleteTDLSPeers(pMac, psessionEntry);
 #endif
@@ -367,6 +379,13 @@ limTearDownLinkWithAp(tpAniSirGlobal pMac, tANI_U8 sessionId, tSirMacReasonCodes
         tLimMlmDeauthInd  mlmDeauthInd;
 
 #ifdef FEATURE_WLAN_TDLS
+#ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
+        if ((TRUE == pMac->lim.gLimTDLSOxygenSupport) &&
+            (limGetTDLSPeerCount(pMac, psessionEntry) != 0)) {
+                limTDLSDisappearAPTrickInd(pMac, pStaDs, psessionEntry);
+                return;
+        }
+#endif
         /* Delete all TDLS peers connected before leaving BSS*/
         limDeleteTDLSPeers(pMac, psessionEntry);
 #endif
