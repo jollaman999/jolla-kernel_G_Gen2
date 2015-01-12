@@ -714,22 +714,6 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
          pAdapter->isTxSuspended[ac] = VOS_TRUE;
          txSuspended = VOS_TRUE;
    }
-   else
-   {
-         /* In IBSS when a IBSS peer departs, there is no explicit
-            DEAUTH/DISASSOC to detect peer has left the N/W. The only way to
-            detect peer leaving is via heartbeat which is of the order of few
-            seconds. Hence do not back pressure during IBSS as one peer leaving
-            can potentially throttle traffic for other peers in the N/W
-         */
-         ++pAdapter->stats.tx_dropped;
-         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
-         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
-         kfree_skb(skb);
-         spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);
-         return NETDEV_TX_OK;
-
-   }
 
    /* If 3/4th of the max queue size is used then enable the flag.
     * This flag indicates to place the DHCP packets in VOICE AC queue.*/
@@ -1167,7 +1151,7 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    }
  
    pAdapter = pHddCtx->sta_to_adapter[*pStaId];
-   if( NULL == pAdapter )
+   if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
    {
       VOS_ASSERT(0);
       return VOS_STATUS_E_FAILURE;
