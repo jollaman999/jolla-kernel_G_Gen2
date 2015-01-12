@@ -79,6 +79,7 @@
 #define CSR_SCAN_RETURN_AFTER_EITHER_BAND_11d_FOUND ( CSR_SCAN_RETURN_AFTER_5_BAND_11d_FOUND | CSR_SCAN_RETURN_AFTER_24_BAND_11d_FOUND )
 #define CSR_NUM_RSSI_CAT        15
 #define CSR_MAX_STATISTICS_REQ        10
+#define CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME        3
 
 //Support for multiple session
 #define CSR_SESSION_ID_INVALID    0xFF   // session ID invalid
@@ -667,6 +668,7 @@ typedef struct tagCsrConfig
     tANI_BOOLEAN enableHeartBeatOffload;
     tANI_U8 isAmsduSupportInAMPDU;
     tANI_U8 nSelect5GHzMargin;
+    tANI_U8 isCoalesingInIBSSAllowed;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
@@ -1312,7 +1314,7 @@ eHalStatus csrStart(tpAniSirGlobal pMac);
     \brief To stop CSR. CSR still keeps its current setting.
     \return eHalStatus
   -------------------------------------------------------------------------------*/
-eHalStatus csrStop(tpAniSirGlobal pMac);
+eHalStatus csrStop(tpAniSirGlobal pMac, tHalStopType stopType);
 /* ---------------------------------------------------------------------------
     \fn csrReady
     \brief To let CSR is ready to operate
@@ -1367,8 +1369,11 @@ tANI_BOOLEAN csrIsSetKeyAllowed(tpAniSirGlobal pMac, tANI_U32 sessionId);
 void csrSetOppositeBandChannelInfo( tpAniSirGlobal pMac );
 void csrConstructCurrentValidChannelList( tpAniSirGlobal pMac, tDblLinkList *pChannelSetList,
                                             tANI_U8 *pChannelList, tANI_U8 bSize, tANI_U8 *pNumChannels );
+
+#ifdef FEATURE_WLAN_SCAN_PNO
 eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
             tSirPrefNetworkFoundInd *pPrefNetworkFoundInd);
+#endif //FEATURE_WLAN_SCAN_PNO
 #endif
 
 #ifdef WLAN_FEATURE_VOWIFI_11R

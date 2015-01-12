@@ -184,6 +184,18 @@ typedef enum
 }
 v_REGDOMAIN_t;
 
+typedef enum
+{
+   COUNTRY_NV,
+   COUNTRY_IE,
+   COUNTRY_USER,
+   COUNTRY_CELL_BASE,
+   //add new sources here
+   COUNTRY_QUERY,
+   COUNTRY_MAX = COUNTRY_QUERY
+}
+v_CountryInfoSource_t;
+
 // enum of supported NV items in VOSS
 typedef enum
 {
@@ -230,6 +242,8 @@ VOS_STATUS vos_nv_init(void);
 
   \param countryCode - country code
 
+  \param source      - source of country code
+
   \return VOS_STATUS_SUCCESS - regulatory domain is found for the given country
           VOS_STATUS_E_FAULT - invalid pointer error
           VOS_STATUS_E_EMPTY - country code table is empty
@@ -239,7 +253,7 @@ VOS_STATUS vos_nv_init(void);
 
   -------------------------------------------------------------------------*/
 VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
-      const v_COUNTRYCODE_t countryCode );
+      const v_COUNTRYCODE_t countryCode, v_CountryInfoSource_t source);
 
 /**------------------------------------------------------------------------
 
@@ -686,10 +700,12 @@ VOS_STATUS vos_nv_get_dictionary_data(void);
   \brief vos_nv_setRegDomain -
   \param clientCtxt  - Client Context, Not used for PRIMA
               regId  - Regulatory Domain ID
+              sendRegHint - send hint to cfg80211
   \return status set REG domain operation
   \sa
   -------------------------------------------------------------------------*/
-VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId);
+VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
+                                                  v_BOOL_t sendRegHint);
 
 /**------------------------------------------------------------------------
   \brief vos_nv_getChannelEnabledState -

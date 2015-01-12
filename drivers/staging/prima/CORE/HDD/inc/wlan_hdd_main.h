@@ -83,8 +83,6 @@
 #define LIBRA_CARD_REMOVE_DETECT_MAX_COUNT      5
 /** Number of Tx Queues */  
 #define NUM_TX_QUEUES 4
-/** Queue length specified to OS in the net_device */
-#define NET_DEV_TX_QUEUE_LEN 100
 /** HDD's internal Tx Queue Length. Needs to be a power of 2 */
 #define HDD_TX_QUEUE_MAX_LEN 128
 /** HDD internal Tx Queue Low Watermark. Net Device TX queue is disabled
@@ -155,6 +153,7 @@
 #define MAC_ADDR_ARRAY(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 /** Mac Address string **/
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ADDRESS_STR_LEN 18 /* Including null terminator */
 #define MAX_GENIE_LEN 255
 
 #define WLAN_CHIP_VERSION   "WCNSS"
@@ -211,7 +210,6 @@
 #endif
 
 #define HDD_MAC_ADDR_LEN    6
-#define HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME 3
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
@@ -685,13 +683,6 @@ struct hdd_ap_ctx_s
    tCsrRoamSetKey wepKey[CSR_MAX_NUM_KEY];
 
    beacon_data_t *beacon;
-
-   //Elements for setting MC rate with SAP mode
-   v_U32_t targetMCRate;
-   v_U32_t getStasCookie;
-   tSap_Event getStasEventBuffer;
-   tSap_AssocMacAddr *assocStasBuffer;
-   struct completion sap_get_associated_stas_complete;
 };
 
 struct hdd_mon_ctx_s
@@ -706,6 +697,10 @@ typedef struct hdd_scaninfo_s
 
    /* The scan pending  */
    v_U32_t mScanPending;
+
+  /* Counter for mScanPending so that the scan pending
+     error log is not printed for more than 5 times    */
+   v_U32_t mScanPendingCounter;
 
    /* Client Wait Scan Result */
    v_U32_t waitScanResult;
@@ -795,6 +790,12 @@ struct hdd_adapter_s
 
    /** Handle to the network device */
    struct net_device *dev;
+
+#ifdef WLAN_NS_OFFLOAD
+   /** IPv6 notifier callback for handling NS offload on change in IP */
+   struct notifier_block ipv6_notifier;
+   struct work_struct  ipv6NotifierWorkQueue;
+#endif
     
    //TODO Move this to sta Ctx
    struct wireless_dev wdev ;
@@ -962,6 +963,10 @@ struct hdd_adapter_s
 #if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
    tAniTrafStrmMetrics tsmStats;
 #endif
+   /* Flag to ensure PSB is configured through framework */
+   v_U8_t psbChanged;
+   /* UAPSD psb value configured through framework */
+   v_U8_t configuredPsb;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1191,6 +1196,10 @@ struct hdd_context_s
     vos_timer_t    tx_rx_trafficTmr;
     v_U8_t         drvr_miracast;
     v_U8_t         issplitscan_enabled;
+
+    /* VHT80 allowed*/
+    v_BOOL_t isVHT80Allowed;
+
 };
 
 
@@ -1273,4 +1282,13 @@ VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType, tANI_U8 sessionId);
 #endif
+
+#ifdef WLAN_NS_OFFLOAD
+void hdd_ipv6_notifier_work_queue(struct work_struct *work);
+#endif
+
+#ifdef CONFIG_ENABLE_LINUX_REG
+void hdd_checkandupdate_phymode( hdd_context_t *pHddCtx);
+#endif
+int hdd_wmmps_helper(hdd_adapter_t *pAdapter, tANI_U8 *ptr);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
