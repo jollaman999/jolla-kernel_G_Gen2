@@ -333,7 +333,7 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
 #endif
     pRemainChanCtx->duration = duration;
     pRemainChanCtx->dev = dev;
-    *cookie = (tANI_U32) pRemainChanCtx;
+    *cookie = (uintptr_t) pRemainChanCtx;
     pRemainChanCtx->cookie = *cookie;
     pRemainChanCtx->rem_on_chan_request = request_type;
     cfgState->remain_on_chan_ctx = pRemainChanCtx;
@@ -440,7 +440,7 @@ void hdd_remainChanReadyHandler( hdd_adapter_t *pAdapter )
 #else
                                pAdapter->dev,
 #endif
-                               (tANI_U32)pRemainChanCtx,
+                               (uintptr_t)pRemainChanCtx,
                                &pRemainChanCtx->chan,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
                                pRemainChanCtx->chan_type,
@@ -732,7 +732,7 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
             extendedWait = (tANI_U16)wait;
             goto send_frame;
         }
-
+        remain_on_channel:
         INIT_COMPLETION(pAdapter->offchannel_tx_event);
 
         status = wlan_hdd_request_remain_on_channel(wiphy, dev,
@@ -799,8 +799,17 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
         else
         {
 #endif
-            *cookie = (tANI_U32) cfgState->buf;
+            *cookie = (uintptr_t) cfgState->buf;
             cfgState->action_cookie = *cookie;
+            /*There is race between expiration of remain on channel
+              in driver and also sending an action frame in wlan_hdd_action.
+              As the remain on chan context is NULL here , which means
+              LIM remain on channel timer expired and
+              wlan_hdd_remain_on_channel_callback has cleared
+              cfgState->remain_on_chan_ctx to NULL so let's
+              do a fresh remain on channel.
+            */
+            goto remain_on_channel;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
         }
 #endif
@@ -872,7 +881,7 @@ err:
     }
     return 0;
 err_rem_channel:
-    *cookie = (tANI_U32)cfgState;
+    *cookie = (uintptr_t)cfgState;
     cfg80211_mgmt_tx_status(
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
                             pAdapter->dev->ieee80211_ptr,
@@ -1238,11 +1247,10 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
        return -EAGAIN;
 #endif
     }
-    if ( pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated )
+    if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated &&
+        ((NL80211_IFTYPE_P2P_GO == type) ||
+         (NL80211_IFTYPE_P2P_CLIENT == type)))
     {
-        if( (NL80211_IFTYPE_P2P_GO == type) || 
-            (NL80211_IFTYPE_P2P_CLIENT == type) )
-        {
             /* Generate the P2P Interface Address. this address must be
              * different from the P2P Device Address.
              */
@@ -1252,7 +1260,6 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
                                          wlan_hdd_get_session_type(type),
                                          name, p2pDeviceAddress.bytes,
                                          VOS_TRUE );
-        }
     }
     else
     {

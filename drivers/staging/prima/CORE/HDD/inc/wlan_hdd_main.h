@@ -685,13 +685,6 @@ struct hdd_ap_ctx_s
    tCsrRoamSetKey wepKey[CSR_MAX_NUM_KEY];
 
    beacon_data_t *beacon;
-
-   //Elements for setting MC rate with SAP mode
-   v_U32_t targetMCRate;
-   v_U32_t getStasCookie;
-   tSap_Event getStasEventBuffer;
-   tSap_AssocMacAddr *assocStasBuffer;
-   struct completion sap_get_associated_stas_complete;
 };
 
 struct hdd_mon_ctx_s
@@ -706,6 +699,10 @@ typedef struct hdd_scaninfo_s
 
    /* The scan pending  */
    v_U32_t mScanPending;
+
+  /* Counter for mScanPending so that the scan pending
+     error log is not printed for more than 5 times    */
+   v_U32_t mScanPendingCounter;
 
    /* Client Wait Scan Result */
    v_U32_t waitScanResult;
