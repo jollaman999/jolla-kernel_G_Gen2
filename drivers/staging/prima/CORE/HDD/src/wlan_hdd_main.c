@@ -1410,7 +1410,7 @@ int hdd_return_batch_scan_rsp_to_user
 
     /*enough scan result available in cache to return to user space or
       scan result needs to be fetched 1st from fw and then return*/
-    if (len < rem_len)
+    if (len == cur_len)
     {
         pAdapter->hdd_wait_for_get_batch_scan_rsp = TRUE;
         halStatus = sme_TriggerBatchScanResultInd(
@@ -1448,7 +1448,7 @@ int hdd_return_batch_scan_rsp_to_user
             len = (len - pPrivData->used_len);
             pDest = (command + pPrivData->used_len);
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-               "BATCH SCAN RESULT:");
+               "NEW BATCH SCAN RESULT:");
             while(count < len)
             {
                 printk("%c", *(pDest + count));
@@ -1473,34 +1473,23 @@ int hdd_return_batch_scan_rsp_to_user
     }
     else
     {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-           "%s: copy %d data to user buffer", __func__, len);
         count = 0;
         len = (len - pPrivData->used_len);
         pDest = (command + pPrivData->used_len);
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-            "BATCH SCAN RESULT:");
+            "REMAINING TRUNCATED BATCH SCAN RESULT:");
         while(count < len)
         {
             printk("%c", *(pDest + count));
             count++;
         }
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+           "%s: copy %d data to user buffer", __func__, len);
         if (copy_to_user(pPrivData->buf, pDest, len))
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                "%s: failed to copy data to user buffer", __func__);
             return -EFAULT;
-        }
-        pAdapter->hdd_wait_for_get_batch_scan_rsp = FALSE;
-        halStatus = sme_TriggerBatchScanResultInd(
-                        WLAN_HDD_GET_HAL_CTX(pAdapter), pReq,
-                        pAdapter->sessionId, hdd_batch_scan_result_ind_callback,
-                        pAdapter);
-        if ( eHAL_STATUS_SUCCESS != halStatus )
-        {
-            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                "sme_GetBatchScanScan  returned failure halStatus %d",
-                halStatus);
         }
     }
 
@@ -2732,7 +2721,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, wesMode);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, wesMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -3145,9 +3134,10 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
         }
        else if (strncmp(command, "SETMCRATE", 9) == 0)
        {
-           int      rc;
            tANI_U8 *value = command;
            int      targetRate;
+           tSirRateUpdateInd *rateUpdate;
+           eHalStatus status;
 
            /* Only valid for SAP mode */
            if (WLAN_HDD_SOFTAP != pAdapter->device_mode)
@@ -3164,13 +3154,32 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            /* Convert the value from ascii to integer, decimal base */
            ret = kstrtouint(value, 10, &targetRate);
 
-           rc = hdd_hostapd_set_mc_rate(pAdapter, targetRate);
-           if (rc)
+           rateUpdate = (tSirRateUpdateInd *)vos_mem_malloc(sizeof(tSirRateUpdateInd));
+           if (NULL == rateUpdate)
            {
-               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: Set MC Rate Fail %d", __func__, rc);
-               ret = -EFAULT;
-               goto exit;
+              hddLog(VOS_TRACE_LEVEL_ERROR,
+                     "%s: SETMCRATE indication alloc fail", __func__);
+              ret = -EFAULT;
+              goto exit;
+           }
+           vos_mem_zero(rateUpdate, sizeof(tSirRateUpdateInd ));
+
+           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                     "MC Target rate %d", targetRate);
+           /* Ignore unicast */
+           rateUpdate->ucastDataRate = -1;
+           rateUpdate->mcastDataRate24GHz = targetRate;
+           rateUpdate->mcastDataRate5GHz = targetRate;
+           rateUpdate->mcastDataRate24GHzTxFlag = 0;
+           rateUpdate->mcastDataRate5GHzTxFlag = 0;
+           status = sme_SendRateUpdateInd(pHddCtx->hHal, rateUpdate);
+           if (eHAL_STATUS_SUCCESS != status)
+           {
+              hddLog(VOS_TRACE_LEVEL_ERROR,
+                     "%s: SET_MC_RATE failed", __func__);
+              vos_mem_free(rateUpdate);
+              ret = -EFAULT;
+              goto exit;
            }
        }
 #ifdef FEATURE_WLAN_BATCH_SCAN
@@ -3200,7 +3209,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
               goto exit;
            }
 
-           len = snprintf(extra, sizeof(extra), "WLS_BATCHING_VERSION %d",
+           len = scnprintf(extra, sizeof(extra), "WLS_BATCHING_VERSION %d",
                    version);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {

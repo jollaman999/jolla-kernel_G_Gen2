@@ -337,7 +337,17 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
             //status = eHAL_STATUS_SUCCESS;
         }
         smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
-        csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault, &regId);
+
+        if (!('0' == pMac->scan.countryCodeDefault[0] &&
+            '0' == pMac->scan.countryCodeDefault[1]))
+        {
+            csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault,
+                                             &regId, COUNTRY_NV);
+        }
+        else
+        {
+            regId = REGDOMAIN_WORLD;
+        }
         WDA_SetRegDomain(pMac, regId);
         pMac->scan.domainIdDefault = regId;
         pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
@@ -374,7 +384,8 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
        return eHAL_STATUS_FAILURE;
     }
 */
-    status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId);
+    status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId,
+                                              COUNTRY_USER);
     if (status != eHAL_STATUS_SUCCESS)
     {
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
@@ -3690,6 +3701,10 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
             {
                 csrApplyCountryInformation(pMac, TRUE);
             }
+            //Let's also update the below to make sure we don't update CC while
+            //connected to an AP which is advertising some CC
+            palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
+                            pBssDesc->bssId, sizeof(tSirMacAddr));
         }
         if ((csrIs11dSupported (pMac)) && pIes)
         {
@@ -9101,7 +9116,6 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             }
             break;
         case eWNI_SME_DISASSOC_IND:
-            smsLog( pMac, LOGE, FL("DISASSOCIATION Indication from MAC"));
             // Check if AP dis-associated us because of MIC failure. If so,
             // then we need to take action immediately and not wait till the
             // the WmStatusChange requests is pushed and processed
@@ -9109,6 +9123,11 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pDisassocInd->bssId, &sessionId );
             if( HAL_STATUS_SUCCESS( status ) )
             {
+                smsLog( pMac, LOGE, FL("DISASSOCIATION Indication from MAC for session %d "), sessionId);
+                smsLog( pMac, LOGE, FL("DISASSOCIATION from peer =" MAC_ADDRESS_STR " "
+                                       " reason = %d status = %d "),
+                                       MAC_ADDR_ARRAY(pDisassocInd->peerMacAddr),
+                                       pDisassocInd->reasonCode, pDisassocInd->statusCode);
                 // If we are in neighbor preauth done state then on receiving
                 // disassoc or deauth we dont roam instead we just disassoc
                 // from current ap and then go to disconnected state 
@@ -9177,6 +9196,11 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                  sizeof(tSirMacAddr));
                     csrRoamRemoveDuplicateCommand(pMac, sessionId, &pCommand, eCsrForcedDeauthSta);
                 }
+            }
+            else
+            {
+                smsLog(pMac, LOGE, FL(" Session Id not found for BSSID " MAC_ADDRESS_STR),
+                                        MAC_ADDR_ARRAY(pDisassocInd->bssId));
             }
             break;
         case eWNI_SME_DEAUTH_IND:
