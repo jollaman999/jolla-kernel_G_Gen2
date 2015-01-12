@@ -161,7 +161,6 @@ limSearchAndDeleteDialogueToken(tpAniSirGlobal pMac, tANI_U8 token, tANI_U16 ass
         if(NULL == pMac->lim.pDialogueTokenHead)
             pMac->lim.pDialogueTokenTail = NULL;
         vos_mem_free(pCurrNode);
-        pMac->lim.pDialogueTokenHead = NULL;
         return eSIR_SUCCESS;
     }
 
@@ -187,7 +186,6 @@ limSearchAndDeleteDialogueToken(tpAniSirGlobal pMac, tANI_U8 token, tANI_U16 ass
         if(NULL == pCurrNode->next)
               pMac->lim.pDialogueTokenTail = pPrevNode;
         vos_mem_free(pCurrNode);
-        pMac->lim.pDialogueTokenHead = NULL;
         return eSIR_SUCCESS;
     }
 
@@ -5562,7 +5560,6 @@ limProcessAddBaInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
     {
         limLog(pMac, LOGE,FL("session does not exist for given BSSId"));
         vos_mem_free(limMsg->bodyptr);
-        limMsg->bodyptr = NULL;
         return;
     }
        
@@ -5574,7 +5571,6 @@ limProcessAddBaInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 #endif
     {
         vos_mem_free(limMsg->bodyptr);
-        limMsg->bodyptr = NULL;
         return;
     }
 
@@ -5600,7 +5596,6 @@ limProcessAddBaInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
     if (!htCapable)
     {
         vos_mem_free(limMsg->bodyptr);
-        limMsg->bodyptr = NULL;
         return;
     }
 #endif
@@ -5627,7 +5622,6 @@ limProcessAddBaInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
         }
     }
     vos_mem_free(limMsg->bodyptr);
-    limMsg->bodyptr = NULL;
     return;
 }
 
@@ -5781,7 +5775,6 @@ if((psessionEntry = peFindSessionByBssid(pMac,pDelTsParam->bssId,&sessionId))== 
     {
          limLog(pMac, LOGE,FL("session does not exist for given BssId"));
          vos_mem_free(limMsg->bodyptr);
-         limMsg->bodyptr = NULL;
          return;
     }
 
@@ -5850,7 +5843,6 @@ error2:
   vos_mem_free(pDelTsReq);
 error1:
   vos_mem_free(limMsg->bodyptr);
-  limMsg->bodyptr = NULL;
   return;
 }
 
@@ -7290,10 +7282,8 @@ void limHandleDeferMsgError(tpAniSirGlobal pMac, tpSirMsgQ pLimMsg)
             vos_pkt_return_packet((vos_pkt_t*)pLimMsg->bodyptr);
         }
       else if(pLimMsg->bodyptr != NULL)
-      {
-          vos_mem_free( pLimMsg->bodyptr);
-          pLimMsg->bodyptr = NULL;
-      }
+            vos_mem_free( pLimMsg->bodyptr);
+
 }
 
 
@@ -7354,7 +7344,6 @@ void limProcessAddStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
       /// Buffer not available. Log error
       limLog(pMac, LOGP, FL("call to AllocateMemory failed for Add Sta self RSP"));
       vos_mem_free(pAddStaSelfParams);
-      limMsgQ->bodyptr = NULL;
       return;
    }
 
@@ -7367,7 +7356,6 @@ void limProcessAddStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
    vos_mem_copy( pRsp->selfMacAddr, pAddStaSelfParams->selfMacAddr, sizeof(tSirMacAddr) );
 
    vos_mem_free(pAddStaSelfParams);
-   limMsgQ->bodyptr = NULL;
 
    mmhMsg.type = eWNI_SME_ADD_STA_SELF_RSP;
    mmhMsg.bodyptr = pRsp;
@@ -7393,7 +7381,6 @@ void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
       /// Buffer not available. Log error
       limLog(pMac, LOGP, FL("call to AllocateMemory failed for Add Sta self RSP"));
       vos_mem_free(pDelStaSelfParams);
-      limMsgQ->bodyptr = NULL;
       return;
    }
 
@@ -7406,7 +7393,6 @@ void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
    vos_mem_copy( pRsp->selfMacAddr, pDelStaSelfParams->selfMacAddr, sizeof(tSirMacAddr) );
 
    vos_mem_free(pDelStaSelfParams);
-   limMsgQ->bodyptr = NULL;
 
    mmhMsg.type = eWNI_SME_DEL_STA_SELF_RSP;
    mmhMsg.bodyptr = pRsp;

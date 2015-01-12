@@ -2330,7 +2330,6 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
 
     // Free up buffer allocated for mlmAssocReq
     vos_mem_free(pMlmAssocReq);
-    pMlmAssocReq = NULL;
     vos_mem_free(pFrm);
     return;
 } // End limSendAssocReqMgmtFrame
