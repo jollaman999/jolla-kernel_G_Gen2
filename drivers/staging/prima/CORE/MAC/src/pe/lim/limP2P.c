@@ -345,7 +345,7 @@ void limRemainOnChnlSetLinkStat(tpAniSirGlobal pMac, eHalStatus status,
 
     if (status != eHAL_STATUS_SUCCESS)
     {
-        limLog( pMac, LOGE, "%s: Change channel not successful");
+        limLog( pMac, LOGE, FL("Change channel not successful"));
         goto error1;
     }
 
@@ -713,6 +713,11 @@ void limSendSmeMgmtFrameInd(
                 limLog( pMac, LOGE, FL("Unable to active the gLimRemainOnChannelTimer"));
             } 
     }
+    else
+    {
+       if(frameType == SIR_MAC_MGMT_ACTION)
+            limLog( pMac, LOGE, FL("Rx: NO REMAIN ON CHANNEL and recd action frame "));
+    }
 
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
     return;
@@ -954,7 +959,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
                 }
                 nBytes += noaLen;
                 limLog( pMac, LOGE,
-                        FL("noaLen=%d origLen=%d pP2PIe=0x%x"
+                        FL("noaLen=%d origLen=%d pP2PIe=%p"
                         " nBytes=%d nBytesToCopy=%d "),
                                    noaLen,origLen,pP2PIe,nBytes,
                    ((pP2PIe + origLen + 2) - (v_U8_t *)pMbMsg->data));
@@ -1083,7 +1088,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
         else
         {
              pMac->lim.mgmtFrameSessionId = pMbMsg->sessionId;
-             limLog( pMac, LOG2, FL("lim.actionFrameSessionId = %lu" ),
+             limLog( pMac, LOG2, FL("lim.actionFrameSessionId = %u" ),
                      pMac->lim.mgmtFrameSessionId);
 
         }

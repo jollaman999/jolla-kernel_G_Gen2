@@ -1989,8 +1989,7 @@ void limProcessMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession 
         if ( eSIR_SUCCESS != limSendExcludeUnencryptInd(pMac, TRUE, psessionEntry) )
         {
             limLog( pMac, LOGE,
-                    FL( "Could not send down Exclude Unencrypted Indication!" ),
-                    psessionEntry->limMlmState );
+                    FL( "Could not send down Exclude Unencrypted Indication!" ) );
         }
     }
 #endif
@@ -3147,8 +3146,7 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
         if ( eSIR_SUCCESS != limSendExcludeUnencryptInd(pMac, FALSE, psessionEntry) )
         {
             limLog( pMac, LOGE,
-                    FL( "Could not send down Exclude Unencrypted Indication!" ),
-                    psessionEntry->limMlmState );
+                    FL( "Could not send down Exclude Unencrypted Indication!" ) );
         }
     }
 #endif
@@ -3932,6 +3930,10 @@ void limProcessFinishScanRsp(tpAniSirGlobal pMac,  void *body)
     pFinishScanParam = (tpFinishScanParams) body;
     status = pFinishScanParam->status;
     vos_mem_free(body);
+
+    limLog(pMac, LOGW, FL("Rcvd FinishScanRsp in state %d"),
+                        pMac->lim.gLimHalScanState);
+
     switch(pMac->lim.gLimHalScanState)
     {
         case eLIM_HAL_FINISH_SCAN_WAIT_STATE:
@@ -3977,7 +3979,7 @@ void limProcessFinishScanRsp(tpAniSirGlobal pMac,  void *body)
 //end WLAN_SUSPEND_LINK Related
 
         default:
-            limLog(pMac, LOGW, FL("Rcvd FinishScanRsp not in WAIT State, state %d"),
+            limLog(pMac, LOGE, FL("Rcvd FinishScanRsp not in WAIT State, state %d"),
                         pMac->lim.gLimHalScanState);
             break;
     }
@@ -4022,7 +4024,7 @@ void limProcessMlmHalAddBARsp( tpAniSirGlobal pMac,
     // Allocate for LIM_MLM_ADDBA_CNF
     pMlmAddBACnf = vos_mem_malloc(sizeof(tLimMlmAddBACnf));
     if ( NULL == pMlmAddBACnf ) {
-        limLog( pMac, LOGP, FL(" AllocateMemory failed with error code %d"));
+        limLog( pMac, LOGP, FL(" AllocateMemory failed for pMlmAddBACnf"));
         vos_mem_free(limMsgQ->bodyptr);
         return;
     }
@@ -4809,7 +4811,7 @@ void limProcessRxScanEvent(tpAniSirGlobal pMac, void *buf)
     tSirScanOffloadEvent *pScanEvent = (tSirScanOffloadEvent *) buf;
 
     VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
-            "scan_id = %lu", pScanEvent->scanId);
+            "scan_id = %u", pScanEvent->scanId);
 
     switch (pScanEvent->event)
     {
@@ -4825,6 +4827,6 @@ void limProcessRxScanEvent(tpAniSirGlobal pMac, void *buf)
         case SCAN_EVENT_PREEMPTED:
         default:
             VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_DEBUG,
-                    "Received unhandled scan event %lu", pScanEvent->event);
+                    "Received unhandled scan event %u", pScanEvent->event);
     }
 }

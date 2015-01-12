@@ -97,7 +97,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "smeRrmInternal.h"
 #include "rrmGlobal.h"
 #endif
-#if defined FEATURE_WLAN_CCX
+#if defined(FEATURE_WLAN_CCX) && !defined(FEATURE_WLAN_CCX_UPLOAD)
 #include "ccxApi.h"
 #include "ccxGlobal.h"
 #endif
@@ -149,6 +149,10 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #endif //WLAN_FEATURE_CONCURRENT_P2P
 
 #define SPACE_ASCII_VALUE  32
+
+#ifdef FEATURE_WLAN_BATCH_SCAN
+#define EQUALS_TO_ASCII_VALUE (61)
+#endif
 
 // -------------------------------------------------------------------
 // Change channel generic scheme
@@ -920,6 +924,7 @@ tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
     tANI_U8 deferredMsgCnt;
     tSirDFSChannelList    dfschannelList;
     tANI_U8 deauthMsgCnt;
+    tANI_U8 gLimIbssStaLimit;
 } tAniSirLim, *tpAniSirLim;
 
 typedef struct sLimMgmtFrameRegistration
