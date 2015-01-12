@@ -337,18 +337,8 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
             //status = eHAL_STATUS_SUCCESS;
         }
         smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
-
-        if (!('0' == pMac->scan.countryCodeDefault[0] &&
-            '0' == pMac->scan.countryCodeDefault[1]))
-        {
-            csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault,
-                                             &regId, COUNTRY_NV);
-        }
-        else
-        {
-            regId = REGDOMAIN_WORLD;
-        }
-        WDA_SetRegDomain(pMac, regId, eSIR_TRUE);
+        csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault, &regId);
+        WDA_SetRegDomain(pMac, regId);
         pMac->scan.domainIdDefault = regId;
         pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
         vos_mem_copy(pMac->scan.countryCodeCurrent, pMac->scan.countryCodeDefault,
@@ -384,14 +374,13 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
        return eHAL_STATUS_FAILURE;
     }
 */
-    status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId,
-                                              COUNTRY_USER);
+    status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId);
     if (status != eHAL_STATUS_SUCCESS)
     {
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
         return status;
     }
-    status = WDA_SetRegDomain(hHal, regId, eSIR_TRUE);
+    status = WDA_SetRegDomain(hHal, regId);
     if (status != eHAL_STATUS_SUCCESS)
     {
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
@@ -532,7 +521,7 @@ eHalStatus csrStart(tpAniSirGlobal pMac)
     return (status);
 }
 
-eHalStatus csrStop(tpAniSirGlobal pMac, tHalStopType stopType)
+eHalStatus csrStop(tpAniSirGlobal pMac)
 {
     tANI_U32 sessionId;
     tANI_U32 i;
@@ -562,18 +551,6 @@ eHalStatus csrStop(tpAniSirGlobal pMac, tHalStopType stopType)
        csrRoamStateChange( pMac, eCSR_ROAMING_STATE_STOP, i );
        pMac->roam.curSubState[i] = eCSR_ROAM_SUBSTATE_NONE;
     }
-
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-    /* When HAL resets all the context information
-     * in HAL is lost, so we might need to send the
-     * scan offload request again when it comes
-     * out of reset for scan offload to be functional
-     */
-    if (HAL_STOP_TYPE_SYS_RESET == stopType)
-    {
-       bRoamScanOffloadStarted = VOS_FALSE;
-    }
-#endif
 
     return (eHAL_STATUS_SUCCESS);
 }
@@ -887,9 +864,8 @@ void csrAbortCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEAN fStop
         {
         case eSmeCommandScan:
             // We need to inform the requester before dropping the scan command
-            smsLog( pMac, LOGW, "%s: Drop scan reason %d callback %p",
-                    __func__, pCommand->u.scanCmd.reason,
-                    pCommand->u.scanCmd.callback);
+            smsLog( pMac, LOGW, "%s: Drop scan reason %d callback 0x%X",
+                __func__, pCommand->u.scanCmd.reason, (unsigned int)pCommand->u.scanCmd.callback);
             if (NULL != pCommand->u.scanCmd.callback)
             {
                 smsLog( pMac, LOGW, "%s callback scan requester", __func__);
@@ -1305,8 +1281,8 @@ eHalStatus csrCreateRoamScanChannelList(tpAniSirGlobal pMac,
                              outNumChannels,
                              tmpChannelList,
                              &outNumChannels);
-        vos_mem_copy(ChannelList,
-                     tmpChannelList, outNumChannels);
+        palCopyMemory(pMac->hHdd, ChannelList,
+                      tmpChannelList, outNumChannels);
     }
 
     /* Prepare final roam scan channel list */
@@ -1328,8 +1304,8 @@ eHalStatus csrCreateRoamScanChannelList(tpAniSirGlobal pMac,
             currChannelListInfo->numOfChannels = 0;
             return VOS_STATUS_E_RESOURCES;
         }
-        vos_mem_copy(currChannelListInfo->ChannelList,
-                     ChannelList, outNumChannels);
+        palCopyMemory(pMac->hHdd, currChannelListInfo->ChannelList,
+                      ChannelList, outNumChannels);
     }
     return status;
 }
@@ -1366,8 +1342,7 @@ eHalStatus csrSetBand(tHalHandle hHal, eCsrBand eBand)
     pMac->roam.configParam.bandCapability = eBand;
     csrScanGetSupportedChannels( pMac );
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    if (!csrRoamIsRoamOffloadScanEnabled(pMac))
-        csrUpdateBgScanConfigIniChannelList( pMac, eBand );
+    csrUpdateBgScanConfigIniChannelList( pMac, eBand );
 #endif
     status = csrInitGetChannels( pMac );
     if (eHAL_STATUS_SUCCESS == status)
@@ -1738,8 +1713,6 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
 
         pMac->roam.configParam.isAmsduSupportInAMPDU = pParam->isAmsduSupportInAMPDU;
         pMac->roam.configParam.nSelect5GHzMargin = pParam->nSelect5GHzMargin;
-        pMac->roam.configParam.isCoalesingInIBSSAllowed =
-                               pParam->isCoalesingInIBSSAllowed;
     }
     
     return status;
@@ -1870,9 +1843,6 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 
         pParam->isAmsduSupportInAMPDU = pMac->roam.configParam.isAmsduSupportInAMPDU;
         pParam->nSelect5GHzMargin = pMac->roam.configParam.nSelect5GHzMargin;
-
-        pParam->isCoalesingInIBSSAllowed =
-                                pMac->roam.configParam.isCoalesingInIBSSAllowed;
 
         csrSetChannels(pMac, pParam);
 
@@ -2520,9 +2490,9 @@ eHalStatus csrRoamIssueDisassociate( tpAniSirGlobal pMac, tANI_U32 sessionId,
     }
     
     
-    smsLog( pMac, LOG2, "CSR Attempting to Disassociate Bssid="MAC_ADDRESS_STR
-            " subState = %d reason=%d",
-            MAC_ADDR_ARRAY(bssId), NewSubstate, reasonCode);
+    smsLog( pMac, LOG2, "CSR Attempting to Disassociate Bssid=%02x-%02x-%02x-%02x-%02x-%02x"
+            "subState = %d reason=%d", bssId[ 0 ], bssId[ 1 ], bssId[ 2 ], bssId[ 3 ], 
+            bssId[ 4 ], bssId[ 5 ], NewSubstate, reasonCode);
 
     csrRoamSubstateChange( pMac, NewSubstate, sessionId);
 
@@ -2651,8 +2621,9 @@ csrRoamIssueTkipCounterMeasures( tpAniSirGlobal pMac, tANI_U32 sessionId,
         smsLog( pMac, LOGE, "csrRoamIssueTkipCounterMeasures:Connected BSS Description in CSR Session not found");
         return (status);
     }
-    smsLog( pMac, LOG2, "CSR issuing tkip counter measures for Bssid = "MAC_ADDRESS_STR", Enable = %d",
-                  MAC_ADDR_ARRAY(bssId), bEnable);
+    smsLog( pMac, LOG2, "CSR issuing tkip counter measures for Bssid = %02x-%02x-%02x-%02x-%02x-%02x, Enable = %d",
+                  bssId[ 0 ], bssId[ 1 ], bssId[ 2 ],
+                  bssId[ 3 ], bssId[ 4 ], bssId[ 5 ], bEnable);
     status = csrSendMBTkipCounterMeasuresReqMsg( pMac, sessionId, bEnable, bssId );
     return (status);
 }
@@ -2678,8 +2649,9 @@ csrRoamGetAssociatedStas( tpAniSirGlobal pMac, tANI_U32 sessionId,
         smsLog( pMac, LOGE, "csrRoamGetAssociatedStas:Connected BSS Description in CSR Session not found");
         return (status);
     }
-    smsLog( pMac, LOG2, "CSR getting associated stations for Bssid = "MAC_ADDRESS_STR,
-                  MAC_ADDR_ARRAY(bssId));
+    smsLog( pMac, LOG2, "CSR getting associated stations for Bssid = %02x-%02x-%02x-%02x-%02x-%02x",
+                  bssId[ 0 ], bssId[ 1 ], bssId[ 2 ],
+                  bssId[ 3 ], bssId[ 4 ], bssId[ 5 ] );
     status = csrSendMBGetAssociatedStasReqMsg( pMac, sessionId, modId, bssId, pUsrContext, pfnSapEventCallback, pAssocStasBuf );
     return (status);
 }
@@ -2705,8 +2677,9 @@ csrRoamGetWpsSessionOverlap( tpAniSirGlobal pMac, tANI_U32 sessionId,
         smsLog( pMac, LOGE, "csrRoamGetWpsSessionOverlap:Connected BSS Description in CSR Session not found");
         return (status);
     }
-    smsLog( pMac, LOG2, "CSR getting WPS Session Overlap for Bssid = "MAC_ADDRESS_STR,
-                  MAC_ADDR_ARRAY(bssId));
+    smsLog( pMac, LOG2, "CSR getting WPS Session Overlap for Bssid = %02x-%02x-%02x-%02x-%02x-%02x",
+                  bssId[ 0 ], bssId[ 1 ], bssId[ 2 ],
+                  bssId[ 3 ], bssId[ 4 ], bssId[ 5 ] );
      
     status = csrSendMBGetWPSPBCSessions( pMac, sessionId, bssId, pUsrContext, pfnSapEventCallback, pRemoveMac);            
             
@@ -2728,8 +2701,9 @@ eHalStatus csrRoamIssueDeauth( tpAniSirGlobal pMac, tANI_U32 sessionId, eCsrRoam
     {
         vos_mem_copy(&bssId, pSession->pConnectBssDesc->bssId, sizeof(tCsrBssid));
     }
-    smsLog( pMac, LOG2, "CSR Attempting to Deauth Bssid= "MAC_ADDRESS_STR,
-                  MAC_ADDR_ARRAY(bssId));
+    smsLog( pMac, LOG2, "CSR Attempting to Deauth Bssid= %02x-%02x-%02x-%02x-%02x-%02x",
+                  bssId[ 0 ], bssId[ 1 ], bssId[ 2 ],
+                  bssId[ 3 ], bssId[ 4 ], bssId[ 5 ] );    
     csrRoamSubstateChange( pMac, NewSubstate, sessionId);
     
     status = csrSendMBDeauthReqMsg( pMac, sessionId, bssId, eSIR_MAC_DEAUTH_LEAVING_BSS_REASON );
@@ -3720,16 +3694,7 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
         if ((csrIs11dSupported (pMac)) && pIes)
         {
             if (!pIes->Country.present)
-            {
                 csrResetCountryInformation(pMac, eANI_BOOLEAN_FALSE, eANI_BOOLEAN_FALSE );
-            }
-            else
-            {
-                //Let's also update the below to make sure we don't update CC while
-                //connected to an AP which is advertising some CC
-                vos_mem_copy(pMac->scan.currentCountryBssid,
-                              pBssDesc->bssId, sizeof(tSirMacAddr));
-            }
         }
     }
     //Qos
@@ -6084,11 +6049,6 @@ eHalStatus csrRoamCopyConnectedProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, 
                 status = eHAL_STATUS_SUCCESS;
             if(!HAL_STATUS_SUCCESS(status))
             {
-                smsLog( pMac, LOGE,
-                    FL("failed to allocate memory for BSSID"
-                    "%02x:%02x:%02x:%02x:%02x:%02x"),
-                    pSrcProfile->bssid[0], pSrcProfile->bssid[1], pSrcProfile->bssid[2],
-                    pSrcProfile->bssid[3], pSrcProfile->bssid[4], pSrcProfile->bssid[5]);
                 break;
             }
             pDstProfile->BSSIDs.numOfBSSIDs = 1;
@@ -6104,11 +6064,6 @@ eHalStatus csrRoamCopyConnectedProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, 
                 status = eHAL_STATUS_SUCCESS;
             if(!HAL_STATUS_SUCCESS(status))
             {
-                smsLog( pMac, LOGE,
-                 FL("failed to allocate memory for SSIDList"
-                    "%02x:%02x:%02x:%02x:%02x:%02x"),
-                    pSrcProfile->bssid[0], pSrcProfile->bssid[1], pSrcProfile->bssid[2],
-                    pSrcProfile->bssid[3], pSrcProfile->bssid[4], pSrcProfile->bssid[5]);
                 break;
             }
             pDstProfile->SSIDs.numOfSSIDs = 1;
@@ -7192,8 +7147,9 @@ eHalStatus csrRoamIssueJoin( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDes
                              tCsrRoamProfile *pProfile, tANI_U32 roamId )
 {
     eHalStatus status;
-    smsLog( pMac, LOG1, "Attempting to Join Bssid= "MAC_ADDRESS_STR,
-                  MAC_ADDR_ARRAY(pSirBssDesc->bssId));
+    smsLog( pMac, LOG1, "Attempting to Join Bssid= %02x-%02x-%02x-%02x-%02x-%02x",
+                  pSirBssDesc->bssId[ 0 ],pSirBssDesc->bssId[ 1 ],pSirBssDesc->bssId[ 2 ],
+                  pSirBssDesc->bssId[ 3 ],pSirBssDesc->bssId[ 4 ],pSirBssDesc->bssId[ 5 ] );
     
     // Set the roaming substate to 'join attempt'...
     csrRoamSubstateChange( pMac, eCSR_ROAM_SUBSTATE_JOIN_REQ, sessionId);
@@ -7237,15 +7193,7 @@ void csrRoamReissueRoamCommand(tpAniSirGlobal pMac)
                 smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
                 return;
             }
-            /* While switching between two AP, csr will reissue roam command again
-               to the nextbss if it was interrupted by the dissconnect req for the
-               previous bss.During this csr is incrementing bRefAssocStartCnt twice.
-               so reset the bRefAssocStartCnt.
-            */
-            if(pSession->bRefAssocStartCnt > 0)
-            {
-                pSession->bRefAssocStartCnt--;
-            }
+            
             if( pCommand->u.roamCmd.fStopWds )
             {
                 vos_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
@@ -8424,9 +8372,14 @@ eHalStatus csrRoamIssueRemoveKeyCommand( tpAniSirGlobal pMac, tANI_U32 sessionId
             //in this case, put it to the end of the Q incase there is a set key pending.
             fImediate = eANI_BOOLEAN_FALSE;
         }
-        smsLog( pMac, LOGE, FL("keyType=%d, keyId=%d, PeerMac="MAC_ADDRESS_STR),
+        smsLog( pMac, LOGE, FL("keyType=%d, keyId=%d, PeerMac=%02x, %02x, %02x, %02x, %02x, %02x"),
             pRemoveKey->encType, pRemoveKey->keyId,
-            MAC_ADDR_ARRAY(pCommand->u.removeKeyCmd.peerMac));
+            pCommand->u.removeKeyCmd.peerMac[0],
+            pCommand->u.removeKeyCmd.peerMac[1],
+            pCommand->u.removeKeyCmd.peerMac[2], 
+            pCommand->u.removeKeyCmd.peerMac[3], 
+            pCommand->u.removeKeyCmd.peerMac[4],
+            pCommand->u.removeKeyCmd.peerMac[5]);
         status = csrQueueSmeCommand(pMac, pCommand, fImediate);
         if( !HAL_STATUS_SUCCESS( status ) )
         {
@@ -8974,8 +8927,10 @@ void csrSendCcxAdjacentApRepInd(tpAniSirGlobal pMac, tCsrRoamSession *pSession)
 
     roamTS2 = vos_timer_get_system_time();
     roamInfo.tsmRoamDelay = roamTS2 - pSession->roamTS1;
-    smsLog(pMac, LOG1, "Bssid("MAC_ADDRESS_STR") Roaming Delay(%u ms)",
-           MAC_ADDR_ARRAY(pSession->connectedProfile.bssid),
+    smsLog(pMac, LOG1, "Bssid(%02X:%02X:%02X:%02X:%02X:%02X) Roaming Delay(%u ms)",
+           pSession->connectedProfile.bssid[0], pSession->connectedProfile.bssid[1],
+           pSession->connectedProfile.bssid[2], pSession->connectedProfile.bssid[3],
+           pSession->connectedProfile.bssid[4], pSession->connectedProfile.bssid[5],
            roamInfo.tsmRoamDelay);
 
     pSessionEntry = peFindSessionByBssid(pMac, pSession->connectedProfile.bssid, &sessionId);
@@ -9031,8 +8986,9 @@ eHalStatus csrSendResetApCapsChanged(tpAniSirGlobal pMac, tSirMacAddr *bssId)
         pMsg->messageType     = eWNI_SME_RESET_AP_CAPS_CHANGED;
         pMsg->length          = len;
         vos_mem_copy(pMsg->bssId, bssId, sizeof(tSirMacAddr));
-        smsLog( pMac, LOG1, FL("CSR reset caps change for Bssid= "MAC_ADDRESS_STR),
-                MAC_ADDR_ARRAY(pMsg->bssId));
+        smsLog( pMac, LOG1, FL("CSR reset caps change for Bssid= %02x-%02x-%02x-%02x-%02x-%02x"),
+                pMsg->bssId[ 0 ], pMsg->bssId[ 1 ], pMsg->bssId[ 2 ],
+                pMsg->bssId[ 3 ], pMsg->bssId[ 4 ], pMsg->bssId[ 5 ]);
         status = palSendMBMessage(pMac->hHdd, pMsg);
     }
     else
@@ -9145,6 +9101,7 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             }
             break;
         case eWNI_SME_DISASSOC_IND:
+            smsLog( pMac, LOGE, FL("DISASSOCIATION Indication from MAC"));
             // Check if AP dis-associated us because of MIC failure. If so,
             // then we need to take action immediately and not wait till the
             // the WmStatusChange requests is pushed and processed
@@ -9152,11 +9109,6 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pDisassocInd->bssId, &sessionId );
             if( HAL_STATUS_SUCCESS( status ) )
             {
-                smsLog( pMac, LOGE, FL("DISASSOCIATION Indication from MAC for session %d "), sessionId);
-                smsLog( pMac, LOGE, FL("DISASSOCIATION from peer =" MAC_ADDRESS_STR " "
-                                       " reason = %d status = %d "),
-                                       MAC_ADDR_ARRAY(pDisassocInd->peerMacAddr),
-                                       pDisassocInd->reasonCode, pDisassocInd->statusCode);
                 // If we are in neighbor preauth done state then on receiving
                 // disassoc or deauth we dont roam instead we just disassoc
                 // from current ap and then go to disconnected state 
@@ -9225,11 +9177,6 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                  sizeof(tSirMacAddr));
                     csrRoamRemoveDuplicateCommand(pMac, sessionId, &pCommand, eCsrForcedDeauthSta);
                 }
-            }
-            else
-            {
-                smsLog(pMac, LOGE, FL(" Session Id not found for BSSID " MAC_ADDRESS_STR),
-                                        MAC_ADDR_ARRAY(pDisassocInd->bssId));
             }
             break;
         case eWNI_SME_DEAUTH_IND:
@@ -9382,7 +9329,7 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                 status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pMicInd->bssId, &sessionId );
                 if( HAL_STATUS_SUCCESS( status ) )
                 {
-                    vos_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
+                    palZeroMemory(pMac->hHdd, &roamInfo, sizeof(tCsrRoamInfo));
                     roamInfo.u.pMICFailureInfo = &pMicInd->info;
                     pRoamInfo = &roamInfo;
                     if(pMicInd->info.multicast)
@@ -9831,9 +9778,9 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         else
                         {
                             result = eCSR_ROAM_RESULT_FAILURE;
-                            smsLog(pMac, LOGE, "CSR: Roam Completion setkey "
-                                   "command failed(%d) PeerMac "MAC_ADDRESS_STR,
-                                   pRsp->statusCode, MAC_ADDR_ARRAY(pRsp->peerMacAddr));
+                            smsLog( pMac, LOGE, "CSR: Roam Completion setkey command failed(%d) PeerMac %02X-%02X-%02X-%02X-%02X-%02X...",
+                                pRsp->statusCode, pRsp->peerMacAddr[0], pRsp->peerMacAddr[1], pRsp->peerMacAddr[2],
+                                pRsp->peerMacAddr[3], pRsp->peerMacAddr[4], pRsp->peerMacAddr[5] );
                         }
                         csrRoamCallCallback(pMac, sessionId, &roamInfo, pCommand->u.setKeyCmd.roamId, 
                                             eCSR_ROAM_SET_KEY_COMPLETE, result);
@@ -11415,21 +11362,6 @@ static void csrRoamGetBssStartParmsFromBssDesc( tpAniSirGlobal pMac, tSirBssDesc
                 vos_mem_copy(pParam->operationalRateSet.rate, pIes->SuppRates.rates,
                              sizeof(*pIes->SuppRates.rates) * pIes->SuppRates.num_rates);
             }
-            if (pIes->ExtSuppRates.present)
-            {
-                pParam->extendedRateSet.numRates = pIes->ExtSuppRates.num_rates;
-                if(pIes->ExtSuppRates.num_rates > SIR_MAC_EXTENDED_RATE_EID_MAX)
-                {
-                   smsLog(pMac, LOGE, FL("num_rates :%d is more than \
-                                         SIR_MAC_RATESET_EID_MAX, resetting to \
-                                         SIR_MAC_RATESET_EID_MAX"),
-                                         pIes->ExtSuppRates.num_rates);
-                   pIes->ExtSuppRates.num_rates = SIR_MAC_EXTENDED_RATE_EID_MAX;
-                }
-                vos_mem_copy(pParam->extendedRateSet.rate,
-                              pIes->ExtSuppRates.rates,
-                              sizeof(*pIes->ExtSuppRates.rates) * pIes->ExtSuppRates.num_rates);
-            }
             if( pIes->SSID.present )
             {
                 pParam->ssId.length = pIes->SSID.num_ssid;
@@ -11825,16 +11757,16 @@ eHalStatus csrRoamDelPMKIDfromCache( tpAniSirGlobal pMac, tANI_U32 sessionId,
     {
         for( Index=0; Index < pSession->NumPmkidCache; Index++ )
         {
-            smsLog(pMac, LOGW, "Delete PMKID for "
-                   MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pBSSId));
-            if( vos_mem_compare( pBSSId, pSession->PmkidCacheInfo[Index].BSSID, sizeof(tCsrBssid) ) )
+            smsLog(pMac, LOGW, "Delete PMKID for %02X-%02X-%02X-%02X-%02X-%02X ",
+                pBSSId[0], pBSSId[1], pBSSId[2], pBSSId[3], pBSSId[4], pBSSId[5]);
+            if( palEqualMemory( pMac->hHdd, pBSSId, pSession->PmkidCacheInfo[Index].BSSID, sizeof(tCsrBssid) ) )
             {
                 fMatchFound = TRUE;
                 break;
             }
         }
         if( !fMatchFound ) break;
-        vos_mem_set(pSession->PmkidCacheInfo[Index].BSSID, sizeof(tPmkidCacheInfo), 0);
+        palZeroMemory( pMac->hHdd, pSession->PmkidCacheInfo[Index].BSSID, sizeof(tPmkidCacheInfo));
         status = eHAL_STATUS_SUCCESS;
     }
     while( 0 );
@@ -12729,7 +12661,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
         else
         {
             dwTmp = pal_cpu_to_be32(FALSE);
-            vos_mem_copy(pBuf, &dwTmp, sizeof(tAniBool));
+            vos_mem_copy(pMac->hHdd, pBuf, &dwTmp, sizeof(tAniBool));
             pBuf += sizeof(tAniBool);
         }
 
@@ -13143,8 +13075,9 @@ csrSendChngMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U32 sessionId)
         // bssId
         vos_mem_copy((tSirMacAddr *)pMsg->bssId, &pSession->selfMacAddr,
                      sizeof(tSirMacAddr));
-        smsLog( pMac, LOG1, FL("CSR Attempting to change BI for Bssid= "MAC_ADDRESS_STR),
-               MAC_ADDR_ARRAY(pMsg->bssId));
+        smsLog( pMac, LOG1, FL("CSR Attempting to change BI for Bssid= %02x-%02x-%02x-%02x-%02x-%02x "),
+                  pMsg->bssId[ 0 ], pMsg->bssId[ 1 ], pMsg->bssId[ 2 ],
+                  pMsg->bssId[ 3 ], pMsg->bssId[ 4 ], pMsg->bssId[ 5 ] );
         pMsg->sessionId       = sessionId;
         smsLog(pMac, LOG1, FL("  session %d BeaconInterval %d"), sessionId, pMac->roam.roamSession[sessionId].bssParams.beaconInterval);
         pMsg->beaconInterval = pMac->roam.roamSession[sessionId].bssParams.beaconInterval; 
@@ -13644,9 +13577,6 @@ eHalStatus csrSendMBStartBssReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, eCs
         // Set wps_state
         *pBuf = pParam->wps_state;
         pBuf++;
-        // set isCoalesingInIBSSAllowed
-        *pBuf = pMac->isCoalesingInIBSSAllowed;
-        pBuf++;
         //Persona
         *pBuf = (tANI_U8)pParam->bssPersona;
         pBuf++;
@@ -13686,7 +13616,6 @@ eHalStatus csrSendMBStartBssReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, eCs
                          pParam->extendedRateSet.numRates);
             pBuf += pParam->extendedRateSet.numRates;
         }
-
         msgLen = (tANI_U16)(sizeof(tANI_U32 ) + (pBuf - wTmpBuf)); //msg_header + msg
         pMsg->length = pal_cpu_to_be16(msgLen);
         
@@ -13868,8 +13797,13 @@ eHalStatus csrSendMBAddSelfStaReqMsg(tpAniSirGlobal pMac,
 
       pMsg->currDeviceMode = pAddStaReq->currDeviceMode;
 
-      smsLog( pMac, LOG1, FL("selfMac="MAC_ADDRESS_STR),
-              MAC_ADDR_ARRAY(pMsg->selfMacAddr));
+      smsLog( pMac, LOG1, FL("selfMac=%02x, %02x, %02x, %02x, %02x, %02x"),
+            pMsg->selfMacAddr[0],
+            pMsg->selfMacAddr[1],
+            pMsg->selfMacAddr[2],
+            pMsg->selfMacAddr[3],
+            pMsg->selfMacAddr[4],
+            pMsg->selfMacAddr[5]);
       status = palSendMBMessage(pMac->hHdd, pMsg);
    } while( 0 );
    return( status );
@@ -14285,8 +14219,9 @@ static void csrRoamLinkUp(tpAniSirGlobal pMac, tCsrBssid bssid)
    /* Update the current BSS info in ho control block based on connected 
       profile info from pmac global structure                              */
    
-   smsLog(pMac, LOGW, " csrRoamLinkUp: WLAN link UP with AP= "MAC_ADDRESS_STR,
-          MAC_ADDR_ARRAY(bssid));
+   smsLog(pMac, LOGW, " csrRoamLinkUp: WLAN link UP with AP= %02x-%02x-%02x-%02x-%02x-%02x",
+          bssid[ 0 ], bssid[ 1 ], bssid[ 2 ],
+          bssid[ 3 ], bssid[ 4 ], bssid[ 5 ] );
    /* Check for user misconfig of RSSI trigger threshold                  */
    pMac->roam.configParam.vccRssiThreshold =
       ( 0 == pMac->roam.configParam.vccRssiThreshold ) ? 
@@ -15483,7 +15418,6 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
    tpCsrChannelInfo    currChannelListInfo;
    tANI_U32 host_channels = 0;
    tANI_U8 ChannelCacheStr[128] = {0};
-   eCsrBand eBand;
    currChannelListInfo = &pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo;
 
    if (0 == csrRoamIsRoamOffloadScanEnabled(pMac))
@@ -15580,50 +15514,31 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
         currChannelListInfo->numOfChannels == 0)
     {
 
-      /*Retrieve the Channel Cache either from ini or from the Occupied Channels list.
-       * Give Preference to INI Channels.*/
-       if (pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels)
-       {
-          ChannelList = pNeighborRoamInfo->cfgParams.channelInfo.ChannelList;
-          /*The INI channels need to be filtered with respect to the current
-           * band that is supported.*/
-          eBand = pMac->roam.configParam.bandCapability;
-          if ((eCSR_BAND_24 != eBand) && (eCSR_BAND_5G != eBand) && (eCSR_BAND_ALL != eBand))
+    /*Retreive the Channel Cache either from ini or from the Occupied Channels list.
+     * Give Preference to INI Channels.*/
+    if (pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels)
+    {
+      ChannelList = pNeighborRoamInfo->cfgParams.channelInfo.ChannelList;
+      for (i=0; i<pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels ;i++)
           {
-             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-                       "Invalid band, No operation carried out (Band %d)", eBand);
-             vos_mem_free(pRequestBuf);
-             return eHAL_STATUS_FAILURE;
-          }
-          for (i=0; i<pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels; i++)
-          {
-            if(((eCSR_BAND_24 == eBand) && CSR_IS_CHANNEL_24GHZ(*ChannelList)) ||
-              ((eCSR_BAND_5G == eBand) && CSR_IS_CHANNEL_5GHZ(*ChannelList)) ||
-              (eCSR_BAND_ALL == eBand))
-            {
-              if(!CSR_IS_CHANNEL_DFS(*ChannelList) &&
-                 csrRoamIsChannelValid(pMac, *ChannelList) &&
-                 *ChannelList && (num_channels < SIR_ROAM_MAX_CHANNELS))
-              {
-                 pRequestBuf->ConnectedNetwork.ChannelCache[num_channels++] = *ChannelList;
-              }
-            }
-            ChannelList++;
+             if(!CSR_IS_CHANNEL_DFS(*ChannelList) && *ChannelList)
+               {
+                  pRequestBuf->ConnectedNetwork.ChannelCache[num_channels++] = *ChannelList;
+               }
+                  ChannelList++;
           }
           pRequestBuf->ConnectedNetwork.ChannelCount = num_channels;
           pRequestBuf->ChannelCacheType = CHANNEL_LIST_STATIC;
-       }
-       else
-       {
+    }
+    else{
           ChannelList = pMac->scan.occupiedChannels.channelList;
           for(i=0; i<pMac->scan.occupiedChannels.numChannels; i++)
           {
-             if(!CSR_IS_CHANNEL_DFS(*ChannelList) &&
-                *ChannelList && (num_channels < SIR_ROAM_MAX_CHANNELS))
-             {
+              if(!CSR_IS_CHANNEL_DFS(*ChannelList) && *ChannelList)
+              {
                 pRequestBuf->ConnectedNetwork.ChannelCache[num_channels++] = *ChannelList;
-             }
-             ChannelList++;
+              }
+              ChannelList++;
           }
           pRequestBuf->ConnectedNetwork.ChannelCount = num_channels;
           /* If the profile changes as to what it was earlier, inform the FW through
@@ -15632,12 +15547,12 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
           if (reason == REASON_FLUSH_CHANNEL_LIST)
               pRequestBuf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_FLUSH;
           else {
-                 if (csrNeighborRoamIsNewConnectedProfile(pMac))
-                     pRequestBuf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_INIT;
-                 else
-                     pRequestBuf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_UPDATE;
+                if (csrNeighborRoamIsNewConnectedProfile(pMac))
+                    pRequestBuf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_INIT;
+                else
+                    pRequestBuf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_UPDATE;
           }
-       }
+        }
     }
 #ifdef FEATURE_WLAN_CCX
     else
@@ -15705,19 +15620,6 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
     pRequestBuf->nProbes = pMac->roam.configParam.nProbes;
 
     pRequestBuf->HomeAwayTime = pMac->roam.configParam.nRoamScanHomeAwayTime;
-    /* Home Away Time should be at least equal to (MaxDwell time + (2*RFS)),
-     * where RFS is the RF Switching time. It is twice RFS to consider the
-     * time to go off channel and return to the home channel. */
-    if (pRequestBuf->HomeAwayTime < (pRequestBuf->NeighborScanChannelMaxTime + (2 * CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME)))
-    {
-        VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN,
-                  "%s: Invalid config, Home away time(%d) is less than (twice RF switching time + channel max time)(%d)"
-                  " Hence enforcing home away time to disable (0)",
-                  __func__, pRequestBuf->HomeAwayTime,
-                  (pRequestBuf->NeighborScanChannelMaxTime + (2 * CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME)));
-        pRequestBuf->HomeAwayTime = 0;
-    }
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,"HomeAwayTime:%d",pRequestBuf->HomeAwayTime);
 
    /*Prepare a probe request for 2.4GHz band and one for 5GHz band*/
     ucDot11Mode = (tANI_U8) csrTranslateToWNICfgDot11Mode(pMac,
@@ -16862,7 +16764,7 @@ VOS_STATUS csrSetCCKMIe(tpAniSirGlobal pMac, const tANI_U8 sessionId,
         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
         return eHAL_STATUS_FAILURE;
     }
-    vos_mem_copy(pSession->suppCckmIeInfo.cckmIe, pCckmIe, ccKmIeLen);
+    palCopyMemory(pMac->hHdd, pSession->suppCckmIeInfo.cckmIe, pCckmIe, ccKmIeLen);
     pSession->suppCckmIeInfo.cckmIeLen = ccKmIeLen;
     return status;
 }
@@ -16896,7 +16798,7 @@ VOS_STATUS csrRoamReadTSF(tpAniSirGlobal pMac, tANI_U8 *pTimestamp)
 
     UpdateCCKMTSF(&(timeStamp[0]), &(timeStamp[1]), &timer_diff);
 
-    vos_mem_copy(pTimestamp, (void *) &timeStamp[0],
+    palCopyMemory(pMac->hHdd, pTimestamp, (void *) &timeStamp[0],
                     sizeof (tANI_U32) * 2);
     return status;
 }

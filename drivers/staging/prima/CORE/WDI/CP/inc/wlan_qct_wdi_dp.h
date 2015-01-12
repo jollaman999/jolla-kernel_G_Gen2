@@ -426,7 +426,6 @@ WDI_FillTxBd
     wpt_uint8              ucTxFlag, 
     wpt_uint8              ucProtMgmtFrame,
     wpt_uint32             uTimeStamp,
-    wpt_uint8              isEapol,
     wpt_uint8*             staIndex
 );
 
