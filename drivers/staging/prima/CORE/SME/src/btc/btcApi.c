@@ -827,7 +827,6 @@ static VOS_STATUS btcDeferAclCreate( tpAniSirGlobal pMac, tpSmeBtEvent pEvent )
                 status = VOS_STATUS_E_FAILURE;
                 break;
             }
-
             pAclEvent = &pAclEventHist->btAclConnection[pAclEventHist->bNextEventIdx - 1];
             if(BT_EVENT_CREATE_ACL_CONNECTION == pAclEventHist->btEventType[pAclEventHist->bNextEventIdx - 1])
             {
@@ -992,7 +991,8 @@ static VOS_STATUS btcDeferSyncCreate( tpAniSirGlobal pMac, tpSmeBtEvent pEvent )
                 (pSyncEventHist->bNextEventIdx > BT_MAX_NUM_EVENT_SCO_DEFERRED))
             {
                 VOS_ASSERT(0);
-                return VOS_STATUS_E_FAILURE;
+                status = VOS_STATUS_E_FAILURE;
+                return status;
             }
             pSyncEvent = &pSyncEventHist->btSyncConnection[pSyncEventHist->bNextEventIdx - 1];
             if(BT_EVENT_CREATE_SYNC_CONNECTION == 

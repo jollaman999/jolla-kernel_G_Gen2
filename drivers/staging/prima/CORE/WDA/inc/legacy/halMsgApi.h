@@ -1318,6 +1318,16 @@ typedef struct sP2pPsParams
    tANI_U8   psSelection;
 }tP2pPsParams, *tpP2pPsParams;
 
+typedef struct sTdlsLinkEstablishParams
+{
+   tANI_U16  staIdx;
+   tANI_U8   isResponder;
+   tANI_U8   uapsdQueues;
+   tANI_U8   maxSp;
+   tANI_U8   isBufsta;
+   tANI_U32  status;
+}tTdlsLinkEstablishParams, *tpTdlsLinkEstablishParams;
+
 static inline void halGetTxTSFtimer(tpAniSirGlobal pMac, 
                                                 tSirMacTimeStamp *pTime)
 {

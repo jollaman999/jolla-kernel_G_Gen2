@@ -102,9 +102,11 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
            WDA_GET_RX_MPDU_LEN(pRxPacketInfo));
     limPrintMacAddr(pMac, pHdr->sa, LOG2);)
 
-    if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
-        return;
-
+    if (!pMac->fScanOffload)
+    {
+        if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
+            return;
+    }
 
     /**
      * Expect Beacon only when
@@ -116,7 +118,9 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
     if ((pMac->lim.gLimMlmState == eLIM_MLM_WT_PROBE_RESP_STATE) ||
         (pMac->lim.gLimMlmState == eLIM_MLM_PASSIVE_SCAN_STATE) ||
         (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE) ||
-        (psessionEntry->limMlmState == eLIM_MLM_WT_JOIN_BEACON_STATE))
+        (psessionEntry->limMlmState == eLIM_MLM_WT_JOIN_BEACON_STATE)
+        || pMac->fScanOffload
+        )
     {
         if(eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd, 
                                                     (void **)&pBeacon, sizeof(tSchBeaconStruct)))
@@ -153,18 +157,29 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
         MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, pBeacon->timeStamp[0]);)
         MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, pBeacon->timeStamp[1]);)
 
+        if (pMac->fScanOffload)
+        {
+            limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo,
+                    eANI_BOOLEAN_FALSE, eANI_BOOLEAN_TRUE);
+
+        }
 
         if ((pMac->lim.gLimMlmState  == eLIM_MLM_WT_PROBE_RESP_STATE) ||
             (pMac->lim.gLimMlmState  == eLIM_MLM_PASSIVE_SCAN_STATE))
         {
-            limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo,
-                   ((pMac->lim.gLimHalScanState == eLIM_HAL_SCANNING_STATE) ? eANI_BOOLEAN_TRUE : eANI_BOOLEAN_FALSE),
-                   eANI_BOOLEAN_FALSE);
+            //If we are scanning for P2P, only accept probe rsp
+            if((pMac->lim.gLimHalScanState != eLIM_HAL_SCANNING_STATE) || (NULL == pMac->lim.gpLimMlmScanReq) 
+               || !pMac->lim.gpLimMlmScanReq->p2pSearch )
+            {
+                limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, 
+                       ((pMac->lim.gLimHalScanState == eLIM_HAL_SCANNING_STATE) ? eANI_BOOLEAN_TRUE : eANI_BOOLEAN_FALSE), 
+                       eANI_BOOLEAN_FALSE);
+            }
         }
         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
         {
         }
-        else
+        else if (psessionEntry->limMlmState == eLIM_MLM_WT_JOIN_BEACON_STATE)
         {
             if( psessionEntry->beacon != NULL )
             {
@@ -244,9 +259,11 @@ limProcessBeaconFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo)
            WDA_GET_RX_MPDU_LEN(pRxPacketInfo));
     limPrintMacAddr(pMac, pHdr->sa, LOG2);
 
-    if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
-        return;
-
+    if (!pMac->fScanOffload)
+    {
+        if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
+            return;
+    }
 
     /**
      * No session has been established. Expect Beacon only when
@@ -276,8 +293,12 @@ limProcessBeaconFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo)
         if ( (pMac->lim.gLimMlmState == eLIM_MLM_WT_PROBE_RESP_STATE) ||
              (pMac->lim.gLimMlmState == eLIM_MLM_PASSIVE_SCAN_STATE) )
         {
-            limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo,
-                                         eANI_BOOLEAN_TRUE, eANI_BOOLEAN_FALSE);
+            //If we are scanning for P2P, only accept probe rsp
+            if((pMac->lim.gLimHalScanState != eLIM_HAL_SCANNING_STATE) || (NULL == pMac->lim.gpLimMlmScanReq) 
+               || !pMac->lim.gpLimMlmScanReq->p2pSearch )
+            {
+                limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_FALSE);
+            }
         }
         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
         {

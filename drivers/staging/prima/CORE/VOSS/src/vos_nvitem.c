@@ -127,13 +127,13 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_WORLD,   {'A', 'R'}},  //ARGENTINA
         { REGDOMAIN_FCC,     {'A', 'S'}},  //AMERICAN SOMOA
         { REGDOMAIN_ETSI,    {'A', 'T'}},  //AUSTRIA
-        { REGDOMAIN_WORLD,   {'A', 'U'}},  //AUSTRALIA
+        { REGDOMAIN_APAC,    {'A', 'U'}},  //AUSTRALIA
         { REGDOMAIN_ETSI,    {'A', 'W'}},  //ARUBA
         { REGDOMAIN_WORLD,   {'A', 'X'}},  //ALAND ISLANDS
         { REGDOMAIN_N_AMER_EXC_FCC, {'A', 'Z'}},  //AZERBAIJAN
         { REGDOMAIN_ETSI,    {'B', 'A'}},  //BOSNIA AND HERZEGOVINA
         { REGDOMAIN_APAC,    {'B', 'B'}},  //BARBADOS
-        { REGDOMAIN_HI_5GHZ, {'B', 'D'}},  //BANGLADESH
+        { REGDOMAIN_NO_5GHZ, {'B', 'D'}},  //BANGLADESH
         { REGDOMAIN_ETSI,    {'B', 'E'}},  //BELGIUM
         { REGDOMAIN_HI_5GHZ, {'B', 'F'}},  //BURKINA FASO
         { REGDOMAIN_ETSI,    {'B', 'G'}},  //BULGARIA
@@ -236,7 +236,7 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_KOREA,   {'K', '2'}},  //Korea alternate 2
         { REGDOMAIN_KOREA,   {'K', '3'}},  //Korea alternate 3
         { REGDOMAIN_KOREA,   {'K', '4'}},  //Korea alternate 4
-        { REGDOMAIN_APAC,    {'K', 'E'}},  //KENYA
+        { REGDOMAIN_HI_5GHZ, {'K', 'E'}},  //KENYA
         { REGDOMAIN_NO_5GHZ, {'K', 'G'}},  //KYRGYZSTAN
         { REGDOMAIN_ETSI,    {'K', 'H'}},  //CAMBODIA
         { REGDOMAIN_WORLD,   {'K', 'I'}},  //KIRIBATI
@@ -248,7 +248,7 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_FCC,     {'K', 'Y'}},  //CAYMAN ISLANDS
         { REGDOMAIN_WORLD,   {'K', 'Z'}},  //KAZAKHSTAN
         { REGDOMAIN_WORLD,   {'L', 'A'}},  //LAO PEOPLE'S DEMOCRATIC REPUBLIC
-        { REGDOMAIN_WORLD,   {'L', 'B'}},  //LEBANON
+        { REGDOMAIN_HI_5GHZ, {'L', 'B'}},  //LEBANON
         { REGDOMAIN_WORLD,   {'L', 'C'}},  //SAINT LUCIA
         { REGDOMAIN_ETSI,    {'L', 'I'}},  //LIECHTENSTEIN
         { REGDOMAIN_WORLD,   {'L', 'K'}},  //SRI LANKA
@@ -259,7 +259,7 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_ETSI,    {'L', 'V'}},  //LATVIA
         { REGDOMAIN_NO_5GHZ, {'L', 'Y'}},  //LIBYAN ARAB JAMAHIRIYA
         { REGDOMAIN_APAC,    {'M', 'A'}},  //MOROCCO
-        { REGDOMAIN_ETSI,    {'M', 'C'}},  //MONACO
+        { REGDOMAIN_N_AMER_EXC_FCC, {'M', 'C'}},  //MONACO
         { REGDOMAIN_ETSI,    {'M', 'D'}},  //MOLDOVA, REPUBLIC OF
         { REGDOMAIN_ETSI,    {'M', 'E'}},  //MONTENEGRO
         { REGDOMAIN_NO_5GHZ, {'M', 'G'}},  //MADAGASCAR
@@ -292,12 +292,12 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_NO_5GHZ, {'N', 'R'}},  //NAURU
         { REGDOMAIN_WORLD,   {'N', 'U'}},  //NIUE
         { REGDOMAIN_APAC,    {'N', 'Z'}},  //NEW ZEALAND
-        { REGDOMAIN_ETSI,    {'O', 'M'}},  //OMAN
+        { REGDOMAIN_WORLD,   {'O', 'M'}},  //OMAN
         { REGDOMAIN_APAC,    {'P', 'A'}},  //PANAMA
         { REGDOMAIN_WORLD,   {'P', 'E'}},  //PERU
         { REGDOMAIN_ETSI,    {'P', 'F'}},  //FRENCH POLYNESIA
-        { REGDOMAIN_WORLD,   {'P', 'G'}},  //PAPUA NEW GUINEA
-        { REGDOMAIN_WORLD,   {'P', 'H'}},  //PHILIPPINES
+        { REGDOMAIN_APAC,    {'P', 'G'}},  //PAPUA NEW GUINEA
+        { REGDOMAIN_HI_5GHZ, {'P', 'H'}},  //PHILIPPINES
         { REGDOMAIN_HI_5GHZ, {'P', 'K'}},  //PAKISTAN
         { REGDOMAIN_ETSI,    {'P', 'L'}},  //POLAND
         { REGDOMAIN_WORLD,   {'P', 'M'}},  //SAINT PIERRE AND MIQUELON
@@ -343,10 +343,10 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_NO_5GHZ, {'T', 'M'}},  //TURKMENISTAN
         { REGDOMAIN_N_AMER_EXC_FCC, {'T', 'N'}},  //TUNISIA
         { REGDOMAIN_NO_5GHZ, {'T', 'O'}},  //TONGA
-        { REGDOMAIN_ETSI,    {'T', 'R'}},  //TURKEY
+        { REGDOMAIN_N_AMER_EXC_FCC, {'T', 'R'}},  //TURKEY
         { REGDOMAIN_WORLD,   {'T', 'T'}},  //TRINIDAD AND TOBAGO
         { REGDOMAIN_NO_5GHZ, {'T', 'V'}},  //TUVALU
-        { REGDOMAIN_WORLD,   {'T', 'W'}},  //TAIWAN, PROVINCE OF CHINA
+        { REGDOMAIN_FCC,     {'T', 'W'}},  //TAIWAN, PROVINCE OF CHINA
         { REGDOMAIN_HI_5GHZ, {'T', 'Z'}},  //TANZANIA, UNITED REPUBLIC OF
         { REGDOMAIN_WORLD,   {'U', 'A'}},  //UKRAINE
         { REGDOMAIN_KOREA,   {'U', 'G'}},  //UGANDA
@@ -358,7 +358,7 @@ static CountryInfoTable_t countryInfoTable =
         { REGDOMAIN_HI_5GHZ, {'V', 'E'}},  //VENEZUELA
         { REGDOMAIN_ETSI,    {'V', 'G'}},  //VIRGIN ISLANDS, BRITISH
         { REGDOMAIN_FCC,     {'V', 'I'}},  //VIRGIN ISLANDS, US
-        { REGDOMAIN_FCC,     {'V', 'N'}},  //VIET NAM
+        { REGDOMAIN_N_AMER_EXC_FCC, {'V', 'N'}},  //VIET NAM
         { REGDOMAIN_NO_5GHZ, {'V', 'U'}},  //VANUATU
         { REGDOMAIN_WORLD,   {'W', 'F'}},  //WALLIS AND FUTUNA
         { REGDOMAIN_N_AMER_EXC_FCC, {'W', 'S'}},  //SOMOA
@@ -1762,31 +1762,90 @@ VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
     v_CONTEXT_t pVosContext = NULL;
     hdd_context_t *pHddCtx = NULL;
     struct wiphy *wiphy = NULL;
+    v_U8_t nBandCapability;
+    int i, j, k, m;
+
    /* Client Context Argumant not used for PRIMA */
-   if (regId >= REGDOMAIN_COUNT)
+   if(regId >= REGDOMAIN_COUNT)
    {
       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                 "VOS set reg domain, invalid REG domain ID %d", regId);
       return VOS_STATUS_E_INVAL;
    }
 
-   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
-   if (NULL != pVosContext)
-      pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
-   else
-      return VOS_STATUS_E_EXISTS;
    /* Set correct channel information based on REG Domain */
    regChannels = pnvEFSTable->halnv.tables.regDomains[regId].channels;
 
-   /* when CRDA is not running then we are world roaming.
-      In this case if 11d is enabled, then country code should
-      be update on basis of world roaming */
-   if ((NULL != pHddCtx) && (memcmp(pHddCtx->cfg_ini->crdaDefaultCountryCode,
-                    CFG_CRDA_DEFAULT_COUNTRY_CODE_DEFAULT , 2) == 0))
+   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+   if (NULL != pVosContext)
+       pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
+   else
+       return VOS_STATUS_E_EXISTS;
+
+   if (NULL == pHddCtx)
+       return VOS_STATUS_E_EXISTS;
+
+   wiphy = pHddCtx->wiphy;
+   nBandCapability = pHddCtx->cfg_ini->nBandCapability;
+
+   for (i = 0, m = 0; i < IEEE80211_NUM_BANDS; i++)
    {
-      wiphy = pHddCtx->wiphy;
-      regulatory_hint(wiphy, "00");
-   }
+
+       if (NULL == wiphy->bands[i])
+       {
+          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                    "error: wiphy->bands[i] is NULL, i = %d", i);
+          continue;
+       }
+
+       // internal channels[] is one continous array for both 2G and 5G bands
+       // m is internal starting channel index for each band
+       if (0 == i)
+           m = 0;
+       else
+           m = wiphy->bands[i-1]?wiphy->bands[i-1]->n_channels + m:m;
+
+       for (j = 0; j < wiphy->bands[i]->n_channels; j++)
+       {
+           struct ieee80211_supported_band *band = wiphy->bands[i];
+
+           // k = (m + j) is internal current channel index for 20MHz channel
+           // n is internal channel index for corresponding 40MHz channel
+           k = m + j;
+           if (IEEE80211_BAND_2GHZ == i && eCSR_BAND_5G == nBandCapability) // 5G only
+           {
+               // Enable social channels for P2P
+               if (WLAN_HDD_IS_SOCIAL_CHANNEL(band->channels[j].center_freq) &&
+                   NV_CHANNEL_ENABLE == regChannels[k].enabled)
+                   band->channels[j].flags &= ~IEEE80211_CHAN_DISABLED;
+               else
+                   band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
+               continue;
+           }
+           else if (IEEE80211_BAND_5GHZ == i && eCSR_BAND_24 == nBandCapability) // 2G only
+           {
+               band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
+               continue;
+           }
+
+           if (NV_CHANNEL_DISABLE == regChannels[k].enabled ||
+               NV_CHANNEL_INVALID == regChannels[k].enabled)
+           {
+               band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
+           }
+           else if (NV_CHANNEL_DFS == regChannels[k].enabled)
+           {
+               band->channels[j].flags &= ~IEEE80211_CHAN_DISABLED;
+               band->channels[j].flags |= IEEE80211_CHAN_RADAR;
+           }
+           else
+           {
+               band->channels[j].flags &= ~(IEEE80211_CHAN_DISABLED
+                                            |IEEE80211_CHAN_RADAR);
+           }
+       }
+    }
+
    return VOS_STATUS_SUCCESS;
 }
 
@@ -2307,11 +2366,6 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
                 struct regulatory_request *request)
 {
     hdd_context_t *pHddCtx = wiphy_priv(wiphy);
-    v_REGDOMAIN_t domainIdCurrent;
-    tANI_U8 ccode[WNI_CFG_COUNTRY_CODE_LEN];
-    tANI_U8 uBufLen = WNI_CFG_COUNTRY_CODE_LEN;
-    tANI_U8 nBandCapability;
-    int i,j,k,m;
     wiphy_dbg(wiphy, "info: cfg80211 reg_notifier callback for country"
                      " %c%c\n", request->alpha2[0], request->alpha2[1]);
     if (request->initiator == NL80211_REGDOM_SET_BY_USER)
@@ -2340,153 +2394,39 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
        // sme_ChangeCountryCode(pHddCtx->hHal, NULL,
        //    &country_code[0], pAdapter, pHddCtx->pvosContext);
     }
-    else if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER ||
-             (request->initiator == NL80211_REGDOM_SET_BY_CORE))
+    else if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER)
     {
-       if ( eHAL_STATUS_SUCCESS !=  sme_GetCountryCode(pHddCtx->hHal, ccode, &uBufLen))
-       {
-          wiphy_dbg(wiphy, "info: set by driver CCODE ERROR\n");
-          return 0;
-       }
-       if (eHAL_STATUS_SUCCESS != sme_GetRegulatoryDomainForCountry (pHddCtx->hHal,
-                                           ccode, (v_REGDOMAIN_t *) &domainIdCurrent))
-       {
-          wiphy_dbg(wiphy, "info: set by driver ERROR\n");
-          return 0;
-       }
-       wiphy_dbg(wiphy, "country: %c%c set by driver\n",ccode[0],ccode[1]);
+       wiphy_dbg(wiphy, "info: set by driver\n");
        /* if set by driver itself, it means driver can accept the crda
           regulatory settings and wiphy->regd should be populated with crda
           settings. iwiphy->bands doesn't seem to set ht40 flags in kernel
           correctly, this may be fixed by later kernel */
-       if (memcmp(pHddCtx->cfg_ini->crdaDefaultCountryCode,
-                         CFG_CRDA_DEFAULT_COUNTRY_CODE_DEFAULT , 2) != 0)
+       if (create_crda_regulatory_entry_from_regd(wiphy, request, pHddCtx->cfg_ini->nBandCapability) == 0)
        {
-          if (create_crda_regulatory_entry_from_regd(wiphy, request, pHddCtx->cfg_ini->nBandCapability) == 0)
-          {
-             pr_info("crda entry created.\n");
-             if (crda_alpha2[0] == request->alpha2[0] && crda_alpha2[1] == request->alpha2[1])
-             {
-                /* first CRDA request should be from init time */
-                /* Change default country code to CRDA country code, assume indoor */
-                pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[0] = request->alpha2[0];
-                pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1] = request->alpha2[1];
-                pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[2] = 'I';
-                pnvEFSTable->halnv.tables.defaultCountryTable.regDomain = NUM_REG_DOMAINS-1;
-                wiphy_dbg(wiphy, "info: init time default country code is %c%c%c\n",
+          pr_info("crda entry created.\n");
+          if (crda_alpha2[0] == request->alpha2[0] && crda_alpha2[1] == request->alpha2[1])
+          {  /* first CRDA request should be from init time */
+             /* Change default country code to CRDA country code, assume indoor */
+             pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[0] = request->alpha2[0];
+             pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1] = request->alpha2[1];
+             pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[2] = 'I';
+             pnvEFSTable->halnv.tables.defaultCountryTable.regDomain = NUM_REG_DOMAINS-1;
+             wiphy_dbg(wiphy, "info: init time default country code is %c%c%c\n",
                 pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[0],
-                    pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1],
-                       pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[2]);
-             }
-             else /* second or later CRDA request after init time */
-             {
-                wiphy_dbg(wiphy, "info: crda none-default country code is %c%c\n",
-                    request->alpha2[0], request->alpha2[1]);
-             }
-             // hdd will read regd for this country after complete
+                   pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1],
+                      pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[2]);
           }
-          complete(&pHddCtx->driver_crda_req);
+          else /* second or later CRDA request after init time */
+          {
+             wiphy_dbg(wiphy, "info: crda none-default country code is %c%c\n",
+                request->alpha2[0], request->alpha2[1]);
+          }
+          // hdd will read regd for this country after complete
        }
-       else
-       {
-          nBandCapability = pHddCtx->cfg_ini->nBandCapability;
-          for (i=0, m=0; i<IEEE80211_NUM_BANDS; i++)
-          {
-             if (NULL == wiphy->bands[i])
-             {
-                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                     "error: wiphy->bands[i] is NULL, i = %d", i);
-                continue;
-             }
+       complete(&pHddCtx->driver_crda_req);
 
-             // internal channels[] is one continous array for both 2G and 5G bands
-             // m is internal starting channel index for each band
-             if (0 == i)
-             {
-                m = 0;
-             }
-             else
-             {
-                m = wiphy->bands[i-1]?wiphy->bands[i-1]->n_channels + m:m;
-             }
-
-             for (j=0; j<wiphy->bands[i]->n_channels; j++)
-             {
-                // k = (m + j) is internal current channel index for 20MHz channel
-                // n is internal channel index for corresponding 40MHz channel
-                k = m + j;
-                if (IEEE80211_BAND_2GHZ == i && eCSR_BAND_5G == nBandCapability) // 5G only
-                {
-                   // Enable social channels for P2P
-                   if ((2412 == wiphy->bands[i]->channels[j].center_freq ||
-                       2437 == wiphy->bands[i]->channels[j].center_freq ||
-                       2462 == wiphy->bands[i]->channels[j].center_freq ) &&
-                       NV_CHANNEL_ENABLE == regChannels[k].enabled)
-                   {
-                       wiphy->bands[i]->channels[j].flags &= ~IEEE80211_CHAN_DISABLED;
-                   }
-                   else
-                   {
-                      wiphy->bands[i]->channels[j].flags |= IEEE80211_CHAN_DISABLED;
-                   }
-                   continue;
-                }
-                else if (IEEE80211_BAND_5GHZ == i && eCSR_BAND_24 == nBandCapability) // 2G only
-                {
-                   wiphy->bands[i]->channels[j].flags |= IEEE80211_CHAN_DISABLED;
-                   continue;
-                }
-
-                if (NV_CHANNEL_DISABLE == regChannels[k].enabled ||
-                    NV_CHANNEL_INVALID == regChannels[k].enabled)
-                {
-                   wiphy->bands[i]->channels[j].flags |= IEEE80211_CHAN_DISABLED;
-                }
-                else if (NV_CHANNEL_DFS == regChannels[k].enabled)
-                {
-                   wiphy->bands[i]->channels[j].flags &= ~(IEEE80211_CHAN_DISABLED
-                                                          |IEEE80211_CHAN_RADAR);
-                   wiphy->bands[i]->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
-                }
-                else
-                {
-                   wiphy->bands[i]->channels[j].flags &= ~(IEEE80211_CHAN_DISABLED
-                                                          |IEEE80211_CHAN_PASSIVE_SCAN
-                                                          |IEEE80211_CHAN_NO_IBSS
-                                                          |IEEE80211_CHAN_RADAR);
-                }
-             }
-          }
-          /* Haven't seen any condition that will set by driver after init.
-           If we do, then we should also call sme_ChangeCountryCode */
-          if (wiphy->bands[IEEE80211_BAND_5GHZ])
-          {
-             for (j=0; j<wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels; j++)
-             {
-                 // p2p UNII-1 band channels are passive when domain is FCC.
-                if ((wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].center_freq == 5180 ||
-                               wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
-                               wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
-                               wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
-                               (ccode[0]== 'U'&& ccode[1]=='S'))
-                {
-                   wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
-                }
-                else if ((wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5180 ||
-                                    wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
-                                    wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
-                                    wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
-                                    (ccode[0]!= 'U'&& ccode[1]!='S'))
-                {
-                   wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
-                }
-             }
-          }
-          if (request->initiator == NL80211_REGDOM_SET_BY_CORE)
-          {
-             request->processed = 1;
-          }
-       }
+       /* Haven't seen any condition that will set by driver after init.
+          If we do, then we should also call sme_ChangeCountryCode */
     }
 return 0;
 }

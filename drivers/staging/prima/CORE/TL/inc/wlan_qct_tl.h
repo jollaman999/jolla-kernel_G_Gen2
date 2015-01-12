@@ -51,9 +51,17 @@
 DESCRIPTION
   This file contains the external API exposed by the wlan transport layer
   module.
+<<<<<<< HEAD:CORE/TL/inc/wlan_qct_tl.h
+  
       
+  Copyright (c) 2008 QUALCOMM Incorporated. All Rights Reserved.
+  Qualcomm Confidential and Proprietary
+=======
+
+
   Copyright (c) 2008 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Confidential and Proprietary
+>>>>>>> 326d6cf... wlan: remove obsolete ANI_CHIPSET_VOLANS featurization:prima/CORE/TL/inc/wlan_qct_tl.h
 ===========================================================================*/
 
 
@@ -99,6 +107,7 @@ when        who    what, where, why
 #include "sirApi.h"
 #include "csrApi.h"
 #include "sapApi.h"
+
 /*----------------------------------------------------------------------------
  * Preprocessor Definitions and Constants
  * -------------------------------------------------------------------------*/
@@ -2644,7 +2653,7 @@ WLANTL_ClearTxXmitPending
       VOS_STATUS_E_EXISTS: Station was not registered
       VOS_STATUS_SUCCESS:  Everything is good :)
 
-  SIDE EFFECTS
+    SIDE EFFECTS
 ============================================================================*/
 
 VOS_STATUS
@@ -2694,6 +2703,7 @@ WLANTL_UpdateLinkCapacity
 
     A station must have been registered before its state can be retrieved.
 
+
   PARAMETERS
 
     IN
@@ -2719,7 +2729,6 @@ WLANTL_UpdateLinkCapacity
   SIDE EFFECTS
 
 ============================================================================*/
-
 VOS_STATUS
 WLANTL_GetSTALinkCapacity
 (
@@ -2727,59 +2736,4 @@ WLANTL_GetSTALinkCapacity
   v_U8_t                ucSTAId,
   v_U32_t               *plinkCapacity
 );
-
-/*===========================================================================
-  FUNCTION   WLANTL_TxThreadDebugHandler
-
-  DESCRIPTION
-    Printing TL Snapshot dump, processed under TxThread context, currently
-    information regarding the global TlCb struture. Dumps information related
-    to per active STA connection currently in use by TL.
-
-  DEPENDENCIES
-    The TL must be initialized before this gets called.
-
-  PARAMETERS
-
-    IN
-    pvosGCtx:    Pointer to the global vos context; a handle to TL's
-                    or WDA's control block can be extracted from its context
-
-  RETURN VALUE   None
-
-  SIDE EFFECTS
-============================================================================*/
-
-v_VOID_t
-WLANTL_TxThreadDebugHandler
-(
-  v_PVOID_t       *pvosGCtx
-);
-
-/*==========================================================================
-  FUNCTION   WLANTL_TLDebugMessage
-
-  DESCRIPTION
-    Post a TL Snapshot request, posts message in TxThread.
-
-  DEPENDENCIES
-    The TL must be initialized before this gets called.
-
-  PARAMETERS
-
-    IN
-    displaySnapshot Boolean showing whether to dump the snapshot or not.
-
-  RETURN VALUE      None
-
-  SIDE EFFECTS
-
-============================================================================*/
-
-v_VOID_t
-WLANTL_TLDebugMessage
-(
-  v_BOOL_t displaySnapshot
-);
-
 #endif /* #ifndef WLAN_QCT_WLANTL_H */
