@@ -338,11 +338,14 @@ inline static unsigned int validate_freq(struct cpufreq_policy *policy,
 
 /* We want all CPUs to do sampling nearly on same jiffy */
 static inline unsigned int get_timer_delay(void) {
-	unsigned int delay = usecs_to_jiffies(sampling_rate);
+	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
+	unsigned int delay;
 
 	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 	if(smartmax_screen_off)
 		delay = usecs_to_jiffies(sampling_rate_screen_off);
+	else
+		delay = usecs_to_jiffies(sampling_rate);
 
 	if (num_online_cpus() > 1)
 		delay -= jiffies % delay;
