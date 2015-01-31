@@ -191,9 +191,9 @@ int msm_platform_secondary_init(unsigned int cpu)
 
 static int __init init_hotplug(void)
 {
+	int rc;
 	struct msm_hotplug_device *dev = &__get_cpu_var(msm_hotplug_devices);
 	init_completion(&dev->cpu_killed);
-	int rc;
 
 	rc = register_hotcpu_notifier(&hotplug_rtb_notifier);
 	if (rc)
