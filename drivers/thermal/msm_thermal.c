@@ -87,11 +87,8 @@ uint32_t msm_thermal_cpufreq[] = {
 	1620000,	// 16
 	1674000,	// 17
 	1728000,	// 18
-	1782000,	// 19
-	1836000,	// 20
-	1890000,	// 21
 #endif /* CONFIG_CPU_OVERCLOCK */
-	0		// 22
+	0		// 19
 };
 
 // Dynamic thermal control - By jollaman999
@@ -99,7 +96,7 @@ unsigned int mid_freq_index;
 
 // Dynamic thermal control - By jollaman999
 #ifdef CONFIG_CPU_OVERCLOCK
-#define MSM_THERMAL_FREQ_TABLES 22
+#define MSM_THERMAL_FREQ_TABLES 19
 #else
 #define MSM_THERMAL_FREQ_TABLES 15
 #endif /* CONFIG_CPU_OVERCLOCK */
