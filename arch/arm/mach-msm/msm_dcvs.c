@@ -149,9 +149,9 @@ static struct kobject *cores_kobj;
 // jollaman999
 // Overclock
 #ifdef CONFIG_CPU_OVERCLOCK
-#define DCVS_MAX_NUM_FREQS 15
+#define DCVS_MAX_NUM_FREQS 25
 #else
-#define DCVS_MAX_NUM_FREQS 11
+#define DCVS_MAX_NUM_FREQS 21
 #endif /* CONFIG_CPU_OVERCLOCK */
 
 static struct msm_dcvs_freq_entry cpu_freq_tbl[DCVS_MAX_NUM_FREQS];
