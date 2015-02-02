@@ -44,6 +44,15 @@
 #include <linux/wakelock.h>
 #include <linux/platform_data/hds_fsa8008.h>
 
+#ifdef CONFIG_LGE_AUX_NOISE
+/*
+ * 2012-07-20, bob.cho@lge.com
+ * extern api to remove aux noise
+ */
+#include <mach/board_lge.h>
+#include "../../sound/soc/codecs/wcd9310.h"
+#endif /*CONFIG_LGE_AUX_NOISE*/
+
 #define FSA8008_USE_WORK_QUEUE
 #define FSA8008_KEY_LATENCY_TIME	200 /* in ms */
 #define FSA8008_DEBOUNCE_TIME		500 /* in ms */
@@ -192,6 +201,13 @@ static void insert_headset(struct hsd_info *hi)
 
 	if (earjack_type == HEADSET_3POLE) {
 		HSD_DBG("3 polarity earjack");
+		#ifdef CONFIG_LGE_AUX_NOISE
+				/*
+				 * 2012-07-20, bob.cho@lge.com
+				 * call api to remove aux noise when headset inserted
+				 */
+				tabla_codec_hph_pa_ctl(TABLA_EVENT_HEADSET_INSERT);
+		#endif /*CONFIG_LGE_AUX_NOISE*/
 
 		atomic_set(&hi->is_3_pole_or_not, 1);
 
@@ -239,6 +255,13 @@ static void remove_headset(struct hsd_info *hi)
 	gpio_set_value_cansleep(hi->gpio_mic_en, 0);
 	if (hi->set_headset_mic_bias)
 		hi->set_headset_mic_bias(0);
+#ifdef CONFIG_LGE_AUX_NOISE
+		/*
+		 * 2012-07-20, bob.cho@lge.com
+		 * call api to remove aux noise when headset removed
+		 */
+		tabla_codec_hph_pa_ctl(TABLA_EVENT_HEADSET_REMOVAL);
+#endif /*CONFIG_LGE_AUX_NOISE*/
 
 	atomic_set(&hi->is_3_pole_or_not, 1);
 	mutex_lock(&hi->mutex_lock);
