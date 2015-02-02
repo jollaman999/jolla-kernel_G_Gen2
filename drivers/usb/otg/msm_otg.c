@@ -56,6 +56,14 @@
 #define USB_FASTCHG_LOAD 1000 /* uA */
 #endif
 
+#ifdef CONFIG_LGE_AUX_NOISE
+/*
+ * 2012-07-20, bob.cho@lge.com
+ * extern api to remove aux noise
+ */
+#include "../../../sound/soc/codecs/wcd9310.h"
+#endif /*CONFIG_LGE_AUX_NOISE*/
+
 #define MSM_USB_BASE	(motg->regs)
 #define DRIVER_NAME	"msm_otg"
 
@@ -2330,6 +2338,13 @@ static void msm_otg_sm_work(struct work_struct *w)
 			case USB_CHG_STATE_DETECTED:
 				switch (motg->chg_type) {
 				case USB_DCP_CHARGER:
+#ifdef CONFIG_LGE_AUX_NOISE
+					/*
+					 * 2012-07-20, bob.cho@lge.com
+					 * call api to remove aux noise when charger connected
+					 */
+					tabla_codec_hph_pa_ctl(TABLA_EVENT_CHARGER_CONNECT);
+#endif /*CONFIG_LGE_AUX_NOISE*/
 					/* Enable VDP_SRC */
 					ulpi_write(otg->phy, 0x2, 0x85);
 					/* fall through */
@@ -2396,6 +2411,13 @@ static void msm_otg_sm_work(struct work_struct *w)
 			cancel_delayed_work_sync(&motg->check_ta_work);
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
+#ifdef CONFIG_LGE_AUX_NOISE
+			/*
+			 * 2012-07-20, bob.cho@lge.com
+			 * call api to remove aux noise when charger connected
+			 */
+			tabla_codec_hph_pa_ctl(TABLA_EVENT_CHARGER_DISCONNECT);
+#endif /*CONFIG_LGE_AUX_NOISE*/
 			msm_otg_notify_charger(motg, 0);
 			msm_otg_reset(otg->phy);
 			/*

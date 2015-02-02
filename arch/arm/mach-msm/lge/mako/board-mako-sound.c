@@ -156,6 +156,17 @@ static void enable_external_mic_bias(int status)
 				reg_mic_bias = NULL;
 				return;
 			}
+
+//[LGE] seungkyu.joo, 2012-12-18 , HW Request for enabling apple headset mic
+#ifdef CONFIG_MACH_APQ8064_J1A
+			rc = regulator_set_voltage(reg_mic_bias, 2700000, 2700000);
+#else
+			rc = regulator_set_voltage(reg_mic_bias, 2000000, 2000000);
+#endif
+
+			if (rc) {
+				pr_err("%d: regulator set of reg_mic_bias failed \n", rc);
+			}
 		}
 
 		if (status) {
