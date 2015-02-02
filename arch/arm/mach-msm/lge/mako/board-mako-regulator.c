@@ -561,8 +561,14 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L25, 1, 1, 0, 1250000, 1250000, "8921_s1", 10000, 10000),
 	RPM_LDO(L27, 0, 0, 0, 1100000, 1100000, "8921_s7",     0,     0),
 	RPM_LDO(L28, 0, 1, 0, 1050000, 1050000, "8921_s7",     0,     0),
+/* LGE_CHANGE_S sungwoo.cho@lge.com
+ * It is setting for HEADSET MICBIAS that is always on */
+ //[LGE] seungkyu.joo, 2012-12-18 , HW Request for enabling apple headset mic
+#ifdef CONFIG_MACH_APQ8064_J1A
+	RPM_LDO(L29, 0, 1, 1, 2700000, 2700000, NULL,          0,     0), //8921_l29
+#else
 	RPM_LDO(L29, 0, 1, 0, 2500000, 2500000, NULL,          0,     0),
-
+#endif
 	/*     ID  a_on pd ss                   supply */
 	RPM_VS(LVS1, 0, 1, 0,                   "8921_s4"),
 	RPM_VS(LVS2, 0, 1, 0,                   "8921_s1"),

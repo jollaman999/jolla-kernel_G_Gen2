@@ -467,3 +467,9 @@ config SOUND_CONTROL_HAX_3_GPL
 	help
 	  FauxSound WCD93xx chipset sound control hacks 3.0 for deeper hax
 
+config LGE_AUX_NOISE
+	tristate "LGE aux noise fix"
+	default n
+	help
+	  Fix aux noise when remove or insert headset. Also connect or disconnect charger.
+
