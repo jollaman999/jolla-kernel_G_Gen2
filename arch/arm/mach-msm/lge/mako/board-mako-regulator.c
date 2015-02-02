@@ -87,6 +87,10 @@ VREG_CONSUMERS(L12) = {
 	REGULATOR_SUPPLY("cam2_vdig",		"4-006e"), /* GSBI4, Slave Addr: 0x6e, imx119 */
 	REGULATOR_SUPPLY("8921_l12",		NULL),
 };
+VREG_CONSUMERS(L13) = {
+	REGULATOR_SUPPLY("8921_l13",            NULL),
+	REGULATOR_SUPPLY("apq_therm",           "pm8xxx-adc"),
+};
 VREG_CONSUMERS(L14) = {
 	REGULATOR_SUPPLY("8921_l14",		NULL),
 	REGULATOR_SUPPLY("pa_therm",		"pm8xxx-adc"),
@@ -541,6 +545,7 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L10, 0, 1, 0, 2900000, 2900000, NULL,          0,     0),
 	RPM_LDO(L11, 0, 1, 0, 2850000, 2850000, NULL,          0,     0),
 	RPM_LDO(L12, 0, 1, 0, 1200000, 1200000, "8921_s4",     0,     0),
+	RPM_LDO(L13, 0, 0, 0, 2220000, 2220000, NULL,          0,     0),
 	RPM_LDO(L14, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
 	RPM_LDO(L15, 0, 1, 0, 3300000, 3300000, NULL,          0,    19),
 	RPM_LDO(L16, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
