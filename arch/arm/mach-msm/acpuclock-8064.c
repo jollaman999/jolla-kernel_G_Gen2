@@ -139,15 +139,16 @@ static struct l2_level l2_freq_tbl[] __initdata = {
 	{ }
 };
 
-// Downclock
+// jollaman999
+// Underclock
 /*
  13500*n
- { 13500*n, HFPLL, 2, n->HEX }, L2(0-3), Voltage }
+ { 13500*n, HFPLL, 2, n->HEX }, L2(0), Voltage }
 */
 // Overclock
 /*
  27000*n
- { 27000*n, HFPLL, 1, n->HEX }, L2(9 or 18), Voltage }
+ { 27000*n, HFPLL, 1, n->HEX }, L2(15), Voltage }
 */
 static struct acpu_level tbl_slow[] __initdata = {
 	{ 1, {   270000, HFPLL, 2, 0x14 }, L2(0),   900000 },
@@ -182,6 +183,7 @@ static struct acpu_level tbl_slow[] __initdata = {
 	{ 0, { 0 } }
 };
 
+// jollaman999
 static struct acpu_level tbl_nom[] __initdata = {
 	{ 1, {   270000, HFPLL, 2, 0x14 }, L2(0),   850000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   875000 },
@@ -215,6 +217,7 @@ static struct acpu_level tbl_nom[] __initdata = {
 	{ 0, { 0 } }
 };
 
+// jollaman999
 static struct acpu_level tbl_fast[] __initdata = {
 	{ 1, {   270000, HFPLL, 2, 0x14 }, L2(0),   800000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   825000 },
@@ -248,6 +251,7 @@ static struct acpu_level tbl_fast[] __initdata = {
 	{ 0, { 0 } }
 };
 
+// jollaman999
 static struct acpu_level tbl_faster[] __initdata = {
 	{ 1, {   270000, HFPLL, 2, 0x14 }, L2(0),   800000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   825000 },
