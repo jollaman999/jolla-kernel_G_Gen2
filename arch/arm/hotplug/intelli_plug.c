@@ -52,6 +52,14 @@ static struct delayed_work intelli_plug_boost;
 static struct workqueue_struct *intelliplug_wq;
 static struct workqueue_struct *intelliplug_boost_wq;
 
+// intelli_plug: Force set 2cpus working when playing music while screen off
+// - jollaman999 -
+#ifdef CONFIG_SND_SOC_WCD9310
+extern bool wcd9310_is_playing;
+extern bool scr_suspended;
+#define DEBUG_INTELLI_PLUG_WCD9310 0
+#endif
+
 static unsigned int intelli_plug_active = 0;
 module_param(intelli_plug_active, uint, 0644);
 
@@ -323,10 +331,30 @@ static void __cpuinit intelli_plug_work_fn(struct work_struct *work)
 				break;
 			}
 		}
+		// intelli_plug: Force set 2cpus working when playing music while screen off
+		// - jollaman999 -
+#ifdef CONFIG_SND_SOC_WCD9310
+		else if(wcd9310_is_playing && scr_suspended) {
+			if (persist_count == 0)
+				persist_count = DUAL_PERSISTENCE;
+			if (nr_cpus < 2) {
+				for (i = 1; i < 2; i++)
+					cpu_up(i);
+			} else {
+				unplug_cpu(1);
+			}
+#ifdef DEBUG_INTELLI_PLUG_WCD9310
+			pr_info("intelli_plug: Force set 2cpus working!\n");
+#endif
+#endif /* CONFIG_SND_SOC_WCD9310 */
+		} else {
+		// intelli_plug: Force set 2cpus working when playing music while screen off
+		// - jollaman999 -
+			unplug_cpu(0);
 #ifdef DEBUG_INTELLI_PLUG
-		else
 			pr_info("intelli_plug is suspened!\n");
 #endif
+		}
 	}
 	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
 		msecs_to_jiffies(sampling_time));
