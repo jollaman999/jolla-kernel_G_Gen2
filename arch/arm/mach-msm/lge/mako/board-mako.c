@@ -978,6 +978,77 @@ static struct i2c_board_info smb349_charger_i2c_info[] __initdata = {
  * microphone sensitivity purpose.
  */
 
+#ifndef CONFIG_MACH_LGE
+
+static struct wcd9xxx_pdata apq8064_tabla_platform_data = {
+	.slimbus_slave_device = {
+		.name = "tabla-slave",
+		.e_addr = {0, 0, 0x10, 0, 0x17, 2},
+	},
+	.irq = MSM_GPIO_TO_INT(42),
+	.irq_base = TABLA_INTERRUPT_BASE,
+	.num_irqs = NR_WCD9XXX_IRQS,
+	.reset_gpio = PM8921_GPIO_PM_TO_SYS(34),
+	.micbias = {
+		.ldoh_v = TABLA_LDOH_2P85_V,
+		.cfilt1_mv = 1800,
+		.cfilt2_mv = 2700,
+		.cfilt3_mv = 1800,
+		.bias1_cfilt_sel = TABLA_CFILT1_SEL,
+		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
+		.bias3_cfilt_sel = TABLA_CFILT3_SEL,
+		.bias4_cfilt_sel = TABLA_CFILT3_SEL,
+	},
+	.regulator = {
+	{
+		.name = "CDC_VDD_CP",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_CDC_VDDA_CP_CUR_MAX,
+	},
+	{
+		.name = "CDC_VDDA_RX",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_CDC_VDDA_RX_CUR_MAX,
+	},
+	{
+		.name = "CDC_VDDA_TX",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_CDC_VDDA_TX_CUR_MAX,
+	},
+	{
+		.name = "VDDIO_CDC",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_VDDIO_CDC_CUR_MAX,
+	},
+	{
+		.name = "VDDD_CDC_D",
+		.min_uV = 1225000,
+		.max_uV = 1250000,
+		.optimum_uA = WCD9XXX_VDDD_CDC_D_CUR_MAX,
+	},
+	{
+		.name = "CDC_VDDA_A_1P2V",
+		.min_uV = 1225000,
+		.max_uV = 1250000,
+		.optimum_uA = WCD9XXX_VDDD_CDC_A_CUR_MAX,
+	},
+	},
+};
+
+static struct slim_device apq8064_slim_tabla = {
+	.name = "tabla-slim",
+	.e_addr = {0, 1, 0x10, 0, 0x17, 2},
+	.dev = {
+		.platform_data = &apq8064_tabla_platform_data,
+	},
+};
+
+#endif
+
 static struct wcd9xxx_pdata apq8064_tabla20_platform_data = {
 	.slimbus_slave_device = {
 		.name = "tabla-slave",
@@ -1912,6 +1983,12 @@ static struct spi_board_info spi_board_info[] __initdata = {
 };
 
 static struct slim_boardinfo apq8064_slim_devices[] = {
+#ifndef CONFIG_MACH_LGE
+	{
+		.bus_num = 1,
+		.slim_slave = &apq8064_slim_tabla,
+	},
+#endif
 	{
 		.bus_num = 1,
 		.slim_slave = &apq8064_slim_tabla20,
@@ -1932,6 +2009,92 @@ static struct msm_i2c_platform_data apq8064_i2c_qup_gsbi3_pdata = {
 static struct msm_i2c_platform_data apq8064_i2c_qup_gsbi4_pdata = {
 	.clk_freq = 100000,
 	.src_clk_rate = 24000000,
+};
+
+static struct wcd9xxx_pdata apq8064_tabla_i2c_platform_data = {
+	.irq = MSM_GPIO_TO_INT(77),
+	.irq_base = TABLA_INTERRUPT_BASE,
+	.num_irqs = NR_WCD9XXX_IRQS,
+	.reset_gpio = PM8921_GPIO_PM_TO_SYS(34),
+	.micbias = {
+		.ldoh_v = TABLA_LDOH_2P85_V,
+		.cfilt1_mv = 1800,
+		.cfilt2_mv = 1800,
+		.cfilt3_mv = 1800,
+		.bias1_cfilt_sel = TABLA_CFILT1_SEL,
+		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
+		.bias3_cfilt_sel = TABLA_CFILT3_SEL,
+		.bias4_cfilt_sel = TABLA_CFILT3_SEL,
+	},
+	.regulator = {
+	{
+		.name = "CDC_VDD_CP",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_CDC_VDDA_CP_CUR_MAX,
+	},
+	{
+		.name = "CDC_VDDA_RX",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_CDC_VDDA_RX_CUR_MAX,
+	},
+	{
+		.name = "CDC_VDDA_TX",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_CDC_VDDA_TX_CUR_MAX,
+	},
+	{
+		.name = "VDDIO_CDC",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.optimum_uA = WCD9XXX_VDDIO_CDC_CUR_MAX,
+	},
+	{
+		.name = "VDDD_CDC_D",
+		.min_uV = 1225000,
+		.max_uV = 1250000,
+		.optimum_uA = WCD9XXX_VDDD_CDC_D_CUR_MAX,
+	},
+	{
+		.name = "CDC_VDDA_A_1P2V",
+		.min_uV = 1225000,
+		.max_uV = 1250000,
+		.optimum_uA = WCD9XXX_VDDD_CDC_A_CUR_MAX,
+	},
+	},
+};
+
+static struct i2c_board_info apq8064_tabla_i2c_device_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("tabla top level",
+				APQ_8064_TABLA_I2C_SLAVE_ADDR),
+		.platform_data = &apq8064_tabla_i2c_platform_data,
+	},
+	{
+		I2C_BOARD_INFO("tabla analog",
+				APQ_8064_TABLA_ANALOG_I2C_SLAVE_ADDR),
+		.platform_data = &apq8064_tabla_i2c_platform_data,
+	},
+	{
+		I2C_BOARD_INFO("tabla digital1",
+				APQ_8064_TABLA_DIGITAL1_I2C_SLAVE_ADDR),
+		.platform_data = &apq8064_tabla_i2c_platform_data,
+	},
+	{
+		I2C_BOARD_INFO("tabla digital2",
+				APQ_8064_TABLA_DIGITAL2_I2C_SLAVE_ADDR),
+		.platform_data = &apq8064_tabla_i2c_platform_data,
+	},
+};
+
+static struct i2c_registry apq8064_tabla_i2c_devices[] __initdata = {
+	{
+		.bus = APQ_8064_GSBI1_QUP_I2C_BUS_ID,
+		.info = apq8064_tabla_i2c_device_info,
+		.len = ARRAY_SIZE(apq8064_tabla_i2c_device_info),
+	},
 };
 
 static void __init apq8064_i2c_init(void)
@@ -1981,6 +2144,8 @@ static void __init apq8064_init_dsps(void)
 
 static void __init register_i2c_devices(void)
 {
+	int i;
+
 #ifdef CONFIG_MSM_CAMERA
 	struct i2c_registry apq8064_camera_i2c_devices = {
 		I2C_FFA,
@@ -2008,6 +2173,12 @@ static void __init register_i2c_devices(void)
 		apq8064_lge_camera_i2c_devices.info,
 		apq8064_lge_camera_i2c_devices.len);
 #endif
+	for (i = 0; i < ARRAY_SIZE(apq8064_tabla_i2c_devices);
+		 ++i)
+		i2c_register_board_info(
+		apq8064_tabla_i2c_devices[i].bus,
+		apq8064_tabla_i2c_devices[i].info,
+		apq8064_tabla_i2c_devices[i].len);
 }
 
 static void __init apq8064_common_init(void)
