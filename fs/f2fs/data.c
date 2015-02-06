@@ -919,14 +919,14 @@ skip_write:
 }
 
 static void f2fs_write_failed(struct address_space *mapping, loff_t to)
- {
- 	struct inode *inode = mapping->host;
+{
+	struct inode *inode = mapping->host;
 
- 	if (to > inode->i_size) {
+	if (to > inode->i_size) {
 		__truncate_pagecache(inode, inode->i_size);
- 		truncate_blocks(inode, inode->i_size, true);
- 	}
- }
+		truncate_blocks(inode, inode->i_size, true);
+	}
+}
 
 static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
@@ -1073,6 +1073,7 @@ static int check_direct_IO(struct inode *inode, int rw,
 
 	if (iov_iter_alignment(iter) & blocksize_mask)
 		return -EINVAL;
+
 	return 0;
 }
 
@@ -1112,7 +1113,7 @@ static void f2fs_invalidate_data_page(struct page *page, unsigned int offset,
 {
 	struct inode *inode = page->mapping->host;
 
-	if (offset % PAGE_CACHE_SIZE)
+	if (offset % PAGE_CACHE_SIZE || length != PAGE_CACHE_SIZE)
 		return;
 
 	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode))

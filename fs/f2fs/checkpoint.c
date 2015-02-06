@@ -435,8 +435,8 @@ void release_orphan_inode(struct f2fs_sb_info *sbi)
 		f2fs_msg(sbi->sb, KERN_ERR, "releasing "
 			"unacquired orphan inode");
 		f2fs_handle_error(sbi);
-	} else
-		im->ino_num--;
+	}
+	im->ino_num--;
 	spin_unlock(&im->ino_lock);
 }
 

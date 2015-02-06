@@ -566,6 +566,22 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	return 0;
 }
 
+static int f2fs_freeze(struct super_block *sb)
+{
+	int err;
+
+	if (f2fs_readonly(sb))
+		return 0;
+
+	err = f2fs_sync_fs(sb, 1);
+	return err;
+}
+
+static int f2fs_unfreeze(struct super_block *sb)
+{
+	return 0;
+}
+
 static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
@@ -704,6 +720,8 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool need_restart_gc = false;
 	bool need_stop_gc = false;
 
+	sync_filesystem(sb);
+
 	/*
 	 * Save the old mount options in case we
 	 * need to restore them.
@@ -753,8 +771,8 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	} else if (!sbi->sm_info->cmd_control_info) {
 		err = create_flush_cmd_control(sbi);
 		if (err)
- 			goto restore_gc;
- 	}
+			goto restore_gc;
+	}
 skip:
 	/* Update the POSIXACL Flag */
 	 sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -784,6 +802,8 @@ static struct super_operations f2fs_sops = {
 	.evict_inode	= f2fs_evict_inode,
 	.put_super	= f2fs_put_super,
 	.sync_fs	= f2fs_sync_fs,
+	.freeze_fs	= f2fs_freeze,
+	.unfreeze_fs	= f2fs_unfreeze,
 	.statfs		= f2fs_statfs,
 	.remount_fs	= f2fs_remount,
 };
@@ -1269,6 +1289,7 @@ static struct file_system_type f2fs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("f2fs");
 
 static int __init init_inodecache(void)
 {

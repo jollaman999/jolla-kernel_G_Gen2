@@ -371,7 +371,7 @@ int create_flush_cmd_control(struct f2fs_sb_info *sbi)
 	if (IS_ERR(fcc->f2fs_issue_flush)) {
 		err = PTR_ERR(fcc->f2fs_issue_flush);
 		kfree(fcc);
-		sbi->sm_info->cmd_control_info = fcc;
+		sbi->sm_info->cmd_control_info = NULL;
 		return err;
 	}
 
@@ -657,7 +657,6 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 	struct seg_entry *se;
 	unsigned int segno, offset;
 	long int new_vblocks;
-	bool check_map = false;
 
 	segno = GET_SEGNO(sbi, blkaddr);
 
@@ -665,11 +664,10 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 	new_vblocks = se->valid_blocks + del;
 	offset = GET_BLKOFF_FROM_SEG0(sbi, blkaddr);
 
-	if (new_vblocks < 0 || new_vblocks > sbi->blocks_per_seg ||
-	    (new_vblocks >> (sizeof(unsigned short) << 3)))
-		if (f2fs_handle_error(sbi))
-			check_map = true;
+	f2fs_bug_on(sbi, (new_vblocks >> (sizeof(unsigned short) << 3) ||
+				(new_vblocks > sbi->blocks_per_seg)));
 
+	se->valid_blocks = new_vblocks;
 	se->mtime = get_mtime(sbi);
 	SIT_I(sbi)->max_mtime = se->mtime;
 
@@ -681,29 +679,6 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 		if (!f2fs_test_and_clear_bit(offset, se->cur_valid_map))
 			f2fs_bug_on(sbi, 1);
 	}
-
-	if (unlikely(check_map)) {
-		int i;
-		long int vblocks = 0;
-
-		f2fs_msg(sbi->sb, KERN_ERR,
-				"cannot %svalidate block %u in segment %u with %hu valid blocks",
-				(del < 0) ? "in" : "",
-				offset, segno, se->valid_blocks);
-
-		/* assume the count was stale to start */
-		del = 0;
-		for (i = 0; i < sbi->blocks_per_seg; i++)
-			if (f2fs_test_bit(i, se->cur_valid_map))
-				vblocks++;
-		if (vblocks != se->valid_blocks) {
-			f2fs_msg(sbi->sb, KERN_INFO, "correcting valid block "
-				"counts %d -> %ld", se->valid_blocks, vblocks);
-			/* make accounting corrections */
-			del = vblocks - se->valid_blocks;
-		}
-	}
-	se->valid_blocks += del;
 
 	if (!f2fs_test_bit(offset, se->ckpt_valid_map))
 		se->ckpt_valid_blocks += del;
@@ -735,12 +710,6 @@ void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr)
 	f2fs_bug_on(sbi, addr == NULL_ADDR);
 	if (addr == NEW_ADDR)
 		return;
-
-	if (segno >= TOTAL_SEGS(sbi)) {
-		f2fs_msg(sbi->sb, KERN_ERR, "invalid segment number %u", segno);
-		if (f2fs_handle_error(sbi))
-			return;
-	}
 
 	/* add it into sit main buffer */
 	mutex_lock(&sit_i->sentry_lock);
