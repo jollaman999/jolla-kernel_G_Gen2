@@ -320,6 +320,7 @@ void f2fs_evict_inode(struct inode *inode)
 	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
+	vfs_check_frozen(inode->i_sb, SB_FREEZE_TRANS);
 	set_inode_flag(F2FS_I(inode), FI_NO_ALLOC);
 	i_size_write(inode, 0);
 
