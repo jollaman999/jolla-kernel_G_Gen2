@@ -738,7 +738,6 @@ bool f2fs_fill_dentries(struct file *file, struct f2fs_dentry_ptr *d,
 	unsigned char d_type = DT_UNKNOWN;
 	unsigned int bit_pos;
 	struct f2fs_dir_entry *de = NULL;
-	int over = 0;
 
 	bit_pos = ((unsigned long)file->f_pos % d->max);
 
@@ -753,17 +752,14 @@ bool f2fs_fill_dentries(struct file *file, struct f2fs_dentry_ptr *d,
 		else
 			d_type = DT_UNKNOWN;
 
-		over = filldir(dirent,
+		if (!filldir(dirent,
 				d->filename[bit_pos],
 				le16_to_cpu(de->name_len),
 				(*n * d->max) + bit_pos,
-				le32_to_cpu(de->ino), d_type);
+				le32_to_cpu(de->ino), d_type));
 
-		if (over) {
-			file->f_pos = start_pos + bit_pos;
-			return true;
-		}
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
+		file->f_pos = start_pos + bit_pos;
 	}
 	return false;
 }
