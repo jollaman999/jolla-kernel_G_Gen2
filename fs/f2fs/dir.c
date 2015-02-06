@@ -15,6 +15,9 @@
 #include "acl.h"
 #include "xattr.h"
 
+// For Android sdcard emu
+bool nocase;
+
 static unsigned long dir_blocks(struct inode *inode)
 {
 	return ((unsigned long long) (i_size_read(inode) + PAGE_CACHE_SIZE - 1))
@@ -135,7 +138,13 @@ struct f2fs_dir_entry *find_target_dentry(struct qstr *name, int *max_slots,
 			continue;
 		}
 		de = &d->dentry[bit_pos];
-		if (early_match_name(name->len, namehash, de) &&
+		if (nocase) {
+			if ((le16_to_cpu(de->name_len) == name->len) &&
+			    !strncasecmp(d->filename[bit_pos],
+				name->name, name->len)) {
+				goto found;
+			}
+		} else if (early_match_name(name->len, namehash, de) &&
 			!memcmp(d->filename[bit_pos], name->name, name->len))
 			goto found;
 
@@ -167,6 +176,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	unsigned int bidx, end_block;
 	struct page *dentry_page;
 	struct f2fs_dir_entry *de = NULL;
+	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	bool room = false;
 	int max_slots;
 
@@ -180,12 +190,19 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	end_block = bidx + nblock;
 
 	for (; bidx < end_block; bidx++) {
+		nocase = false;
+
 		/* no need to allocate new dentry pages to all the indices */
 		dentry_page = find_data_page(dir, bidx, true);
 		if (IS_ERR(dentry_page)) {
 			room = true;
 			continue;
 		}
+
+		if (test_opt(sbi, ANDROID_EMU) &&
+		    (sbi->android_emu_flags & F2FS_ANDROID_EMU_NOCASE) &&
+		    F2FS_I(dir)->i_advise & FADVISE_ANDROID_EMU)
+			nocase = true;
 
 		de = find_in_block(dentry_page, name, &max_slots, res_page);
 		if (de)
@@ -721,6 +738,7 @@ bool f2fs_fill_dentries(struct file *file, struct f2fs_dentry_ptr *d,
 	unsigned char d_type = DT_UNKNOWN;
 	unsigned int bit_pos;
 	struct f2fs_dir_entry *de = NULL;
+	int over = 0;
 
 	bit_pos = ((unsigned long)file->f_pos % d->max);
 
@@ -735,15 +753,17 @@ bool f2fs_fill_dentries(struct file *file, struct f2fs_dentry_ptr *d,
 		else
 			d_type = DT_UNKNOWN;
 
-		if (!filldir(dirent,
+		over = filldir(dirent,
 				d->filename[bit_pos],
 				le16_to_cpu(de->name_len),
 				(*n * d->max) + bit_pos,
-				le32_to_cpu(de->ino), d_type));
-			return true;
+				le32_to_cpu(de->ino), d_type);
 
+		if (over) {
+			file->f_pos = start_pos + bit_pos;
+			return true;
+		}
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
-		file->f_pos = start_pos + bit_pos;
 	}
 	return false;
 }

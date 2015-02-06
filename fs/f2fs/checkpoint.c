@@ -69,6 +69,7 @@ repeat:
 		goto repeat;
 	}
 out:
+	mark_page_accessed(page);
 	return page;
 }
 
@@ -154,11 +155,13 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 		if (!page)
 			continue;
 		if (PageUptodate(page)) {
+			mark_page_accessed(page);
 			f2fs_put_page(page, 1);
 			continue;
 		}
 
 		f2fs_submit_page_mbio(sbi, page, blk_addr, &fio);
+		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
 out:

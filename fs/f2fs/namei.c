@@ -41,7 +41,11 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	}
 	f2fs_unlock_op(sbi);
 
-	inode_init_owner(inode, dir, mode);
+	if (IS_ANDROID_EMU(sbi, F2FS_I(dir), F2FS_I(dir)))
+		f2fs_android_emu(sbi, inode, &inode->i_uid,
+				 &inode->i_gid, &mode);
+	else 
+		inode_init_owner(inode, dir, mode);
 
 	inode->i_ino = ino;
 	inode->i_blocks = 0;
