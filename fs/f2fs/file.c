@@ -33,7 +33,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 {
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct dnode_of_data dn;
 	int err;
 
@@ -606,11 +606,18 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct f2fs_inode_info *pfi = F2FS_I(dentry->d_parent->d_inode);
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	int err;
 
 	err = inode_change_ok(inode, attr);
 	if (err)
 		return err;
+
+	if (IS_ANDROID_EMU(sbi, fi, pfi))
+		f2fs_android_emu(sbi, inode, &attr->ia_uid, &attr->ia_gid,
+				 &attr->ia_mode);
+
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		if (attr->ia_size != i_size_read(inode)) {
@@ -882,7 +889,7 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 		goto out;
 	}
 
-	if (get_user(flags, (int __user *)arg)) {
+	if (get_user(flags, (int __user *) arg)) {
 		ret = -EFAULT;
 		goto out;
 	}

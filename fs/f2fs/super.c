@@ -50,6 +50,7 @@ enum {
 	Opt_active_logs,
 	Opt_disable_ext_identify,
 	Opt_inline_xattr,
+	Opt_android_emu,
 	Opt_err_continue,
 	Opt_err_panic,
 	Opt_err_recover,
@@ -73,6 +74,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_active_logs, "active_logs=%u"},
 	{Opt_disable_ext_identify, "disable_ext_identify"},
 	{Opt_inline_xattr, "inline_xattr"},
+	{Opt_android_emu, "android_emu=%s"},
 	{Opt_err_continue, "errors=continue"},
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_recover, "errors=recover"},
@@ -252,6 +254,40 @@ static void init_once(void *foo)
 	inode_init_once(&fi->vfs_inode);
 }
 
+static int parse_android_emu(struct f2fs_sb_info *sbi, char *args)
+{
+	char *sep = args;
+	char *sepres;
+	int ret;
+
+	if (!sep)
+		return -EINVAL;
+
+	sepres = strsep(&sep, ":");
+	if (!sep)
+		return -EINVAL;
+	ret = kstrtou32(sepres, 0, &sbi->android_emu_uid);
+	if (ret)
+		return ret;
+
+	sepres = strsep(&sep, ":");
+	if (!sep)
+		return -EINVAL;
+	ret = kstrtou32(sepres, 0, &sbi->android_emu_gid);
+	if (ret)
+		return ret;
+
+	sepres = strsep(&sep, ":");
+	ret = kstrtou16(sepres, 8, &sbi->android_emu_mode);
+	if (ret)
+		return ret;
+
+	if (sep && strstr(sep, "nocase"))
+		sbi->android_emu_flags = F2FS_ANDROID_EMU_NOCASE;
+
+	return 0;
+}
+
 static int parse_options(struct super_block *sb, char *options)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -358,6 +394,21 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_err_recover:
 			set_opt(sbi, ERRORS_RECOVER);
 			clear_opt(sbi, ERRORS_PANIC);
+			break;
+		case Opt_android_emu:
+			if (args->from) {
+				int ret;
+				char *perms = match_strdup(args);
+
+				ret = parse_android_emu(sbi, perms);
+				kfree(perms);
+
+				if (ret)
+					return -EINVAL;
+
+				set_opt(sbi, ANDROID_EMU);
+			} else
+				return -EINVAL;
 			break;
 		case Opt_inline_data:
 			set_opt(sbi, INLINE_DATA);
@@ -595,6 +646,16 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",errors=continue");
 	if (test_opt(sbi, DISABLE_EXT_IDENTIFY))
 		seq_puts(seq, ",disable_ext_identify");
+
+	if (test_opt(sbi, ANDROID_EMU))
+		seq_printf(seq, ",android_emu=%u:%u:%ho%s",
+				sbi->android_emu_uid,
+				sbi->android_emu_gid,
+				sbi->android_emu_mode,
+				(sbi->android_emu_flags &
+					F2FS_ANDROID_EMU_NOCASE) ?
+						":nocase" : "");
+
 	if (test_opt(sbi, INLINE_DATA))
 		seq_puts(seq, ",inline_data");
 	if (test_opt(sbi, INLINE_DENTRY))
@@ -707,7 +768,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	if ((*flags & MS_RDONLY) || !test_opt(sbi, FLUSH_MERGE)) {
 		destroy_flush_cmd_control(sbi);
-	} else if (!SM_I(sbi)->cmd_control_info) {
+	} else if (!sbi->sm_info->cmd_control_info) {
 		err = create_flush_cmd_control(sbi);
 		if (err)
 			goto restore_gc;
@@ -967,6 +1028,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	long err = -EINVAL;
 	bool retry = true;
+	const char *descr = "";
 	int i;
 
 try_onemore:
@@ -1140,7 +1202,9 @@ try_onemore:
 					"the device does not support discard");
 	}
 
-	f2fs_msg(sb, KERN_INFO, "mounted filesystem");
+	if (test_opt(sbi, ANDROID_EMU))
+		descr = " with android sdcard emulation";
+	f2fs_msg(sb, KERN_INFO, "mounted filesystem%s", descr);
 
 	sbi->s_kobj.kset = f2fs_kset;
 	init_completion(&sbi->s_kobj_unregister);
