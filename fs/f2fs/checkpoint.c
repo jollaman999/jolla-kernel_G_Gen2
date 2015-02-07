@@ -165,7 +165,7 @@ static int f2fs_write_meta_page(struct page *page,
 		goto redirty_out;
 
 	/* Should not write any meta pages, if any IO error was occurred */
-	if (unlikely(f2fs_cp_error(sbi)))
+	if (unlikely(is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ERROR_FLAG)))
 		goto no_write;
 
 	f2fs_wait_on_page_writeback(page, META);
@@ -946,7 +946,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	/* Here, we only have one bio having CP pack */
 	sync_meta_pages(sbi, META_FLUSH, LONG_MAX);
 
-	if (!f2fs_cp_error(sbi)) {
+	if (!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
 		clear_prefree_segments(sbi);
 		release_dirty_inode(sbi);
 		F2FS_RESET_SB_DIRT(sbi);
