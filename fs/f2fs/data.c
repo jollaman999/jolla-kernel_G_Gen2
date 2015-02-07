@@ -969,22 +969,22 @@ repeat:
 		} else if (page->index == 0) {
 			err = f2fs_convert_inline_page(&dn, page);
 			if (err)
-				goto put_fail;
+				goto unlock_fail;
 		} else {
 			struct page *p = grab_cache_page(inode->i_mapping, 0);
 			if (!p) {
 				err = -ENOMEM;
-				goto put_fail;
+				goto unlock_fail;
 			}
 			err = f2fs_convert_inline_page(&dn, p);
 			f2fs_put_page(p, 1);
 			if (err)
-				goto put_fail;
+				goto unlock_fail;
 		}
 	}
 	err = f2fs_reserve_block(&dn, index);
 	if (err)
-		goto put_fail;
+		goto unlock_fail;
 put_next:
 	f2fs_put_dnode(&dn);
 	f2fs_unlock_op(sbi);
@@ -1027,8 +1027,6 @@ out:
 	clear_cold_data(page);
 	return 0;
 
-put_fail:
-	f2fs_put_dnode(&dn);
 unlock_fail:
 	f2fs_unlock_op(sbi);
 	f2fs_put_page(page, 1);
