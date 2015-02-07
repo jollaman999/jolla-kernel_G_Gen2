@@ -1207,7 +1207,7 @@ free_sbi:
 	f2fs_msg(sb, KERN_ERR, "mount failed - Chance 1/2");
 	/* give only one another chance */
 	if (retry) {
-		retry = 0;
+		retry = !retry;
 		shrink_dcache_sb(sb);
 		goto try_onemore;
 	}
