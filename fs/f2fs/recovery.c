@@ -134,7 +134,7 @@ out_unmap_put:
 out_err:
 	iput(dir);
 out:
-	f2fs_msg(inode->i_sb, KERN_NOTICE,
+	f2fs_msg(inode->i_sb, KERN_DEBUG,
 			"%s: ino = %x, name = %s, dir = %lx, err = %d",
 			__func__, ino_of_node(ipage), raw_inode->i_name,
 			IS_ERR(dir) ? 0 : dir->i_ino, err);
@@ -269,6 +269,12 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	block_t bidx;
 	int i;
 
+	if (segno >= TOTAL_SEGS(sbi)) {
+		f2fs_msg(sbi->sb, KERN_ERR, "invalid segment number %u", segno);
+		if (f2fs_handle_error(sbi))
+			return -EIO;
+	}
+
 	sentry = get_seg_entry(sbi, segno);
 	if (!f2fs_test_bit(blkoff, sentry->cur_valid_map))
 		return 0;
@@ -311,6 +317,14 @@ got_it:
 	offset = ofs_of_node(node_page);
 	ino = ino_of_node(node_page);
 	f2fs_put_page(node_page, 1);
+
+	/* Skip nodes with circular references */
+	if (ino == dn->inode->i_ino) {
+		f2fs_msg(sbi->sb, KERN_ERR, "%s: node %x has circular inode %x",
+				__func__, ino, nid);
+		f2fs_handle_error(sbi);
+		return -EDEADLK;
+	}
 
 	if (ino != dn->inode->i_ino) {
 		/* Deallocate previous index in the node page */
@@ -428,7 +442,7 @@ err:
 	f2fs_put_dnode(&dn);
 	f2fs_unlock_op(sbi);
 out:
-	f2fs_msg(sbi->sb, KERN_NOTICE,
+	f2fs_msg(sbi->sb, KERN_DEBUG,
 		"recover_data: ino = %lx, recovered = %d blocks, err = %d",
 		inode->i_ino, recovered, err);
 	return err;
