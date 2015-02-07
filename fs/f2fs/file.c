@@ -33,7 +33,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 {
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct dnode_of_data dn;
 	int err;
 
@@ -889,7 +889,7 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 		goto out;
 	}
 
-	if (get_user(flags, (int __user *)arg)) {
+	if (get_user(flags, (int __user *) arg)) {
 		ret = -EFAULT;
 		goto out;
 	}
