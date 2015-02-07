@@ -420,7 +420,6 @@ struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
 struct cred;
-struct workqueue_struct;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -618,7 +617,6 @@ struct address_space_operations {
 	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
-	ssize_t (*__direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
 	int (*get_xip_mem)(struct address_space *, pgoff_t, int,
 						void **, unsigned long *);
 	/*
@@ -1514,9 +1512,6 @@ struct super_block {
 
 	/* Being remounted read-only */
 	int s_readonly_remount;
-
-	/* AIO completions deferred from interrupt context */
-	struct workqueue_struct *s_dio_done_wq;
 };
 
 /* superblock cache pruning functions */
@@ -2446,9 +2441,6 @@ enum {
 
 	/* filesystem does not support filling holes */
 	DIO_SKIP_HOLES	= 0x02,
-
-	/* filesystem can handle aio writes beyond i_size */
-        DIO_ASYNC_EXTEND = 0x04,
 };
 
 void dio_end_io(struct bio *bio, int error);
@@ -2466,20 +2458,6 @@ static inline ssize_t blockdev_direct_IO(int rw, struct kiocb *iocb,
 {
 	return __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
 				    offset, nr_segs, get_block, NULL, NULL,
-				    DIO_LOCKING | DIO_SKIP_HOLES);
-}
-//V3.15
-ssize_t ____blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, struct iov_iter *iter, loff_t offset,
-	get_block_t get_block, dio_iodone_t end_io,
-	dio_submit_t submit_io,	int flags);
-
-static inline ssize_t ___blockdev_direct_IO(int rw, struct kiocb *iocb,
-		struct inode *inode, struct iov_iter *iter, loff_t offset,
-		get_block_t get_block)
-{
-	return ____blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iter,
-				    offset, get_block, NULL, NULL,
 				    DIO_LOCKING | DIO_SKIP_HOLES);
 }
 #else
