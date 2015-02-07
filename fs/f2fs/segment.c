@@ -201,7 +201,6 @@ retry:
 	}
 	get_page(page);
 	list_add_tail(&new->list, &fi->inmem_pages);
-	inc_page_count(F2FS_I_SB(inode), F2FS_INMEM_PAGES);
 	mutex_unlock(&fi->inmem_lock);
 }
 
@@ -217,7 +216,6 @@ void invalidate_inmem_page(struct inode *inode, struct page *page)
 		f2fs_put_page(cur->page, 0);
 		list_del(&cur->list);
 		kmem_cache_free(inmem_entry_slab, cur);
-		dec_page_count(F2FS_I_SB(inode), F2FS_INMEM_PAGES);
 	}
 	mutex_unlock(&fi->inmem_lock);
 }
@@ -259,7 +257,6 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 		f2fs_put_page(cur->page, 1);
 		list_del(&cur->list);
 		kmem_cache_free(inmem_entry_slab, cur);
-		dec_page_count(F2FS_I_SB(inode), F2FS_INMEM_PAGES);
 	}
 	if (submit_bio)
 		f2fs_submit_merged_bio(sbi, DATA, WRITE);
