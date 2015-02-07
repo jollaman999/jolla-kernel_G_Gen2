@@ -1150,11 +1150,8 @@ continue_unlock:
 				set_fsync_mark(page, 0);
 				set_dentry_mark(page, 0);
 			}
-
-			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
-				unlock_page(page);
-			else
-				wrote++;
+			NODE_MAPPING(sbi)->a_ops->writepage(page, wbc);
+			wrote++;
 
 			if (--wbc->nr_to_write == 0)
 				break;
