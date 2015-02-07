@@ -473,7 +473,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 
 		if (cp_ver != cpver_of_node(page)) {
 			f2fs_put_page(page, 1);
-			break;
+ 			break;
 		}
 
 		entry = get_fsync_inode(head, ino_of_node(page));

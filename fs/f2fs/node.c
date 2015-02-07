@@ -258,7 +258,7 @@ static void cache_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid,
 	up_write(&nm_i->nat_tree_lock);
 }
 
-static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
+static int set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 			block_t new_blkaddr, bool fsync_done)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -310,6 +310,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 		set_nat_flag(e, HAS_LAST_FSYNC, fsync_done);
 	}
 	up_write(&nm_i->nat_tree_lock);
+	return 0;
 }
 
 int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
@@ -763,6 +764,8 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	struct f2fs_inode *ri;
 	struct dnode_of_data dn;
 	struct page *page;
+
+	noffset[1] = 0;
 
 	trace_f2fs_truncate_inode_blocks_enter(inode, from);
 
@@ -1698,6 +1701,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	nid_t ino = ino_of_node(page);
 	struct node_info old_ni, new_ni;
 	struct page *ipage;
+	int err;
 
 	get_node_info(sbi, ino, &old_ni);
 
@@ -1727,13 +1731,15 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	new_ni = old_ni;
 	new_ni.ino = ino;
 
-	if (unlikely(!inc_valid_node_count(sbi, NULL)))
-		WARN_ON(1);
-	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
-	inc_valid_inode_count(sbi);
+	err = set_node_addr(sbi, &new_ni, NEW_ADDR, false);
+	if (!err)
+		if (unlikely(!inc_valid_node_count(sbi, NULL)))
+			err = -ENOSPC;
+	if (!err)
+		inc_valid_inode_count(sbi);
 	set_page_dirty(ipage);
 	f2fs_put_page(ipage, 1);
-	return 0;
+	return err;
 }
 
 /*
