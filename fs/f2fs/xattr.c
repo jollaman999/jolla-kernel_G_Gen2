@@ -132,10 +132,11 @@ static int f2fs_xattr_advise_get(struct dentry *dentry, const char *name,
 {
 	struct inode *inode = dentry->d_inode;
 
-	if (strcmp(name, "") != 0)
+	if (!name || strcmp(name, "") != 0)
 		return -EINVAL;
 
-	*((char *)buffer) = F2FS_I(inode)->i_advise;
+	if (buffer)
+		*((char *)buffer) = F2FS_I(inode)->i_advise;
 	return sizeof(char);
 }
 
@@ -144,14 +145,14 @@ static int f2fs_xattr_advise_set(struct dentry *dentry, const char *name,
 {
 	struct inode *inode = dentry->d_inode;
 
-	if (strcmp(name, "") != 0)
+	if (!name || strcmp(name, "") != 0)
 		return -EINVAL;
 	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 	if (value == NULL)
 		return -EINVAL;
 
-	F2FS_I(inode)->i_advise |= *(char *)value;
+	F2FS_I(inode)->i_advise = *(char *)value;
 	return 0;
 }
 
@@ -407,7 +408,6 @@ int f2fs_getxattr(struct inode *inode, int index, const char *name,
 
 	if (name == NULL)
 		return -EINVAL;
-
 	len = strlen(name);
 	if (len > F2FS_NAME_LEN)
 		return -ERANGE;
@@ -518,6 +518,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 	}
 
 	last = here;
+
 	while (!IS_XATTR_LAST_ENTRY(last))
 		last = XATTR_NEXT_ENTRY(last);
 
