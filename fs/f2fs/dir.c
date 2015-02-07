@@ -23,10 +23,10 @@ static unsigned long dir_blocks(struct inode *inode)
 
 static unsigned int dir_buckets(unsigned int level, int dir_level)
 {
-	if (level + dir_level < MAX_DIR_HASH_DEPTH / 2)
+	if (level < MAX_DIR_HASH_DEPTH / 2)
 		return 1 << (level + dir_level);
 	else
-		return MAX_DIR_BUCKETS;
+		return 1 << ((MAX_DIR_HASH_DEPTH / 2 + dir_level) - 1);
 }
 
 static unsigned int bucket_blocks(unsigned int level)
