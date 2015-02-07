@@ -346,6 +346,7 @@ static struct inode *find_gc_inode(struct gc_inode_list *gc_list, nid_t ino)
 static void add_gc_inode(struct gc_inode_list *gc_list, struct inode *inode)
 {
 	struct inode_entry *new_ie;
+	int ret;
 
 	if (inode == find_gc_inode(gc_list, inode->i_ino)) {
 		iput(inode);
@@ -355,7 +356,8 @@ retry:
 	new_ie = f2fs_kmem_cache_alloc(winode_slab, GFP_NOFS);
 	new_ie->inode = inode;
 
-	if (radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie)) {
+	ret = radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie);
+	if (ret) {
 		kmem_cache_free(winode_slab, new_ie);
 		goto retry;
 	}
@@ -696,7 +698,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi)
 	struct cp_control cpc;
 	struct gc_inode_list gc_list = {
 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
-		.iroot = RADIX_TREE_INIT(GFP_NOFS),
+		.iroot = RADIX_TREE_INIT(GFP_ATOMIC),
 	};
 
 	cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
