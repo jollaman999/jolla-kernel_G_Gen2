@@ -169,7 +169,6 @@ make_now:
 		goto bad_inode;
 	}
 	unlock_new_inode(inode);
-	stat_inc_inline_dir(inode);
 	trace_f2fs_iget(inode);
 	return inode;
 
@@ -299,7 +298,6 @@ void f2fs_evict_inode(struct inode *inode)
 	f2fs_unlock_op(sbi);
 
 no_delete:
-	stat_dec_inline_dir(inode);
 	invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino, inode->i_ino);
 	if (xnid)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), xnid, xnid);
@@ -327,7 +325,6 @@ void handle_failed_inode(struct inode *inode)
 	remove_inode_page(inode);
 	stat_dec_inline_inode(inode);
 
-	clear_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
 	alloc_nid_failed(sbi, inode->i_ino);
 	f2fs_unlock_op(sbi);
 
