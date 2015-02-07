@@ -423,7 +423,7 @@ out:
 	f2fs_put_page(page, 1);
 }
 
-int truncate_blocks(struct inode *inode, u64 from, bool lock)
+int truncate_blocks(struct inode *inode, u64 from)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	unsigned int blocksize = inode->i_sb->s_blocksize;
@@ -439,16 +439,14 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	free_from = (pgoff_t)
 			((from + blocksize - 1) >> (sbi->log_blocksize));
 
-	if (lock)
-		f2fs_lock_op(sbi);
+	f2fs_lock_op(sbi);
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, free_from, LOOKUP_NODE);
 	if (err) {
 		if (err == -ENOENT)
 			goto free_next;
-		if (lock)
-			f2fs_unlock_op(sbi);
+		f2fs_unlock_op(sbi);
 		trace_f2fs_truncate_blocks_exit(inode, err);
 		return err;
 	}
@@ -466,8 +464,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	f2fs_put_dnode(&dn);
 free_next:
 	err = truncate_inode_blocks(inode, free_from);
-	if (lock)
-		f2fs_unlock_op(sbi);
+	f2fs_unlock_op(sbi);
 done:
 	/* lastly zero out the first data page */
 	truncate_partial_data_page(inode, from);
@@ -486,7 +483,7 @@ void f2fs_truncate(struct inode *inode)
 
 	trace_f2fs_truncate(inode);
 
-	err = truncate_blocks(inode, i_size_read(inode), true);
+	err = truncate_blocks(inode, i_size_read(inode));
 	if (err) {
 		f2fs_msg(inode->i_sb, KERN_ERR, "truncate failed with %d",
 				err);
