@@ -123,48 +123,44 @@ static void __del_from_nat_cache(struct f2fs_nm_info *nm_i, struct nat_entry *e)
 	kmem_cache_free(nat_entry_slab, e);
 }
 
-bool is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
+int is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
-	bool is_cp = true;
+	int is_cp = 1;
 
 	read_lock(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, nid);
 	if (e && !get_nat_flag(e, IS_CHECKPOINTED))
-		is_cp = false;
+		is_cp = 0;
 	read_unlock(&nm_i->nat_tree_lock);
 	return is_cp;
 }
 
-bool has_fsynced_inode(struct f2fs_sb_info *sbi, nid_t ino)
+bool fsync_mark_done(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
-	bool fsynced = false;
+	bool fsync_done = false;
 
 	read_lock(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, ino);
-	if (e && get_nat_flag(e, HAS_FSYNCED_INODE))
-		fsynced = true;
+	e = __lookup_nat_cache(nm_i, nid);
+	if (e)
+		fsync_done = get_nat_flag(e, HAS_FSYNC_MARK);
 	read_unlock(&nm_i->nat_tree_lock);
-	return fsynced;
+	return fsync_done;
 }
 
-bool need_inode_block_update(struct f2fs_sb_info *sbi, nid_t ino)
+void fsync_mark_clear(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
-	bool need_update = true;
 
-	read_lock(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, ino);
-	if (e && get_nat_flag(e, HAS_LAST_FSYNC) &&
-			(get_nat_flag(e, IS_CHECKPOINTED) ||
-			 get_nat_flag(e, HAS_FSYNCED_INODE)))
-		need_update = false;
-	read_unlock(&nm_i->nat_tree_lock);
-	return need_update;
+	write_lock(&nm_i->nat_tree_lock);
+	e = __lookup_nat_cache(nm_i, nid);
+	if (e)
+		set_nat_flag(e, HAS_FSYNC_MARK, false);
+	write_unlock(&nm_i->nat_tree_lock);
 }
 
 static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
@@ -180,7 +176,7 @@ static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
 	}
 	memset(new, 0, sizeof(struct nat_entry));
 	nat_set_nid(new, nid);
-	nat_reset_flag(new);
+	set_nat_flag(new, IS_CHECKPOINTED, true);
 	list_add_tail(&new->list, &nm_i->nat_entries);
 	nm_i->nat_cnt++;
 	return new;
@@ -255,17 +251,12 @@ retry:
 
 	/* change address */
 	nat_set_blkaddr(e, new_blkaddr);
-	if (new_blkaddr == NEW_ADDR || new_blkaddr == NULL_ADDR)
-		set_nat_flag(e, IS_CHECKPOINTED, false);
 	__set_nat_cache_dirty(nm_i, e);
 
 	/* update fsync_mark if its inode nat entry is still alive */
 	e = __lookup_nat_cache(nm_i, ni->ino);
-	if (e) {
-		if (fsync_done && ni->nid == ni->ino)
-			set_nat_flag(e, HAS_FSYNCED_INODE, true);
-		set_nat_flag(e, HAS_LAST_FSYNC, fsync_done);
-	}
+	if (e)
+		set_nat_flag(e, HAS_FSYNC_MARK, fsync_done);
 	write_unlock(&nm_i->nat_tree_lock);
 	return 0;
 }
@@ -1147,14 +1138,10 @@ continue_unlock:
 
 			/* called by fsync() */
 			if (ino && IS_DNODE(page)) {
+				int mark = !is_checkpointed_node(sbi, ino);
 				set_fsync_mark(page, 1);
-				if (IS_INODE(page)) {
-					if (!is_checkpointed_node(sbi, ino) &&
-						!has_fsynced_inode(sbi, ino))
-						set_dentry_mark(page, 1);
-					else
-						set_dentry_mark(page, 0);
-				}
+				if (IS_INODE(page))
+					set_dentry_mark(page, mark);
 				nwritten++;
 			} else {
 				set_fsync_mark(page, 0);
@@ -1944,7 +1931,6 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 				write_unlock(&nm_i->nat_tree_lock);
 			} else {
 				write_lock(&nm_i->nat_tree_lock);
-				nat_reset_flag(ne);
 				__clear_nat_cache_dirty(nm_i, ne);
 				write_unlock(&nm_i->nat_tree_lock);
 			}
