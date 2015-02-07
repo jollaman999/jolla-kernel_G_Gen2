@@ -300,9 +300,10 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 
 int update_dent_inode(struct inode *inode, const struct qstr *name)
 {
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
 
-	page = get_node_page(F2FS_I_SB(inode), inode->i_ino);
+	page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
@@ -352,6 +353,7 @@ static int make_empty_dir(struct inode *inode,
 static struct page *init_inode_metadata(struct inode *inode,
 		struct inode *dir, const struct qstr *name)
 {
+	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	struct page *page;
 	int err;
 
@@ -374,7 +376,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 		if (err)
 			goto put_error;
 	} else {
-		page = get_node_page(F2FS_I_SB(dir), inode->i_ino);
+		page = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
 		if (IS_ERR(page))
 			return page;
 
@@ -395,7 +397,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 		 * we should remove this inode from orphan list.
 		 */
 		if (inode->i_nlink == 0)
-			remove_orphan_inode(F2FS_I_SB(dir), inode->i_ino);
+			remove_orphan_inode(sbi, inode->i_ino);
 		inc_nlink(inode);
 	}
 	return page;
@@ -585,7 +587,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 {
 	struct	f2fs_dentry_block *dentry_blk;
 	unsigned int bit_pos;
-	struct inode *dir = page->mapping->host;
+	struct address_space *mapping = page->mapping;
+	struct inode *dir = mapping->host;
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	int i;
 
@@ -607,7 +610,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
 	if (inode) {
-		struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+		struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 
 		down_write(&F2FS_I(inode)->i_sem);
 
