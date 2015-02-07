@@ -448,7 +448,6 @@ struct f2fs_sm_info {
 
 	/* for flush command control */
 	struct flush_cmd_control *cmd_control_info;
-
 };
 
 /*
