@@ -289,7 +289,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 		if (err && err != -ENOENT) {
 			goto fail;
 		} else if (err == -ENOENT) {
-			/* direct node does not exists */
+			/* direct node is not exist */
 			if (whence == SEEK_DATA) {
 				pgofs = PGOFS_OF_NEXT_DNODE(pgofs,
 							F2FS_I(inode));
