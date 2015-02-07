@@ -158,7 +158,7 @@ retry:
 		head->entry_cnt = 0;
 
 		if (radix_tree_insert(&nm_i->nat_set_root, set, head)) {
-			kmem_cache_free(nat_entry_set_slab, head);
+			cond_resched();
 			goto retry;
 		}
 	}
