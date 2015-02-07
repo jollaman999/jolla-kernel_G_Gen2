@@ -423,7 +423,7 @@ struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 	if (unlikely(dn.data_blkaddr == NEW_ADDR))
 		return ERR_PTR(-EINVAL);
 
-	page = grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -461,7 +461,7 @@ struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 	int err;
 
 repeat:
-	page = grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -721,8 +721,6 @@ static int f2fs_read_data_page(struct file *file, struct page *page)
 	struct inode *inode = page->mapping->host;
 	int ret;
 
-	trace_f2fs_readpage(page, DATA);
-
 	/* If the file has inline data, try to read it directlly */
 	if (f2fs_has_inline_data(inode))
 		ret = f2fs_read_inline_data(inode, page);
@@ -798,8 +796,6 @@ static int f2fs_write_data_page(struct page *page,
 		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
 	};
 
-	trace_f2fs_writepage(page, DATA);
-
 	if (page->index < end_index)
 		goto write;
 
@@ -843,8 +839,6 @@ out:
 	unlock_page(page);
 	if (need_balance_fs)
 		f2fs_balance_fs(sbi);
-	if (wbc->for_reclaim)
-		f2fs_submit_merged_bio(sbi, DATA, WRITE);
 	return 0;
 
 redirty_out:
@@ -869,8 +863,6 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	bool locked = false;
 	int ret;
 	long diff;
-
-	trace_f2fs_writepages(mapping->host, wbc, DATA);
 
 	/* deal with chardevs and other special file */
 	if (!mapping->a_ops->writepage)
@@ -914,8 +906,6 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	struct dnode_of_data dn;
 	int err = 0;
 
-	trace_f2fs_write_begin(inode, pos, len, flags);
-
 	f2fs_balance_fs(sbi);
 repeat:
 	err = f2fs_convert_inline_data(inode, pos + len);
@@ -925,10 +915,6 @@ repeat:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
-
-	/* to avoid latency during memory pressure */
-	unlock_page(page);
-
 	*pagep = page;
 
 	if (f2fs_has_inline_data(inode) && (pos + len) <= MAX_INLINE_DATA)
@@ -940,18 +926,10 @@ repeat:
 	f2fs_unlock_op(sbi);
 
 	if (err) {
-		f2fs_put_page(page, 0);
+		f2fs_put_page(page, 1);
 		return err;
 	}
 inline_data:
-	lock_page(page);
-	if (unlikely(page->mapping != mapping)) {
-		f2fs_put_page(page, 1);
-		goto repeat;
-	}
-
-	f2fs_wait_on_page_writeback(page, DATA);
-
 	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
 		return 0;
 
@@ -1002,8 +980,6 @@ static int f2fs_write_end(struct file *file,
 			struct page *page, void *fsdata)
 {
 	struct inode *inode = page->mapping->host;
-
-	trace_f2fs_write_end(inode, pos, len, copied);
 
 	SetPageUptodate(page);
 	set_page_dirty(page);
