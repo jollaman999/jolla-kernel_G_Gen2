@@ -1,7 +1,7 @@
 VERSION = 3
 PATCHLEVEL = 4
 SUBLEVEL = 106
-EXTRAVERSION =-jolla-kernel_Gen2-v2.1
+EXTRAVERSION =-jolla-kernel_Gen2-v2.2
 NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*
