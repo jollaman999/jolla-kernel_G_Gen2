@@ -55,6 +55,13 @@ static bool has_full_constraints;
 static bool board_wants_dummy_regulator;
 static int suppress_info_printing;
 
+// dt2w: Tuneable touch screen off voltage - by jollaman999
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
+extern bool synaptics_t1320_volatage_change_called;
+#endif
+#endif
+
 static struct dentry *debugfs_root;
 
 /*
@@ -2018,12 +2025,23 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	regulator->min_uV = min_uV;
 	regulator->max_uV = max_uV;
 
-	ret = regulator_check_consumers(rdev, &min_uV, &max_uV);
-	if (ret < 0) {
-		regulator->min_uV = prev_min_uV;
-		regulator->max_uV = prev_max_uV;
-		goto out;
+// dt2w: Tuneable touch screen off voltage - by jollaman999
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
+	if(!synaptics_t1320_volatage_change_called) {
+#endif
+#endif
+		ret = regulator_check_consumers(rdev, &min_uV, &max_uV);
+		if (ret < 0) {
+			regulator->min_uV = prev_min_uV;
+			regulator->max_uV = prev_max_uV;
+			goto out;
+		}
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 	}
+#endif
+#endif
 
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 
