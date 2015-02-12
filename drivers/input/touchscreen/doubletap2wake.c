@@ -78,7 +78,6 @@ MODULE_LICENSE("GPLv2");
    static struct touch_power_module touch_pwr */
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 #define DT2W_DEFAULT_SCREEN_OFF_VDD	2125000
-#define DT2W_DEFAULT_SCREEN_OFF_VIO	1775000
 #endif
 
 /* Resources */
@@ -92,7 +91,6 @@ static bool exec_count = true;
 /* Touch Screen Voltages */
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 int screen_off_vdd;
-int screen_off_vio;
 bool synaptics_t1320_volatage_change_called;
 EXPORT_SYMBOL(synaptics_t1320_volatage_change_called);
 #endif
@@ -461,43 +459,10 @@ static ssize_t dt2w_screen_off_vdd_dump(struct device *dev,
 static DEVICE_ATTR(dt2w_screen_off_vdd, (S_IWUSR|S_IRUGO),
 	dt2w_screen_off_vdd_show, dt2w_screen_off_vdd_dump);
 
-static ssize_t dt2w_screen_off_vio_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	size_t count = 0;
-
-	count += sprintf(buf, "%d\n", screen_off_vio);
-
-	return count;
-}
-
-static ssize_t dt2w_screen_off_vio_dump(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	long input_vio;
-	int err;
-
-	err = kstrtol(buf, 10, &input_vio);
-	if(err)
-		return err;
-
-	/* See the range in arch/arm/mach-msm/lge/make/board-mako-regulator.c
-	   When failed to apply, kernel message look like this
-	   "request v=[%d, %d] cannot be met by any set point next set point: %d\n" */
-	if (input_vio >= 1600000 && input_vio <= 1800000)
-                screen_off_vio = (int)input_vio;
-
-	return count;
-}
-
-static DEVICE_ATTR(dt2w_screen_off_vio, (S_IWUSR|S_IRUGO),
-	dt2w_screen_off_vio_show, dt2w_screen_off_vio_dump);
-
 static void dt2w_synaptics_t1320_early_suspend(struct early_suspend *h)
 {
 	int rc;
 	static struct regulator *vreg_l15 = NULL;
-	static struct regulator *vreg_l22 = NULL;
 
 	/* 3.3V_TOUCH_VDD, VREG_L15: 2.75 ~ 3.3 */
 	vreg_l15 = regulator_get(NULL, "touch_vdd");
@@ -508,18 +473,8 @@ static void dt2w_synaptics_t1320_early_suspend(struct early_suspend *h)
 		return;
 	}
 
-	/* 1.8V_TOUCH_IO, VREG_L22: 1.7 ~ 2.85 */
-	vreg_l22 = regulator_get(NULL, "touch_io");
-	if (IS_ERR(vreg_l22)) {
-		pr_err("%s: regulator get of 8921_l22 failed (%ld)\n",
-				__func__,
-		       PTR_ERR(vreg_l22));
-		return;
-	}
-
 	synaptics_t1320_volatage_change_called = true;
 	rc = regulator_set_voltage(vreg_l15, screen_off_vdd, screen_off_vdd);
-	rc |= regulator_set_voltage(vreg_l22, screen_off_vio, screen_off_vio);
 	synaptics_t1320_volatage_change_called = false;
 	if (rc < 0) {
 		printk(KERN_INFO "%s: cannot control regulator\n",
@@ -536,7 +491,6 @@ static void dt2w_synaptics_t1320_late_resume(struct early_suspend *h)
 {
 	int rc;
 	static struct regulator *vreg_l15 = NULL;
-	static struct regulator *vreg_l22 = NULL;
 
 	/* 3.3V_TOUCH_VDD, VREG_L15: 2.75 ~ 3.3 */
 	vreg_l15 = regulator_get(NULL, "touch_vdd");
@@ -547,18 +501,8 @@ static void dt2w_synaptics_t1320_late_resume(struct early_suspend *h)
 		return;
 	}
 
-	/* 1.8V_TOUCH_IO, VREG_L22: 1.7 ~ 2.85 */
-	vreg_l22 = regulator_get(NULL, "touch_io");
-	if (IS_ERR(vreg_l22)) {
-		pr_err("%s: regulator get of 8921_l22 failed (%ld)\n",
-				__func__,
-		       PTR_ERR(vreg_l22));
-		return;
-	}
-
 	synaptics_t1320_volatage_change_called = true;
 	rc = regulator_set_voltage(vreg_l15, 3300000, 3300000);
-	rc |= regulator_set_voltage(vreg_l22, 1800000, 1800000);
 	synaptics_t1320_volatage_change_called = false;
 	if (rc < 0) {
 		printk(KERN_INFO "%s: cannot control regulator\n",
@@ -594,7 +538,6 @@ static int __init doubletap2wake_init(void)
 	// dt2w: Tuneable touch screen off voltage - by jollaman999
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 	screen_off_vdd = DT2W_DEFAULT_SCREEN_OFF_VDD;
-	screen_off_vio = DT2W_DEFAULT_SCREEN_OFF_VIO;
 #endif
 
 	doubletap2wake_pwrdev = input_allocate_device();
@@ -657,10 +600,6 @@ static int __init doubletap2wake_init(void)
 	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_screen_off_vdd.attr);
 	if (rc) {
 		pr_warn("%s: sysfs_create_file failed for dt2w_screen_off_vdd\n", __func__);
-	}
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_screen_off_vio.attr);
-	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for dt2w_screen_off_vio\n", __func__);
 	}
 #endif
 
