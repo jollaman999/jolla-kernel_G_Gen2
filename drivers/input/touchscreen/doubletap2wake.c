@@ -504,7 +504,7 @@ static void dt2w_synaptics_t1320_late_resume(struct early_suspend *h)
 	synaptics_t1320_volatage_change_called = true;
 	for(i=screen_off_vdd; i<=3300000; i+=25000) {
 		regulator_set_voltage(vreg_l15, i, i);
-		msleep_interruptible(120);
+		msleep_interruptible(50);
 	}
 	rc = regulator_set_voltage(vreg_l15, 3300000, 3300000);
 	synaptics_t1320_volatage_change_called = false;
