@@ -235,10 +235,8 @@ static void __cpuinit check_temp(struct work_struct *work)
 
     // msm_thermal: Add early suspend handler - by jollaman999
 #ifdef CONFIG_HAS_EARLYSUSPEND
-    if(screen_suspended) {
-	pr_warn("msm_thermal: Thermal driver suspended\n");
-        return;
-    }
+    if(screen_suspended)
+        goto reschedule;
 #endif
 
     tsens_dev.sensor_num = msm_thermal_info.sensor_id;
