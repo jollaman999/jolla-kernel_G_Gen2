@@ -77,7 +77,7 @@ MODULE_LICENSE("GPLv2");
    arch/arm/mach-msm/lge/mako/board-mako-input.c
    static struct touch_power_module touch_pwr */
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-#define DT2W_DEFAULT_SCREEN_OFF_VDD	2200000
+#define DT2W_DEFAULT_SCREEN_OFF_VDD	2725000
 #endif
 
 /* Resources */
