@@ -31,7 +31,17 @@
 #include "../../arch/arm/mach-msm/msm_mpdecision.h"
 #endif
 
+// msm_thermal: Add early suspend handler - by jollaman999
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 static DEFINE_MUTEX(emergency_shutdown_mutex);
+
+// msm_thermal: Add early suspend handler - by jollaman999
+#ifdef CONFIG_HAS_EARLYSUSPEND
+bool screen_suspended;
+#endif
 
 static int enabled;
 
@@ -248,6 +258,14 @@ static void __cpuinit check_temp(struct work_struct *work)
     uint32_t max_freq = 0;
     bool update_policy = false;
     int i = 0, cpu = 0, ret = 0;
+
+    // msm_thermal: Add early suspend handler - by jollaman999
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    if(screen_suspended) {
+	pr_warn("msm_thermal: Thermal driver suspended\n");
+        return;
+    }
+#endif
 
     tsens_dev.sensor_num = msm_thermal_info.sensor_id;
     ret = tsens_get_temp(&tsens_dev, &temp);
@@ -674,6 +692,22 @@ static struct attribute *msm_thermal_attributes[] = {
     NULL
 };
 
+// msm_thermal: Add early suspend handler - by jollaman999
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void msm_thermal_early_suspend(struct early_suspend *h) {
+	screen_suspended = true;
+}
+
+static void msm_thermal_late_resume(struct early_suspend *h) {
+	screen_suspended = false;
+}
+
+static struct early_suspend msm_thermal_early_suspend_handler = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
+	.suspend = msm_thermal_early_suspend,
+	.resume = msm_thermal_late_resume,
+};
+#endif
 
 static struct attribute_group msm_thermal_attr_group = {
     .attrs = msm_thermal_attributes,
@@ -749,6 +783,11 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
         BUG_ON(ENOMEM);
     INIT_DELAYED_WORK(&check_temp_work, check_temp);
     queue_delayed_work(check_temp_workq, &check_temp_work, 0);
+
+    // msm_thermal: Add early suspend handler - by jollaman999
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    register_early_suspend(&msm_thermal_early_suspend_handler);
+#endif
 
     msm_thermal_kobject = kobject_create_and_add("msm_thermal", kernel_kobj);
     if (msm_thermal_kobject) {
