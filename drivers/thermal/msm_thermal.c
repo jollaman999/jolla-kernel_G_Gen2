@@ -27,9 +27,6 @@
 #include <linux/of.h>
 #include <linux/hrtimer.h>
 #include <mach/cpufreq.h>
-#ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
-#include "../../arch/arm/mach-msm/msm_mpdecision.h"
-#endif
 
 // msm_thermal: Add early suspend handler - by jollaman999
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -163,29 +160,6 @@ static int update_cpu_max_freq(struct cpufreq_policy *cpu_policy,
     return ret;
 }
 
-#ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
-static int update_cpu_min_freq(struct cpufreq_policy *cpu_policy,
-                               int cpu, int new_freq)
-{
-    int ret = 0;
-
-    if (!cpu_policy)
-        return -EINVAL;
-
-    cpufreq_verify_within_limits(cpu_policy, new_freq, cpu_policy->max);
-    cpu_policy->user_policy.min = new_freq;
-
-    ret = cpufreq_update_policy(cpu);
-    if (!ret) {
-        pr_debug("msm_thermal: Setting CPU%d min frequency to %d\n",
-            cpu, new_freq);
-    }
-    return ret;
-}
-
-DECLARE_PER_CPU(struct msm_mpdec_cpudata_t, msm_mpdec_cpudata);
-#endif
-
 // Dynamic thermal control - By jollaman999
 unsigned int max_freq_finder(uint32_t msm_thermal_cpufreq[],
 				uint32_t cpufreq_max,
@@ -286,128 +260,103 @@ static void __cpuinit check_temp(struct work_struct *work)
         /* orderly poweroff tries to power down gracefully
            if it fails it will force it. */
         orderly_poweroff(true);
-        for_each_possible_cpu(cpu) {
-            update_policy = true;
-            max_freq = msm_thermal_info.allowed_max_freq;
-            bricked_thermal_throttled = 3;
-            pr_warn("msm_thermal: Emergency throttled CPU%i to %u! temp:%lu\n",
-                    cpu, msm_thermal_info.allowed_max_freq, temp);
-        }
+        max_freq = msm_thermal_info.allowed_max_freq;
+        bricked_thermal_throttled = 3;
+        pr_warn("msm_thermal: Emergency throttled cpus to %u! temp:%lu\n",
+                msm_thermal_info.allowed_max_freq, temp);
         mutex_unlock(&emergency_shutdown_mutex);
     }
 
-    for_each_possible_cpu(cpu) {
-        update_policy = false;
-        cpu_policy = cpufreq_cpu_get(cpu);
-        if (!cpu_policy) {
-            pr_debug("msm_thermal: NULL policy on cpu %d\n", cpu);
-            continue;
-        }
-
-        /* save pre-throttled max freq value */
-        if ((bricked_thermal_throttled == 0) && (cpu == 0))
-            pre_throttled_max = cpu_policy->max;
-
-	// Dynamic thermal control - By jollaman999
-	if(msm_thermal_info.dynamic_thermal_control
-           && cpufreq_max_changed_by_user
-           && !cpufreq_max_changed_by_msm_thermal)
-		dynamic_thermal();
-
-        //low trip point
-        if ((temp >= msm_thermal_info.allowed_low_high) &&
-            (temp < msm_thermal_info.allowed_mid_high) &&
-            (bricked_thermal_throttled < 1)) {
-            update_policy = true;
-            max_freq = msm_thermal_info.allowed_low_freq;
-            if (cpu == (CONFIG_NR_CPUS-1)) {
-                bricked_thermal_throttled = 1;
-                pr_warn("msm_thermal: Thermal Throttled (low)! temp:%lu by:%u\n",
-                        temp, msm_thermal_info.sensor_id);
-            }
-        //low clr point
-        } else if ((temp < msm_thermal_info.allowed_low_low) &&
-               (bricked_thermal_throttled > 0)) {
-            if (pre_throttled_max != 0)
-                max_freq = pre_throttled_max;
-            else {
-                max_freq = CONFIG_MSM_CPU_FREQ_MAX;
-                pr_warn("msm_thermal: ERROR! pre_throttled_max=0, falling back to %u\n", max_freq);
-            }
-            update_policy = true;
-            for (i = 1; i < CONFIG_NR_CPUS; i++) {
-                if (cpu_online(i))
-                        continue;
-                cpu_up(i);
-            }
-            if (cpu == (CONFIG_NR_CPUS-1)) {
-                bricked_thermal_throttled = 0;
-                pr_warn("msm_thermal: Low thermal throttle ended! temp:%lu by:%u\n",
-                        temp, msm_thermal_info.sensor_id);
-            }
-
-#ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
-            if (cpu_online(cpu)) {
-                if (mutex_trylock(&per_cpu(msm_mpdec_cpudata, cpu).unboost_mutex)) {
-                    per_cpu(msm_mpdec_cpudata, cpu).is_boosted = false;
-                    update_cpu_min_freq(cpu_policy, cpu, per_cpu(msm_mpdec_cpudata, cpu).norm_min_freq);
-                    mutex_unlock(&per_cpu(msm_mpdec_cpudata, cpu).unboost_mutex);
-                }
-            }
-#endif
-        //mid trip point
-        } else if ((temp >= msm_thermal_info.allowed_mid_high) &&
-               (temp < msm_thermal_info.allowed_max_high) &&
-               (bricked_thermal_throttled < 2)) {
-            update_policy = true;
-            max_freq = msm_thermal_info.allowed_mid_freq;
-            if (cpu == (CONFIG_NR_CPUS-1)) {
-                bricked_thermal_throttled = 2;
-                pr_warn("msm_thermal: Thermal Throttled (mid)! temp:%lu by:%u\n",
-                        temp, msm_thermal_info.sensor_id);
-            }
-        //mid clr point
-        } else if ((temp < msm_thermal_info.allowed_mid_low) &&
-               (bricked_thermal_throttled > 1)) {
-            max_freq = msm_thermal_info.allowed_low_freq;
-            update_policy = true;
-            if (cpu == (CONFIG_NR_CPUS-1)) {
-                bricked_thermal_throttled = 1;
-                pr_warn("msm_thermal: Mid thermal throttle ended! temp:%lu by:%u\n",
-                        temp, msm_thermal_info.sensor_id);
-            }
-        //max trip point
-        } else if (temp >= msm_thermal_info.allowed_max_high) {
-            update_policy = true;
-            max_freq = msm_thermal_info.allowed_max_freq;
-            if (cpu == (CONFIG_NR_CPUS-1)) {
-                bricked_thermal_throttled = 3;
-                pr_warn("msm_thermal: Thermal Throttled (max)! temp:%lu by:%u\n",
-                        temp, msm_thermal_info.sensor_id);
-            }
-        //max clr point
-        } else if ((temp < msm_thermal_info.allowed_max_low) &&
-               (bricked_thermal_throttled > 2)) {
-            max_freq = msm_thermal_info.allowed_mid_freq;
-            update_policy = true;
-            if (cpu == (CONFIG_NR_CPUS-1)) {
-                bricked_thermal_throttled = 2;
-                pr_warn("msm_thermal: Max thermal throttle ended! temp:%lu by:%u\n",
-                        temp, msm_thermal_info.sensor_id);
-            }
-        }
-        update_stats();
-        start_stats(bricked_thermal_throttled);
-        if (update_policy)
-            update_cpu_max_freq(cpu_policy, cpu, max_freq);
-
-        cpufreq_cpu_put(cpu_policy);
+    update_policy = false;
+    cpu_policy = cpufreq_cpu_get(cpu);
+    if(!cpu_policy) {
+        pr_warn("msm_thermal: Failed to get cpu policy!\n");
+        goto reschedule;
     }
+
+    /* save pre-throttled max freq value */
+    if (bricked_thermal_throttled == 0)
+        pre_throttled_max = cpu_policy->max;
+
+    // Dynamic thermal control - By jollaman999
+    if(msm_thermal_info.dynamic_thermal_control
+       && cpufreq_max_changed_by_user
+       && !cpufreq_max_changed_by_msm_thermal)
+        dynamic_thermal();
+
+    //low trip point
+    if ((temp >= msm_thermal_info.allowed_low_high) &&
+        (temp < msm_thermal_info.allowed_mid_high) &&
+        (bricked_thermal_throttled < 1)) {
+        update_policy = true;
+        max_freq = msm_thermal_info.allowed_low_freq;
+        bricked_thermal_throttled = 1;
+        pr_warn("msm_thermal: Thermal Throttled (low)! temp:%lu by:%u\n",
+                temp, msm_thermal_info.sensor_id);
+    //low clr point
+    } else if ((temp < msm_thermal_info.allowed_low_low) &&
+           (bricked_thermal_throttled > 0)) {
+        if (pre_throttled_max != 0)
+            max_freq = pre_throttled_max;
+        else {
+            max_freq = CONFIG_MSM_CPU_FREQ_MAX;
+            pr_warn("msm_thermal: ERROR! pre_throttled_max=0, falling back to %u\n", max_freq);
+        }
+        update_policy = true;
+        for (i = 1; i < CONFIG_NR_CPUS; i++) {
+            if (cpu_online(i))
+                continue;
+            cpu_up(i);
+        }
+        bricked_thermal_throttled = 0;
+        pr_warn("msm_thermal: Low thermal throttle ended! temp:%lu by:%u\n",
+            temp, msm_thermal_info.sensor_id);
+    //mid trip point
+    } else if ((temp >= msm_thermal_info.allowed_mid_high) &&
+           (temp < msm_thermal_info.allowed_max_high) &&
+           (bricked_thermal_throttled < 2)) {
+        update_policy = true;
+        max_freq = msm_thermal_info.allowed_mid_freq;
+        bricked_thermal_throttled = 2;
+        pr_warn("msm_thermal: Thermal Throttled (mid)! temp:%lu by:%u\n",
+            temp, msm_thermal_info.sensor_id);
+    //mid clr point
+    } else if ((temp < msm_thermal_info.allowed_mid_low) &&
+           (bricked_thermal_throttled > 1)) {
+        max_freq = msm_thermal_info.allowed_low_freq;
+        update_policy = true;
+        bricked_thermal_throttled = 1;
+        pr_warn("msm_thermal: Mid thermal throttle ended! temp:%lu by:%u\n",
+            temp, msm_thermal_info.sensor_id);
+    //max trip point
+    } else if (temp >= msm_thermal_info.allowed_max_high) {
+        update_policy = true;
+        max_freq = msm_thermal_info.allowed_max_freq;
+        bricked_thermal_throttled = 3;
+        pr_warn("msm_thermal: Thermal Throttled (max)! temp:%lu by:%u\n",
+            temp, msm_thermal_info.sensor_id);
+    //max clr point
+    } else if ((temp < msm_thermal_info.allowed_max_low) &&
+           (bricked_thermal_throttled > 2)) {
+        max_freq = msm_thermal_info.allowed_mid_freq;
+        update_policy = true;
+        bricked_thermal_throttled = 2;
+        pr_warn("msm_thermal: Max thermal throttle ended! temp:%lu by:%u\n",
+            temp, msm_thermal_info.sensor_id);
+    }
+    update_stats();
+    start_stats(bricked_thermal_throttled);
+    if (update_policy) {
+        for_each_possible_cpu(cpu)
+            update_cpu_max_freq(cpu_policy, cpu, max_freq);
+    }
+
+    cpufreq_cpu_put(cpu_policy);
 
 reschedule:
     if (enabled)
-        queue_delayed_work(check_temp_workq, &check_temp_work,
-                           msecs_to_jiffies(msm_thermal_info.poll_ms));
+    queue_delayed_work(check_temp_workq, &check_temp_work,
+                       msecs_to_jiffies(msm_thermal_info.poll_ms));
 
     return;
 }
