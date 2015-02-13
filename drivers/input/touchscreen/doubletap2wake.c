@@ -519,7 +519,7 @@ static void dt2w_synaptics_t1320_late_resume(struct early_suspend *h)
 	return;
 }
 
-static struct early_suspend dt2w_synaptics_t1320_suspend_handler = {
+static struct early_suspend dt2w_synaptics_t1320_early_suspend_handler = {
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
 	.suspend = dt2w_synaptics_t1320_early_suspend,
 	.resume = dt2w_synaptics_t1320_late_resume,
@@ -582,7 +582,7 @@ static int __init doubletap2wake_init(void)
 */
 	// dt2w: Tuneable touch screen off voltage - by jollaman999
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-	register_early_suspend(&dt2w_synaptics_t1320_suspend_handler);
+	register_early_suspend(&dt2w_synaptics_t1320_early_suspend_handler);
 #endif
 
 #ifndef ANDROID_TOUCH_DECLARED
