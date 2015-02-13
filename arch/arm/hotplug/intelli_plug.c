@@ -57,7 +57,8 @@ static struct workqueue_struct *intelliplug_boost_wq;
 #ifdef CONFIG_SND_SOC_WCD9310
 extern bool wcd9310_is_playing;
 extern bool scr_suspended;
-#define DEBUG_INTELLI_PLUG_WCD9310 0
+//#define DEBUG_INTELLI_PLUG_WCD9310
+#undef DEBUG_INTELLI_PLUG_WCD9310
 #endif
 
 static unsigned int intelli_plug_active = 0;
