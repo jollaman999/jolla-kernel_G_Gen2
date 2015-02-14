@@ -52,11 +52,10 @@ static struct delayed_work intelli_plug_boost;
 static struct workqueue_struct *intelliplug_wq;
 static struct workqueue_struct *intelliplug_boost_wq;
 
-// intelli_plug: Force set 2cpus working when playing music while screen off
+// intelli_plug: Force intelli_plug working when playing music while screen off
 // - jollaman999 -
 #ifdef CONFIG_SND_SOC_WCD9310
 extern bool wcd9310_is_playing;
-extern bool scr_suspended;
 //#define DEBUG_INTELLI_PLUG_WCD9310
 #undef DEBUG_INTELLI_PLUG_WCD9310
 #endif
@@ -332,30 +331,10 @@ static void __cpuinit intelli_plug_work_fn(struct work_struct *work)
 				break;
 			}
 		}
-		// intelli_plug: Force set 2cpus working when playing music while screen off
-		// - jollaman999 -
-#ifdef CONFIG_SND_SOC_WCD9310
-		else if(wcd9310_is_playing && scr_suspended) {
-			if (persist_count == 0)
-				persist_count = DUAL_PERSISTENCE;
-			if (nr_cpus < 2) {
-				for (i = 1; i < 2; i++)
-					cpu_up(i);
-			} else {
-				unplug_cpu(1);
-			}
-#ifdef DEBUG_INTELLI_PLUG_WCD9310
-			pr_info("intelli_plug: Force set 2cpus working!\n");
-#endif
-#endif /* CONFIG_SND_SOC_WCD9310 */
-		} else {
-		// intelli_plug: Force set 2cpus working when playing music while screen off
-		// - jollaman999 -
-			unplug_cpu(0);
 #ifdef DEBUG_INTELLI_PLUG
+		else
 			pr_info("intelli_plug is suspened!\n");
 #endif
-		}
 	}
 	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
 		msecs_to_jiffies(sampling_time));
@@ -407,7 +386,13 @@ static void intelli_plug_suspend(struct power_suspend *handler)
 static void intelli_plug_suspend(struct early_suspend *handler)
 #endif
 {
+	// intelli_plug: Force intelli_plug working when playing music while screen off
+	// - jollaman999 -
+#ifdef CONFIG_SND_SOC_WCD9310
+	if (intelli_plug_active && !wcd9310_is_playing) {
+#else
 	if (intelli_plug_active) {
+#endif
 		int cpu;
 	
 		flush_workqueue(intelliplug_wq);
@@ -445,8 +430,13 @@ static void __cpuinit intelli_plug_resume(struct power_suspend *handler)
 static void __cpuinit intelli_plug_resume(struct early_suspend *handler)
 #endif
 {
-
+	// intelli_plug: Force intelli_plug working when playing music while screen off
+	// - jollaman999 -
+#ifdef CONFIG_SND_SOC_WCD9310
+	if (intelli_plug_active && !wcd9310_is_playing) {
+#else
 	if (intelli_plug_active) {
+#endif
 		int cpu;
 
 		mutex_lock(&intelli_plug_mutex);
