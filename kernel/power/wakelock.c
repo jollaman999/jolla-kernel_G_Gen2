@@ -358,12 +358,13 @@ static void suspend(struct work_struct *work)
 
 	entry_event_num = current_event_num;
 	suspend_sys_sync_queue();
-	if (debug_mask & DEBUG_SUSPEND)
+	if (debug_mask & DEBUG_SUSPEND) {
 		pr_info("suspend: enter suspend\n");
-	// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
+		// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	dt2w_suspend_enter = true;
+		dt2w_suspend_enter = true;
 #endif
+	}
 	getnstimeofday(&ts_entry);
 	ret = pm_suspend(requested_suspend_state);
 	getnstimeofday(&ts_exit);
