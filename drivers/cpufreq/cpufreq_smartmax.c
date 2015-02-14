@@ -52,10 +52,6 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 		       unsigned int relation);
 #endif
 
-// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
-bool smartmax_screen_off = false;
-EXPORT_SYMBOL(smartmax_screen_off);
-
 /******************** Tunable parameters: ********************/
 
 /*
@@ -342,7 +338,7 @@ static inline unsigned int get_timer_delay(void) {
 	unsigned int delay;
 
 	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
-	if(smartmax_screen_off)
+	if(is_suspended)
 		delay = usecs_to_jiffies(sampling_rate_screen_off);
 	else
 		delay = usecs_to_jiffies(sampling_rate);
@@ -1337,7 +1333,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 			/* Bring kernel and HW constraints together */
 			min_sampling_rate = max(min_sampling_rate, MIN_LATENCY_MULTIPLIER * latency);
 			// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
-			if(smartmax_screen_off)
+			if(is_suspended)
 				sampling_rate_screen_off = max(min_sampling_rate, sampling_rate_screen_off);
 			else
 				sampling_rate = max(min_sampling_rate, sampling_rate);

@@ -42,11 +42,6 @@ static int lcd_isactive = 0;
 
 #define DSV_ONBST 57
 
-// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
-#ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX
-extern bool smartmax_screen_off;
-#endif
-
 static int lgit_external_dsv_onoff(uint8_t on_off)
 {
 	int ret =0;
@@ -132,11 +127,6 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 	}
 
 	pr_info("%s finished\n", __func__);
-
-	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
-#ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX
-	smartmax_screen_off = false;
-#endif
 	return 0;
 }
 
@@ -186,11 +176,6 @@ static int mipi_lgit_lcd_off(struct platform_device *pdev)
 	}
 
 	pr_info("%s finished\n", __func__);
-
-	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
-#ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX
-	smartmax_screen_off = true;
-#endif
 	return 0;
 }
 
