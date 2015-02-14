@@ -42,7 +42,7 @@ static int cfilt_adjust_ms = 10;
 module_param(cfilt_adjust_ms, int, 0644);
 MODULE_PARM_DESC(cfilt_adjust_ms, "delay after adjusting cfilt voltage in ms");
 
-// intelli_plug: Force set 2cpus working when playing music while screen off
+// intelli_plug: Force intelli_plug working when playing music while screen off
 // - jollaman999 -
 #ifdef CONFIG_INTELLI_PLUG
 bool wcd9310_is_playing;
@@ -4168,7 +4168,7 @@ static int tabla_startup(struct snd_pcm_substream *substream,
 	}
 #endif /*CONFIG_LGE_AUX_NOISE*/
 
-	// intelli_plug: Force set 2cpus working when playing music while screen off
+	// intelli_plug: Force intelli_plug working when playing music while screen off
 	// - jollaman999 -
 #ifdef CONFIG_INTELLI_PLUG
 	wcd9310_is_playing = true;
@@ -4219,7 +4219,7 @@ static void tabla_shutdown(struct snd_pcm_substream *substream,
 	}
 #endif /*CONFIG_LGE_AUX_NOISE*/
 
-	// intelli_plug: Force set 2cpus working when playing music while screen off
+	// intelli_plug: Force intelli_plug working when playing music while screen off
 	// - jollaman999 -
 #ifdef CONFIG_INTELLI_PLUG
 	wcd9310_is_playing = false;
