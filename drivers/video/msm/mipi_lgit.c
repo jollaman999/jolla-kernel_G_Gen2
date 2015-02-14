@@ -42,12 +42,6 @@ static int lcd_isactive = 0;
 
 #define DSV_ONBST 57
 
-// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
-// - jollaman999 -
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-extern bool scr_suspended;
-#endif
-
 // Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 #ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX
 extern bool smartmax_screen_off;
@@ -138,11 +132,7 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 	}
 
 	pr_info("%s finished\n", __func__);
-	// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
-	// - jollaman999 -
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	scr_suspended = false;
-#endif
+
 	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 #ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX
 	smartmax_screen_off = false;
@@ -196,11 +186,7 @@ static int mipi_lgit_lcd_off(struct platform_device *pdev)
 	}
 
 	pr_info("%s finished\n", __func__);
-	// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
-	// - jollaman999 -
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	scr_suspended = true;
-#endif
+
 	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
 #ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX
 	smartmax_screen_off = true;
