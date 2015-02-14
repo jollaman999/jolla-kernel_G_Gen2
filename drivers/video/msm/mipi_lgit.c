@@ -43,9 +43,8 @@ static int lcd_isactive = 0;
 #define DSV_ONBST 57
 
 // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
-// intelli_plug: Force set 2cpus working when playing music while screen off
 // - jollaman999 -
-#if defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE) || defined(CONFIG_INTELLI_PLUG)
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 extern bool scr_suspended;
 #endif
 
@@ -140,9 +139,8 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 
 	pr_info("%s finished\n", __func__);
 	// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
-	// intelli_plug: Force set 2cpus working when playing music while screen off
 	// - jollaman999 -
-#if defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE) || defined(CONFIG_INTELLI_PLUG)
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 	scr_suspended = false;
 #endif
 	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
@@ -199,9 +197,8 @@ static int mipi_lgit_lcd_off(struct platform_device *pdev)
 
 	pr_info("%s finished\n", __func__);
 	// To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
-	// intelli_plug: Force set 2cpus working when playing music while screen off
 	// - jollaman999 -
-#if defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE) || defined(CONFIG_INTELLI_PLUG)
+#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 	scr_suspended = true;
 #endif
 	// Use sampling_rate_screen_off when screen off - by jollaman999 & gu5t3r
