@@ -85,7 +85,7 @@ int dt2w_switch = DT2W_DEFAULT;
 static cputime64_t tap_time_pre = 0;
 static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;
 static bool touch_x_called = false, touch_y_called = false, touch_cnt = true;
-static bool scr_suspended = false, exec_count = true;
+static bool exec_count = true;
 
 // dt2w: Tuneable touch screen off voltage - by jollaman999
 /* Touch Screen Voltages */
@@ -96,15 +96,18 @@ EXPORT_SYMBOL(synaptics_t1320_volatage_change_called);
 #endif
 
 // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
+bool scr_suspended;
 bool dt2w_suspend_enter;
 cputime64_t dt2w_suspend_exit_time;
+EXPORT_SYMBOL(scr_suspended);
 EXPORT_SYMBOL(dt2w_suspend_enter);
 EXPORT_SYMBOL(dt2w_suspend_exit_time);
 
+/* // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
 #ifndef CONFIG_HAS_EARLYSUSPEND
 static struct notifier_block dt2w_lcd_notif;
 #endif
-
+*/
 static struct input_dev * doubletap2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static struct workqueue_struct *dt2w_input_wq;
@@ -340,6 +343,7 @@ static struct input_handler dt2w_input_handler = {
 	.id_table	= dt2w_ids,
 };
 
+/* // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
 #ifndef CONFIG_HAS_EARLYSUSPEND
 static int lcd_notifier_callback(struct notifier_block *this,
 				unsigned long event, void *data)
@@ -372,6 +376,7 @@ static struct early_suspend dt2w_early_suspend_handler = {
 	.resume = dt2w_late_resume,
 };
 #endif
+*/
 
 /*
  * SYSFS stuff below here
@@ -565,6 +570,7 @@ static int __init doubletap2wake_init(void)
 	if (rc)
 		pr_err("%s: Failed to register dt2w_input_handler\n", __func__);
 
+/* // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	dt2w_lcd_notif.notifier_call = lcd_notifier_callback;
 	if (lcd_register_client(&dt2w_lcd_notif) != 0) {
@@ -573,6 +579,7 @@ static int __init doubletap2wake_init(void)
 #else
 	register_early_suspend(&dt2w_early_suspend_handler);
 #endif
+*/
 	// dt2w: Tuneable touch screen off voltage - by jollaman999
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 	register_early_suspend(&dt2w_synaptics_t1320_early_suspend_handler);
@@ -613,9 +620,11 @@ static void __exit doubletap2wake_exit(void)
 #ifndef ANDROID_TOUCH_DECLARED
 	kobject_del(android_touch_kobj);
 #endif
+/* // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	lcd_unregister_client(&dt2w_lcd_notif);
 #endif
+*/
 	input_unregister_handler(&dt2w_input_handler);
 	destroy_workqueue(dt2w_input_wq);
 	input_unregister_device(doubletap2wake_pwrdev);
