@@ -39,12 +39,6 @@
 #include <linux/hrtimer.h>
 #include <asm-generic/cputime.h>
 
-// dt2w: Tuneable touch screen off voltage - by jollaman999
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-#include <linux/earlysuspend.h>
-#include <linux/regulator/consumer.h>
-#endif
-
 /* uncomment since no touchscreen defines android touch, do that here */
 //#define ANDROID_TOUCH_DECLARED
 
@@ -72,28 +66,12 @@ MODULE_LICENSE("GPLv2");
 #define DT2W_FEATHER		200
 #define DT2W_TIME		200
 
-// dt2w: Tuneable touch screen off voltage - by jollaman999
-/* Original values are here
-   arch/arm/mach-msm/lge/mako/board-mako-input.c
-   static struct touch_power_module touch_pwr */
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-#define DT2W_DEFAULT_SCREEN_OFF_VDD	2725000
-#endif
-
 /* Resources */
 int dt2w_switch = DT2W_DEFAULT;
 static cputime64_t tap_time_pre = 0;
 static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;
 static bool touch_x_called = false, touch_y_called = false, touch_cnt = true;
 static bool exec_count = true;
-
-// dt2w: Tuneable touch screen off voltage - by jollaman999
-/* Touch Screen Voltages */
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-int screen_off_vdd;
-bool synaptics_t1320_volatage_change_called;
-EXPORT_SYMBOL(synaptics_t1320_volatage_change_called);
-#endif
 
 // To prevent doubletap2wake 3 taps issue when suspended. - by jollaman999
 bool scr_suspended;
@@ -425,107 +403,6 @@ static ssize_t dt2w_version_dump(struct device *dev,
 static DEVICE_ATTR(doubletap2wake_version, (S_IWUSR|S_IRUGO),
 	dt2w_version_show, dt2w_version_dump);
 
-// dt2w: Tuneable touch screen off voltage - by jollaman999
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-static ssize_t dt2w_screen_off_vdd_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	size_t count = 0;
-
-	count += sprintf(buf, "%d\n", screen_off_vdd);
-
-	return count;
-}
-
-static ssize_t dt2w_screen_off_vdd_dump(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	long input_vdd;
-	int err;
-
-	err = kstrtol(buf, 10, &input_vdd);
-	if(err)
-		return err;
-
-	/* See the range in arch/arm/mach-msm/lge/make/board-mako-regulator.c
-	   When failed to apply, kernel message look like this
-	   "request v=[%d, %d] cannot be met by any set point next set point: %d\n" */
-	if (input_vdd >= 2125000 && input_vdd <= 3300000)
-                screen_off_vdd = (int)input_vdd;
-
-	return count;
-}
-
-static DEVICE_ATTR(dt2w_screen_off_vdd, (S_IWUSR|S_IRUGO),
-	dt2w_screen_off_vdd_show, dt2w_screen_off_vdd_dump);
-
-static void dt2w_synaptics_t1320_early_suspend(struct early_suspend *h)
-{
-	int rc;
-	static struct regulator *vreg_l15 = NULL;
-
-	/* 3.3V_TOUCH_VDD, VREG_L15: 2.75 ~ 3.3 */
-	vreg_l15 = regulator_get(NULL, "touch_vdd");
-	if (IS_ERR(vreg_l15)) {
-		pr_err("%s: regulator get of 8921_l15 failed (%ld)\n",
-				__func__,
-		       PTR_ERR(vreg_l15));
-		return;
-	}
-
-	synaptics_t1320_volatage_change_called = true;
-	rc = regulator_set_voltage(vreg_l15, screen_off_vdd, screen_off_vdd);
-	synaptics_t1320_volatage_change_called = false;
-	if (rc < 0) {
-		printk(KERN_INFO "%s: cannot control regulator\n",
-		       __func__);
-		return;
-	} else {
-		printk(KERN_INFO "%s: regulator changed\n", __func__);
-	}
-
-	return;
-}
-
-static void dt2w_synaptics_t1320_late_resume(struct early_suspend *h)
-{
-	int rc, i;
-	static struct regulator *vreg_l15 = NULL;
-
-	/* 3.3V_TOUCH_VDD, VREG_L15: 2.75 ~ 3.3 */
-	vreg_l15 = regulator_get(NULL, "touch_vdd");
-	if (IS_ERR(vreg_l15)) {
-		pr_err("%s: regulator get of 8921_l15 failed (%ld)\n",
-				__func__,
-		       PTR_ERR(vreg_l15));
-		return;
-	}
-
-	synaptics_t1320_volatage_change_called = true;
-	for(i=screen_off_vdd; i<=3300000; i+=25000) {
-		regulator_set_voltage(vreg_l15, i, i);
-		msleep_interruptible(50);
-	}
-	rc = regulator_set_voltage(vreg_l15, 3300000, 3300000);
-	synaptics_t1320_volatage_change_called = false;
-	if (rc < 0) {
-		printk(KERN_INFO "%s: cannot control regulator\n",
-		       __func__);
-		return;
-	} else {
-		printk(KERN_INFO "%s: regulator reset\n", __func__);
-	}
-
-	return;
-}
-
-static struct early_suspend dt2w_synaptics_t1320_early_suspend_handler = {
-	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
-	.suspend = dt2w_synaptics_t1320_early_suspend,
-	.resume = dt2w_synaptics_t1320_late_resume,
-};
-#endif /* CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4 */
-
 /*
  * INIT / EXIT stuff below here
  */
@@ -538,11 +415,6 @@ EXPORT_SYMBOL_GPL(android_touch_kobj);
 static int __init doubletap2wake_init(void)
 {
 	int rc = 0;
-
-	// dt2w: Tuneable touch screen off voltage - by jollaman999
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-	screen_off_vdd = DT2W_DEFAULT_SCREEN_OFF_VDD;
-#endif
 
 	doubletap2wake_pwrdev = input_allocate_device();
 	if (!doubletap2wake_pwrdev) {
@@ -580,10 +452,6 @@ static int __init doubletap2wake_init(void)
 	register_early_suspend(&dt2w_early_suspend_handler);
 #endif
 */
-	// dt2w: Tuneable touch screen off voltage - by jollaman999
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-	register_early_suspend(&dt2w_synaptics_t1320_early_suspend_handler);
-#endif
 
 #ifndef ANDROID_TOUCH_DECLARED
 	android_touch_kobj = kobject_create_and_add("android_touch", NULL) ;
@@ -599,13 +467,6 @@ static int __init doubletap2wake_init(void)
 	if (rc) {
 		pr_warn("%s: sysfs_create_file failed for doubletap2wake_version\n", __func__);
 	}
-	// dt2w: Tuneable touch screen off voltage - by jollaman999
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4
-	rc = sysfs_create_file(android_touch_kobj, &dev_attr_dt2w_screen_off_vdd.attr);
-	if (rc) {
-		pr_warn("%s: sysfs_create_file failed for dt2w_screen_off_vdd\n", __func__);
-	}
-#endif
 
 err_input_dev:
 	input_free_device(doubletap2wake_pwrdev);
