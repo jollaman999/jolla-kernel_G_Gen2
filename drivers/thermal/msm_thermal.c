@@ -71,40 +71,9 @@ EXPORT_SYMBOL(cpufreq_max_changed_by_user);
 EXPORT_SYMBOL(cpufreq_max_changed_by_msm_thermal);
 
 // Dynamic thermal control - By jollaman999
-/* MSM cpu freq tables */
-/* See arch/arm/mach-msm/acpuclock-8064.c */
-uint32_t msm_thermal_cpufreq[] = {
-	270000,		// 0
-	384000,		// 1
-	486000,		// 2
-	594000,		// 3
-	702000,		// 4
-	810000,		// 5
-	918000,		// 6
-	1026000,	// 7
-	1134000,	// 8
-	1242000,	// 9
-	1350000,	// 10
-	1458000,	// 11
-	1512000,	// 12
-#ifdef CONFIG_CPU_OVERCLOCK
-	1566000,	// 13
-	1620000,	// 14
-	1674000,	// 15
-	1728000,	// 16
-#endif /* CONFIG_CPU_OVERCLOCK */
-	0		// 17
-};
-
-// Dynamic thermal control - By jollaman999
-unsigned int mid_freq_index;
-
-// Dynamic thermal control - By jollaman999
-#ifdef CONFIG_CPU_OVERCLOCK
-#define MSM_THERMAL_FREQ_TABLES 17
-#else
-#define MSM_THERMAL_FREQ_TABLES 13
-#endif /* CONFIG_CPU_OVERCLOCK */
+static struct cpufreq_frequency_table *table;
+static unsigned int low_freq_index, high_freq_index, mid_freq_index;
+bool table_loaded;
 
 static void update_stats(void)
 {
@@ -161,52 +130,74 @@ static int update_cpu_max_freq(struct cpufreq_policy *cpu_policy,
 }
 
 // Dynamic thermal control - By jollaman999
-unsigned int max_freq_finder(uint32_t msm_thermal_cpufreq[],
-				uint32_t cpufreq_max,
+static unsigned int max_freq_finder(uint32_t cpufreq_max,
 				unsigned int low_freq_index,
 				unsigned int high_freq_index)
 {
-	// Return index of msm_thermal_cpufreq[mid_freq_index] = cpufreq_max
+	int err = 0;
+
+	// Return index of table[mid_freq_index].frequency = cpufreq_max
 	if(low_freq_index <= high_freq_index) {
 		mid_freq_index = (low_freq_index + high_freq_index) / 2;
 
-		if(cpufreq_max == msm_thermal_cpufreq[mid_freq_index]) {
+		if(cpufreq_max == table[mid_freq_index].frequency) {
 			return mid_freq_index;
-		} else if(cpufreq_max < msm_thermal_cpufreq[mid_freq_index]) {
-			return max_freq_finder(msm_thermal_cpufreq, cpufreq_max,
-						low_freq_index, mid_freq_index - 1);
-		} else if(cpufreq_max > msm_thermal_cpufreq[mid_freq_index]) {
-			return max_freq_finder(msm_thermal_cpufreq, cpufreq_max,
-						mid_freq_index + 1, high_freq_index);
+		} else if(cpufreq_max < table[mid_freq_index].frequency) {
+			return max_freq_finder(cpufreq_max, low_freq_index,
+						mid_freq_index - 1);
+		} else if(cpufreq_max > table[mid_freq_index].frequency) {
+			return max_freq_finder(cpufreq_max, mid_freq_index + 1,
+						high_freq_index);
 		}
 	}
 
-	return 10; // If fail to find max freq, return 10 index value.
+	return err;
 }
 
 // Dynamic thermal control - By jollaman999
-void dynamic_thermal(void)
+static void dynamic_thermal(void)
 {
 	struct cpufreq_policy *cpu_policy = NULL;
-	int cpu = 0;
-	unsigned int low_freq_index = 0, high_freq_index = MSM_THERMAL_FREQ_TABLES;
 	unsigned int freq_find_index = 0;
+	int i = 0;
+
+	// Get cpufreq table from cpu0.
+	if (!table_loaded) {
+		table = cpufreq_frequency_get_table(0);
+		if (table == NULL) {
+			pr_debug("%s: error reading cpufreq table\n", __func__);
+			goto err;
+		}
+		table_loaded = true;
+
+		while (table[i].frequency != CPUFREQ_TABLE_END)
+			i++;
+
+		low_freq_index = 0;
+		high_freq_index = i - 1;
+		BUG_ON(high_freq_index <= 0 || high_freq_index <= low_freq_index);
+	}
 
 	// Get current cpu policy from cpu0.
-	cpu_policy = cpufreq_cpu_get(cpu);
+	cpu_policy = cpufreq_cpu_get(0);
 
 	// Find current max cpu frequency.
 	if(cpu_policy) {
-		freq_find_index = max_freq_finder(msm_thermal_cpufreq, cpu_policy->max,
-							low_freq_index, high_freq_index);
-	} else // If fail to get cpu policy, set find index to midium freq.
-		freq_find_index = (low_freq_index + high_freq_index) / 2;
+		freq_find_index = max_freq_finder(cpu_policy->max, low_freq_index,
+							high_freq_index);
+		// If fail to find max freq index or low=max=0 goto err.
+		if (!freq_find_index)
+			goto err;
+	} else { // If fail to get cpu policy, goto err.
+		pr_debug("%s: error reading cpu policy\n", __func__);
+		goto err;
+	}
 
-	// Below 486000 is too low frequency. So ignore it.
+	// Below index 4 is too low frequency. So ignore it.
 	if(freq_find_index <= 4)
-		return;
+		goto err;
 
-	msm_thermal_info.allowed_low_freq = msm_thermal_cpufreq[freq_find_index];
+	msm_thermal_info.allowed_low_freq = table[freq_find_index].frequency;
 
 	// Adjust thermal temperatures.
 	msm_thermal_info.allowed_low_low = 30 + 2 * freq_find_index;
@@ -218,9 +209,10 @@ void dynamic_thermal(void)
 	msm_thermal_info.allowed_max_low = msm_thermal_info.allowed_mid_low + 2;
 	msm_thermal_info.allowed_max_high = msm_thermal_info.allowed_max_low + 12;
 
-	msm_thermal_info.allowed_mid_freq = msm_thermal_cpufreq[freq_find_index-1];
-	msm_thermal_info.allowed_max_freq = msm_thermal_cpufreq[freq_find_index-2];
+	msm_thermal_info.allowed_mid_freq = table[freq_find_index-1].frequency;
+	msm_thermal_info.allowed_max_freq = table[freq_find_index-2].frequency;
 
+err:
 	return;
 }
 
@@ -725,6 +717,7 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
     memcpy(&msm_thermal_info, pdata, sizeof(struct msm_thermal_data));
 
     enabled = 1;
+    table_loaded = false; // Dynamic thermal control - By jollaman999
     check_temp_workq=alloc_workqueue("msm_thermal", WQ_UNBOUND | WQ_RESCUER, 1);
     if (!check_temp_workq)
         BUG_ON(ENOMEM);
