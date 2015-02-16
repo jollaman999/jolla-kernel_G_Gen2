@@ -547,12 +547,7 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L12, 0, 1, 0, 1200000, 1200000, "8921_s4",     0,     0),
 	RPM_LDO(L13, 0, 0, 0, 2220000, 2220000, NULL,          0,     0),
 	RPM_LDO(L14, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
-// dt2w: Tuneable touch screen off voltage - by jollaman999
-#ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
-	RPM_LDO(L15, 0, 1, 0, 2125000, 3300000, NULL,          0,    19),
-#else
 	RPM_LDO(L15, 0, 1, 0, 3300000, 3300000, NULL,          0,    19),
-#endif
 	RPM_LDO(L16, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
 	RPM_LDO(L17, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
 #ifdef CONFIG_SLIMPORT_ANX7808
