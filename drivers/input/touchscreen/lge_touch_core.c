@@ -3795,7 +3795,6 @@ static void touch_early_suspend(struct early_suspend *h)
 	if (prevent_sleep) {
 		enable_irq_wake(ts->client->irq);
 		release_all_ts_event(ts);
-		atomic_set(&ts->keypad_enable, 0);
 	} else
 #endif
 	{
@@ -3813,6 +3812,9 @@ static void touch_early_suspend(struct early_suspend *h)
 
 		touch_power_cntl(ts, ts->pdata->role->suspend_pwr);
 	}
+
+	/* Disable hardware keys */
+	atomic_set(&ts->keypad_enable, 0);
 }
 
 static void touch_late_resume(struct early_suspend *h)
@@ -3849,7 +3851,6 @@ static void touch_late_resume(struct early_suspend *h)
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 	if (prevent_sleep) {
 		disable_irq_wake(ts->client->irq);
-		atomic_set(&ts->keypad_enable, 1);
 	} else
 #endif
 	{
@@ -3868,6 +3869,9 @@ static void touch_late_resume(struct early_suspend *h)
 		else
 			queue_delayed_work(touch_wq, &ts->work_init, 0);
 	}
+
+	/* Enable hardware keys */
+	atomic_set(&ts->keypad_enable, 1);
 }
 #endif
 
