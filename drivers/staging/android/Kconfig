@@ -84,6 +84,13 @@ config ANDROID_LMK_ADJ_RBTREE
 	  Utilize RB Tree for walking the tasklist.. O(log n) vs O(n)
 	  much speedier for long task list!
 
+config ZRAM_FOR_ANDROID
+	bool "Android ZRAM Optimizations"
+	depends on ZRAM
+	default n
+	---help---
+	  Android ZRAM Optimizations: adapted from Samsung JF series kernel
+
 source "drivers/staging/android/switch/Kconfig"
 
 config ANDROID_INTF_ALARM_DEV
