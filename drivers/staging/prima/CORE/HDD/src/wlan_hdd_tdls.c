@@ -25,6 +25,8 @@
 
   \brief WLAN Host Device Driver implementation for TDLS
 
+  Copyright (c) 2013 Qualcomm Atheros, Inc. All Rights Reserved.
+  Qualcomm Atheros Confidential and Proprietary.
   ========================================================================*/
 
 #include <wlan_hdd_includes.h>
@@ -548,6 +550,7 @@ static void wlan_hdd_tdls_free_list(tdlsCtx_t *pHddTdlsCtx)
             tmp = list_entry(pos, hddTdlsPeer_t, node);
             list_del(pos);
             vos_mem_free(tmp);
+            tmp = NULL;
         }
     }
 }
@@ -580,6 +583,16 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
     int i;
     v_U8_t staIdx;
 
+    if (NULL == pHddCtx)
+        return -1;
+
+    if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
+    {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: unable to lock list", __func__);
+       return -1;
+    }
+
     if ((FALSE == pHddCtx->cfg_ini->fEnableTDLSSupport) ||
         (FALSE == sme_IsFeatureSupportedByFW(TDLS)))
     {
@@ -588,6 +601,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s TDLS not enabled (%d) or FW doesn't support (%d)!",
         __func__, pHddCtx->cfg_ini->fEnableTDLSSupport,
         sme_IsFeatureSupportedByFW(TDLS));
+        mutex_unlock(&pHddCtx->tdls_lock);
         return 0;
     }
     /* TDLS is supported only in STA / P2P Client modes,
@@ -602,6 +616,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
      */
     if (0 == WLAN_HDD_IS_TDLS_SUPPORTED_ADAPTER(pAdapter))
     {
+        mutex_unlock(&pHddCtx->tdls_lock);
         return 0;
     }
     /* Check for the valid pHddTdlsCtx. If valid do not further
@@ -617,6 +632,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
         if (NULL == pHddTdlsCtx) {
             hddLog(VOS_TRACE_LEVEL_ERROR, "%s malloc failed!", __func__);
             pAdapter->sessionCtx.station.pHddTdlsCtx = NULL;
+            mutex_unlock(&pHddCtx->tdls_lock);
             return -1;
         }
         /* initialize TDLS pAdater context */
@@ -691,6 +707,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
     }
     INIT_WORK(&pHddTdlsCtx->implicit_setup, wlan_hdd_tdls_pre_setup);
     INIT_DELAYED_WORK(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, wlan_hdd_tdls_schedule_scan);
+    mutex_unlock(&pHddCtx->tdls_lock);
 
     return 0;
 }
@@ -964,7 +981,7 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
     }
 
     VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-               "Discovery(%u) Response from " MAC_ADDRESS_STR " link_status %d",
+               "Discovery(%lu) Response from " MAC_ADDRESS_STR " link_status %d",
                pHddTdlsCtx->discovery_sent_cnt, MAC_ADDR_ARRAY(curr_peer->peerMac),
                curr_peer->link_status);
 
@@ -983,7 +1000,7 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
         }
         else
         {
-            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, 
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
             "Rssi Threshold not met: "MAC_ADDRESS_STR" rssi = %d threshold = %d ",
             MAC_ADDR_ARRAY(curr_peer->peerMac), curr_peer->rssi,
             pHddTdlsCtx->threshold_config.rssi_trigger_threshold);
@@ -996,40 +1013,6 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
     }
 
     curr_peer->tdls_support = eTDLS_CAP_SUPPORTED;
-    return 0;
-}
-
-int wlan_hdd_tdls_set_peer_caps(hdd_adapter_t *pAdapter,
-                                u8 *mac,
-                                tANI_U8 uapsdQueues,
-                                tANI_U8 maxSp,
-                                tANI_BOOLEAN isBufSta)
-{
-    hddTdlsPeer_t *curr_peer;
-
-    curr_peer = wlan_hdd_tdls_get_peer(pAdapter, mac);
-    if (curr_peer == NULL)
-        return -1;
-
-    curr_peer->uapsdQueues = uapsdQueues;
-    curr_peer->maxSp = maxSp;
-    curr_peer->isBufSta = isBufSta;
-    return 0;
-}
-
-int wlan_hdd_tdls_get_link_establish_params(hdd_adapter_t *pAdapter, u8 *mac,
-                                            tCsrTdlsLinkEstablishParams* tdlsLinkEstablishParams)
-{
-    hddTdlsPeer_t *curr_peer;
-
-    curr_peer = wlan_hdd_tdls_get_peer(pAdapter, mac);
-    if (curr_peer == NULL)
-        return -1;
-
-    tdlsLinkEstablishParams->isResponder = curr_peer->is_responder;
-    tdlsLinkEstablishParams->uapsdQueues = curr_peer->uapsdQueues;
-    tdlsLinkEstablishParams->maxSp = curr_peer->maxSp;
-    tdlsLinkEstablishParams->isBufSta = curr_peer->isBufSta;
     return 0;
 }
 
@@ -1124,21 +1107,21 @@ static int wlan_hdd_tdls_check_config(tdls_config_params_t *config)
     if (config->tx_period_t < CFG_TDLS_TX_STATS_PERIOD_MIN ||
         config->tx_period_t > CFG_TDLS_TX_STATS_PERIOD_MAX)
     {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "%s invalid 2nd argument %d. <%d...%ld>", __func__, config->tx_period_t,
+        hddLog(VOS_TRACE_LEVEL_ERROR, "%s invalid 2nd argument %d. <%d...%d>", __func__, config->tx_period_t,
             CFG_TDLS_TX_STATS_PERIOD_MIN, CFG_TDLS_TX_STATS_PERIOD_MAX);
         return -1;
     }
     if (config->tx_packet_n < CFG_TDLS_TX_PACKET_THRESHOLD_MIN ||
         config->tx_packet_n > CFG_TDLS_TX_PACKET_THRESHOLD_MAX)
     {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "%s invalid 3rd argument %d. <%d...%ld>", __func__, config->tx_packet_n,
+        hddLog(VOS_TRACE_LEVEL_ERROR, "%s invalid 3rd argument %d. <%d...%d>", __func__, config->tx_packet_n,
             CFG_TDLS_TX_PACKET_THRESHOLD_MIN, CFG_TDLS_TX_PACKET_THRESHOLD_MAX);
         return -1;
     }
     if (config->discovery_period_t < CFG_TDLS_DISCOVERY_PERIOD_MIN ||
         config->discovery_period_t > CFG_TDLS_DISCOVERY_PERIOD_MAX)
     {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "%s invalid 4th argument %d. <%d...%ld>", __func__, config->discovery_period_t,
+        hddLog(VOS_TRACE_LEVEL_ERROR, "%s invalid 4th argument %d. <%d...%d>", __func__, config->discovery_period_t,
             CFG_TDLS_DISCOVERY_PERIOD_MIN, CFG_TDLS_DISCOVERY_PERIOD_MAX);
         return -1;
     }
@@ -1469,7 +1452,7 @@ int wlan_hdd_tdls_get_all_peers(hdd_adapter_t *pAdapter, char *buf, int buflen)
     pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
     if (NULL == pHddTdlsCtx) {
         mutex_unlock(&pHddCtx->tdls_lock);
-        len = scnprintf(buf, buflen, "TDLS not enabled\n");
+        len = snprintf(buf, buflen, "TDLS not enabled\n");
         return len;
     }
     for (i = 0; i < 256; i++) {
@@ -1892,7 +1875,7 @@ static void wlan_hdd_tdls_pre_setup(struct work_struct *work)
     wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
 
     mutex_unlock(&pHddCtx->tdls_lock);
-    VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "%s: discovery count %u timeout %u msec",
+    VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "%s: discovery count %lu timeout %lu msec",
                __func__, pHddTdlsCtx->discovery_sent_cnt,
                pHddTdlsCtx->threshold_config.tx_period_t - TDLS_DISCOVERY_TIMEOUT_BEFORE_UPDATE);
 
@@ -2015,6 +1998,9 @@ int wlan_hdd_tdls_scan_callback (hdd_adapter_t *pAdapter,
 #endif
                                 struct cfg80211_scan_request *request)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
+    struct net_device *dev = request->wdev->netdev;
+#endif
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     u16 connectedTdlsPeers;
     hddTdlsPeer_t *curr_peer;

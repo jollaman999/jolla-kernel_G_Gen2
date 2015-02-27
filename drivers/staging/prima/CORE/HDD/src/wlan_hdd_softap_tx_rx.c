@@ -375,7 +375,7 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
    // If the memory differentiation mode is enabled, the memory limit of each queue will be 
    // checked. Over-limit packets will be dropped.
-    spin_lock_bh(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
+    spin_lock(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
     hdd_list_size(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac], &pktListSize);
     if(pktListSize >= pAdapter->aTxQueueLimit[ac])
     {
@@ -401,7 +401,7 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
           pAdapter->aStaInfo[STAId].vosLowResource = VOS_FALSE;
       }
    }
-   spin_unlock_bh(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
+   spin_unlock(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
 
    if (VOS_TRUE == txSuspended)
    {
@@ -423,9 +423,9 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
    INIT_LIST_HEAD(&pktNode->anchor);
 
-   spin_lock_bh(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
+   spin_lock(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
    status = hdd_list_insert_back_size(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac], &pktNode->anchor, &pktListSize );
-   spin_unlock_bh(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
+   spin_unlock(&pAdapter->aStaInfo[STAId].wmm_tx_queue[ac].lock);
 
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
@@ -439,6 +439,7 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
    ++pAdapter->hdd_stats.hddTxRxStats.txXmitQueued;
    ++pAdapter->hdd_stats.hddTxRxStats.txXmitQueuedAC[ac];
+   ++pAdapter->hdd_stats.hddTxRxStats.pkt_tx_count;
 
    if (1 == pktListSize)
    {
@@ -818,7 +819,6 @@ VOS_STATUS hdd_softap_deinit_tx_rx_sta ( hdd_adapter_t *pAdapter, v_U8_t STAId )
    v_BOOL_t txSuspended[NUM_TX_QUEUES];
    v_U8_t tlAC;
    hdd_hostapd_state_t *pHostapdState;
-   v_U8_t i;
 
    pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
 
@@ -852,15 +852,6 @@ VOS_STATUS hdd_softap_deinit_tx_rx_sta ( hdd_adapter_t *pAdapter, v_U8_t STAId )
       }
    }
    vos_mem_zero(&pAdapter->aStaInfo[STAId], sizeof(hdd_station_info_t));
-
-   /* re-init spin lock, since netdev can still open adapter until
-    * driver gets unloaded
-    */
-   for (i = 0; i < NUM_TX_QUEUES; i ++)
-   {
-      hdd_list_init(&pAdapter->aStaInfo[STAId].wmm_tx_queue[i],
-                    HDD_TX_QUEUE_MAX_LEN);
-   }
 
    if (BSS_START == pHostapdState->bssState)
    {
@@ -1002,13 +993,28 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
       return VOS_STATUS_E_FAILURE;
    }
 
-   pAdapter = pHddCtx->sta_to_adapter[*pStaId];
-   if( NULL == pAdapter )
+   STAId = *pStaId;
+   if (STAId >= WLAN_MAX_STA_COUNT)
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
+                 "%s: Invalid STAId %d passed by TL", __func__, STAId);
+      return VOS_STATUS_E_FAILURE;
+   }
+
+   pAdapter = pHddCtx->sta_to_adapter[STAId];
+   if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
    {
       VOS_ASSERT(0);
       return VOS_STATUS_E_FAILURE;
    }
  
+   if (FALSE == pAdapter->aStaInfo[STAId].isUsed )
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
+                 "%s: Unregistered STAId %d passed by TL", __func__, STAId);
+      return VOS_STATUS_E_FAILURE;
+   }
+
    /* Monitor traffic */
    if ( pHddCtx->cfg_ini->enableTrafficMonitor )
    {
@@ -1030,21 +1036,6 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    }
 
    ++pAdapter->hdd_stats.hddTxRxStats.txFetched;
-
-   STAId = *pStaId;
-   if (STAId >= WLAN_MAX_STA_COUNT)
-   {
-      VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
-                 "%s: Invalid STAId %d passed by TL", __func__, STAId);
-      return VOS_STATUS_E_FAILURE;
-   }
-
-   if (FALSE == pAdapter->aStaInfo[STAId].isUsed )
-   {
-      VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
-                 "%s: Unregistered STAId %d passed by TL", __func__, STAId);
-      return VOS_STATUS_E_FAILURE;
-   }
 
    *ppVosPacket = NULL;
 
@@ -1489,7 +1480,7 @@ VOS_STATUS hdd_softap_DeregisterSTA( hdd_adapter_t *pAdapter, tANI_U8 staId )
     {
         VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR, 
                     "WLANTL_ClearSTAClient() failed to for staID %d.  "
-                    "Status= %d [0x%08X]",
+                    "Status= %d [0x%08lX]",
                     staId, vosStatus, vosStatus );
     }
 
@@ -1498,7 +1489,7 @@ VOS_STATUS hdd_softap_DeregisterSTA( hdd_adapter_t *pAdapter, tANI_U8 staId )
     {
         VOS_TRACE ( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
                     "hdd_softap_deinit_tx_rx_sta() failed for staID %d. "
-                    "Status = %d [0x%08X]",
+                    "Status = %d [0x%08lX]",
                     staId, vosStatus, vosStatus );
         return( vosStatus );
     }
@@ -1552,14 +1543,29 @@ VOS_STATUS hdd_softap_RegisterSTA( hdd_adapter_t *pAdapter,
    VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
               "register station \n");
    VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
-              "station mac " MAC_ADDRESS_STR,
-              MAC_ADDR_ARRAY(staDesc.vSTAMACAddress.bytes));
+              "station mac %02x:%02x:%02x:%02x:%02x:%02x",
+              staDesc.vSTAMACAddress.bytes[0],
+              staDesc.vSTAMACAddress.bytes[1],
+              staDesc.vSTAMACAddress.bytes[2],
+              staDesc.vSTAMACAddress.bytes[3],
+              staDesc.vSTAMACAddress.bytes[4],
+              staDesc.vSTAMACAddress.bytes[5]);
    VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
-              "BSSIDforIBSS " MAC_ADDRESS_STR,
-              MAC_ADDR_ARRAY(staDesc.vBSSIDforIBSS.bytes));
+              "BSSIDforIBSS %02x:%02x:%02x:%02x:%02x:%02x",
+              staDesc.vBSSIDforIBSS.bytes[0],
+              staDesc.vBSSIDforIBSS.bytes[1],
+              staDesc.vBSSIDforIBSS.bytes[2],
+              staDesc.vBSSIDforIBSS.bytes[3],
+              staDesc.vBSSIDforIBSS.bytes[4],
+              staDesc.vBSSIDforIBSS.bytes[5]);
    VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
-              "SOFTAP SELFMAC " MAC_ADDRESS_STR,
-              MAC_ADDR_ARRAY(staDesc.vSelfMACAddress.bytes));
+              "SOFTAP SELFMAC %02x:%02x:%02x:%02x:%02x:%02x",
+              staDesc.vSelfMACAddress.bytes[0],
+              staDesc.vSelfMACAddress.bytes[1],
+              staDesc.vSelfMACAddress.bytes[2],
+              staDesc.vSelfMACAddress.bytes[3],
+              staDesc.vSelfMACAddress.bytes[4],
+              staDesc.vSelfMACAddress.bytes[5]);
 
    vosStatus = hdd_softap_init_tx_rx_sta(pAdapter, staId, &staDesc.vSTAMACAddress);
 
@@ -1593,7 +1599,7 @@ VOS_STATUS hdd_softap_RegisterSTA( hdd_adapter_t *pAdapter,
    if ( !VOS_IS_STATUS_SUCCESS( vosStatus ) )
    {
       VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR, 
-                 "SOFTAP WLANTL_RegisterSTAClient() failed to register.  Status= %d [0x%08X]",
+                 "SOFTAP WLANTL_RegisterSTAClient() failed to register.  Status= %d [0x%08lX]",
                  vosStatus, vosStatus );
       return vosStatus;      
    }
