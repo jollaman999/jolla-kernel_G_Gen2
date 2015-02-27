@@ -717,7 +717,7 @@ tSirRetStatus limSendLinkReportActionFrame(tpAniSirGlobal, tpSirMacLinkReport, t
 tSirRetStatus limSendRadioMeasureReportActionFrame(tpAniSirGlobal, tANI_U8, tANI_U8, tpSirMacRadioMeasureReport, tSirMacAddr, tpPESession);
 #endif
 
-#if defined(FEATURE_WLAN_CCX) && !defined(FEATURE_WLAN_CCX_UPLOAD)
+#ifdef FEATURE_WLAN_CCX
 void limProcessIappFrame(tpAniSirGlobal, tANI_U8 *,tpPESession);
 #endif
 
@@ -738,8 +738,6 @@ void limInitTdlsData(tpAniSirGlobal, tpPESession);
 tSirRetStatus limProcessSmeTdlsMgmtSendReq(tpAniSirGlobal pMac, 
                                                            tANI_U32 *pMsgBuf);
 tSirRetStatus limProcessSmeTdlsAddStaReq(tpAniSirGlobal pMac, 
-                                                           tANI_U32 *pMsgBuf);
-tSirRetStatus limProcesSmeTdlsLinkEstablishReq(tpAniSirGlobal pMac,
                                                            tANI_U32 *pMsgBuf);
 tSirRetStatus limProcessSmeTdlsDelStaReq(tpAniSirGlobal pMac, 
                                                            tANI_U32 *pMsgBuf);
@@ -873,7 +871,7 @@ void limProcessLearnIntervalTimeout(tpAniSirGlobal pMac);
 #ifdef WLAN_FEATURE_11W
 //11w SA query request action frame handler
 tSirRetStatus limSendSaQueryResponseFrame( tpAniSirGlobal pMac, 
-                   tANI_U8 *transId, tSirMacAddr peer,tpPESession psessionEntry);
+                   tANI_U16 transId, tSirMacAddr peer,tpPESession psessionEntry);
 #endif
 // Inline functions
 

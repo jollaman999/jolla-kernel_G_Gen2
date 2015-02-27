@@ -106,7 +106,7 @@
 #include "wlan_hdd_power.h"
 #include "wlan_hdd_packet_filtering.h"
 
-#define HDD_SSR_BRING_UP_TIME 180000
+#define HDD_SSR_BRING_UP_TIME 10000
 
 static eHalStatus g_full_pwr_status;
 static eHalStatus g_standby_status;
@@ -424,11 +424,10 @@ VOS_STATUS hdd_exit_deep_sleep(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter)
 
    //Open a SME session for future operation
    halStatus = sme_OpenSession( pHddCtx->hHal, hdd_smeRoamCallback, pHddCtx,
-                                (tANI_U8 *)&pAdapter->macAddressCurrent,
-                                &pAdapter->sessionId);
+                                (tANI_U8 *)&pAdapter->macAddressCurrent, &pAdapter->sessionId );
    if ( !HAL_STATUS_SUCCESS( halStatus ) )
    {
-      hddLog(VOS_TRACE_LEVEL_FATAL,"sme_OpenSession() failed with status code %08d [x%08x]",
+      hddLog(VOS_TRACE_LEVEL_FATAL,"sme_OpenSession() failed with status code %08d [x%08lx]",
                     halStatus, halStatus );
       goto err_voss_stop;
 
@@ -573,7 +572,6 @@ void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
 
     int i =0;
     eHalStatus returnStatus;
-
     pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
     ENTER();
@@ -644,7 +642,6 @@ void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
                     offLoadRequest.nsOffloadInfo.targetIPv6AddrValid[0] = SIR_IPV6_ADDR_VALID;
                     offLoadRequest.offloadType =  SIR_IPV6_NS_OFFLOAD;
                     offLoadRequest.enableOrDisable = SIR_OFFLOAD_ENABLE;
-
                     hddLog (VOS_TRACE_LEVEL_INFO,
                     "configuredMcastBcastFilter: %d",pHddCtx->configuredMcastBcastFilter);
 
@@ -655,7 +652,7 @@ void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
                           pHddCtx->sus_res_mcastbcast_filter)))
                     {
                         hddLog (VOS_TRACE_LEVEL_INFO,
-                        "Set offLoadRequest with SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE \n");
+                       "Set offLoadRequest with SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE \n", __func__);
                         offLoadRequest.enableOrDisable =
                          SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE;
                     }
@@ -879,6 +876,14 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
       vos_mem_malloc(sizeof(tSirWlanSuspendParam));
 
     if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
+/* LGE_UPDATE, 20131031, real-wifi@lge.com by beaver, restore the configuredMcastBcastFilter value */
+#ifdef CUSTOMER_LGE
+        if (pHddCtx->configuredMcastBcastFilter != pHddCtx->cfg_ini->mcastBcastFilterSetting) {
+           pHddCtx->configuredMcastBcastFilter = pHddCtx->cfg_ini->mcastBcastFilterSetting;
+           hddLog (VOS_TRACE_LEVEL_ERROR,
+                   "%s: with configuredMcastBcastFilter %d", __func__, pHddCtx->configuredMcastBcastFilter);
+        }
+#endif
         pHddCtx->sus_res_mcastbcast_filter =
             pHddCtx->configuredMcastBcastFilter;
         pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
@@ -906,11 +911,19 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
         wlanSuspendParam->configuredMcstBcstFilterSetting = pHddCtx->configuredMcastBcastFilter;
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
-        /* During suspend, configure MC Addr list filter to the firmware
-         * function takes care of checking necessary conditions before
-         * configuring.
-         */
-        wlan_hdd_set_mc_addr_list(pAdapter, TRUE);
+        if (pHddCtx->cfg_ini->isMcAddrListFilter)
+        {
+           /*Multicast addr list filter is enabled during suspend*/
+           if (((pAdapter->device_mode == WLAN_HDD_INFRA_STATION) || 
+                    (pAdapter->device_mode == WLAN_HDD_P2P_CLIENT))
+                 && pAdapter->mc_addr_list.mc_cnt
+                 && (eConnectionState_Associated == 
+                    (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
+           {
+              /*set the filter*/
+              wlan_hdd_set_mc_addr_list(pAdapter, TRUE);
+           }
+        }
 #endif
     }
 
@@ -954,9 +967,11 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
 
     pHddCtx->hdd_mcastbcast_filter_set = FALSE;
 
-    pHddCtx->configuredMcastBcastFilter =
-      pHddCtx->sus_res_mcastbcast_filter;
-    pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
+    if (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid) {
+        pHddCtx->configuredMcastBcastFilter =
+            pHddCtx->sus_res_mcastbcast_filter;
+        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
+    }
 
     hddLog(VOS_TRACE_LEVEL_INFO,
            "offload: in hdd_conf_resume_ind, restoring configuredMcastBcastFilter");
@@ -964,11 +979,17 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
                   pHddCtx->configuredMcastBcastFilter);
 
 
-#ifdef WLAN_FEATURE_PACKET_FILTERING
-    /* Filer was applied during suspend inditication
-     * clear it when we resume.
-     */
-    wlan_hdd_set_mc_addr_list(pAdapter, FALSE);
+#ifdef WLAN_FEATURE_PACKET_FILTERING    
+    if (pHddCtx->cfg_ini->isMcAddrListFilter)
+    {
+       /*Multicast addr filtering is enabled*/
+       if (pAdapter->mc_addr_list.isFilterApplied)
+       {
+          /*Filter applied during suspend mode*/
+          /*Clear it here*/
+          wlan_hdd_set_mc_addr_list(pAdapter, FALSE);
+       }
+    }
 #endif
 }
 
@@ -1057,8 +1078,8 @@ void hdd_suspend_wlan(void)
        status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
        pAdapterNode = pNext;
    }
-   pHddCtx->hdd_wlan_suspended = TRUE;
 
+   pHddCtx->hdd_wlan_suspended = TRUE;
 #ifdef SUPPORT_EARLY_SUSPEND_STANDBY_DEEPSLEEP
   if(pHddCtx->cfg_ini->nEnableSuspend == WLAN_MAP_SUSPEND_TO_STANDBY)
   {
@@ -1088,6 +1109,14 @@ static void hdd_PowerStateChangedCB
    if((newState == BMPS) &&  pHddCtx->hdd_wlan_suspended) {
       spin_unlock(&pHddCtx->filter_lock);
       if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
+/* LGE_UPDATE, 20131031, real-wifi@lge.com by beaver, restore the configuredMcastBcastFilter value */
+#ifdef CUSTOMER_LGE
+          if (pHddCtx->configuredMcastBcastFilter != pHddCtx->cfg_ini->mcastBcastFilterSetting) {
+             pHddCtx->configuredMcastBcastFilter = pHddCtx->cfg_ini->mcastBcastFilterSetting;
+             hddLog (VOS_TRACE_LEVEL_ERROR,
+                     "%s: with configuredMcastBcastFilter %d", __func__, pHddCtx->configuredMcastBcastFilter);
+          }
+#endif
           pHddCtx->sus_res_mcastbcast_filter =
               pHddCtx->configuredMcastBcastFilter;
           pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
@@ -1166,7 +1195,7 @@ void hdd_unregister_mcast_bcast_filter(hdd_context_t *pHddCtx)
 void hdd_conf_gtk_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
 {
     eHalStatus ret;
-    tSirGtkOffloadParams hddGtkOffloadReqParams;
+    tpSirGtkOffloadParams pGtkOffloadReqParams;
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
     if(fenable)
@@ -1191,7 +1220,6 @@ void hdd_conf_gtk_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                    "%s: sme_SetGTKOffload successfull", __func__);
         }
-
     }
     else
     {
@@ -1305,7 +1333,6 @@ void hdd_resume_wlan(void)
 
          powerRequest.uIgnoreDTIM = pHddCtx->hdd_actual_ignore_DTIM_value;
          powerRequest.uListenInterval = pHddCtx->hdd_actual_LI_value;
-         powerRequest.uMaxLIModulatedDTIM = pHddCtx->cfg_ini->fMaxLIModulatedDTIM;
 
          /*Disabled ModulatedDTIM if enabled on suspend*/
          if(pHddCtx->cfg_ini->enableModulatedDTIM)
@@ -1398,12 +1425,6 @@ static void hdd_ssr_timer_del(void)
 static void hdd_ssr_timer_cb(unsigned long data)
 {
     hddLog(VOS_TRACE_LEVEL_FATAL, "%s: HDD SSR timer expired", __func__);
-
-#ifdef WCN_PRONTO
-    if (wcnss_hardware_type() == WCNSS_PRONTO_HW)
-        wcnss_pronto_log_debug_regs();
-#endif
-
     VOS_BUG(0);
 }
 
@@ -1448,6 +1469,14 @@ VOS_STATUS hdd_wlan_shutdown(void)
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: HDD context is Null",__func__);
       return VOS_STATUS_E_FAILURE;
    }
+
+   //Stop the traffic monitor timer
+   if ( VOS_TIMER_STATE_RUNNING ==
+                        vos_timer_getCurrentState(&pHddCtx->tx_rx_trafficTmr))
+   {
+        vos_timer_stop(&pHddCtx->tx_rx_trafficTmr);
+   }
+
    hdd_reset_all_adapters(pHddCtx);
    /* DeRegister with platform driver as client for Suspend/Resume */
    vosStatus = hddDeregisterPmOps(pHddCtx);
@@ -1496,21 +1525,21 @@ VOS_STATUS hdd_wlan_shutdown(void)
    set_bit(MC_SHUTDOWN_EVENT_MASK, &vosSchedContext->mcEventFlag);
    set_bit(MC_POST_EVENT_MASK, &vosSchedContext->mcEventFlag);
    wake_up_interruptible(&vosSchedContext->mcWaitQueue);
-   wait_for_completion_interruptible(&vosSchedContext->McShutdown);
+   wait_for_completion(&vosSchedContext->McShutdown);
 
    /* Wait for TX to exit */
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Shutting down TX thread",__func__);
    set_bit(TX_SHUTDOWN_EVENT_MASK, &vosSchedContext->txEventFlag);
    set_bit(TX_POST_EVENT_MASK, &vosSchedContext->txEventFlag);
    wake_up_interruptible(&vosSchedContext->txWaitQueue);
-   wait_for_completion_interruptible(&vosSchedContext->TxShutdown);
+   wait_for_completion(&vosSchedContext->TxShutdown);
 
    /* Wait for RX to exit */
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Shutting down RX thread",__func__);
    set_bit(RX_SHUTDOWN_EVENT_MASK, &vosSchedContext->rxEventFlag);
    set_bit(RX_POST_EVENT_MASK, &vosSchedContext->rxEventFlag);
    wake_up_interruptible(&vosSchedContext->rxWaitQueue);
-   wait_for_completion_interruptible(&vosSchedContext->RxShutdown);
+   wait_for_completion(&vosSchedContext->RxShutdown);
 
 #ifdef WLAN_BTAMP_FEATURE
    vosStatus = WLANBAP_Stop(pVosContext);
@@ -1777,11 +1806,7 @@ err_vosclose:
        unregister_netdevice_notifier(&hdd_netdev_notifier);
        /* Clean up HDD Nlink Service */
        send_btc_nlink_msg(WLAN_MODULE_DOWN_IND, 0);
-#ifdef WLAN_KD_READY_NOTIFIER
-       nl_srv_exit(pHddCtx->ptt_pid);
-#else
        nl_srv_exit();
-#endif /* WLAN_KD_READY_NOTIFIER */
        /* Free up dynamically allocated members inside HDD Adapter */
        kfree(pHddCtx->cfg_ini);
        pHddCtx->cfg_ini= NULL;

@@ -583,7 +583,7 @@ WCTS_NotifyCallback
       return;
 
    case SMD_EVENT_REOPEN_READY:
-      WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+      WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
                  "%s: received SMD_EVENT_REOPEN_READY from SMD", __func__);
 
       /* unlike other events which occur when our kernel threads are
@@ -734,9 +734,10 @@ WCTS_OpenTransport
     */
    pWCTSCb->wctsOpenMsg.callback = WCTS_PALOpenCallback;
    pWCTSCb->wctsOpenMsg.pContext = pWCTSCb;
-
+   pWCTSCb->wctsOpenMsg.type= WPAL_MC_MSG_SMD_NOTIF_OPEN_SIG;
    pWCTSCb->wctsDataMsg.callback = WCTS_PALDataCallback;
    pWCTSCb->wctsDataMsg.pContext = pWCTSCb;
+   pWCTSCb-> wctsDataMsg.type= WPAL_MC_MSG_SMD_NOTIF_DATA_SIG;
 
    /*---------------------------------------------------------------------
      Open the SMD channel
