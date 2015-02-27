@@ -224,13 +224,13 @@ static struct pm8xxx_misc_platform_data apq8064_pm8921_misc_pdata = {
 
 static struct led_info pm8921_led_info[] = {
 	[0] = {
-		.name = "red",
+		.name = "led:red",
 	},
 	[1] = {
 		.name = "button-backlight",
 	},
 	[2] = {
-		.name = "green",
+		.name = "led:green",
 	},
 };
 
