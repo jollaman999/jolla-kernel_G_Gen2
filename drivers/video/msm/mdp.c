@@ -72,7 +72,7 @@ u64 mdp_max_bw = 2000000000;
 u32 mdp_bw_ab_factor = MDP4_BW_AB_DEFAULT_FACTOR;
 u32 mdp_bw_ib_factor = MDP4_BW_IB_DEFAULT_FACTOR;
 static struct platform_device *mdp_init_pdev;
-static struct regulator *footswitch, *dsi_pll_vdda, *dsi_pll_vddio;
+static struct regulator *footswitch;
 static unsigned int mdp_footswitch_on;
 
 struct completion mdp_ppp_comp;
