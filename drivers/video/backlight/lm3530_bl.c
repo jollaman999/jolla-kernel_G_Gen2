@@ -121,7 +121,7 @@ static void lm3530_set_main_current_level(struct i2c_client *client, int level)
 
 	if (level != 0) {
 		if (level > 0 && level <= MIN_LEVEL)
-			cal_value = 0;
+			cal_value = 1;
 		else if (level > MIN_LEVEL && level <= MAX_LEVEL)
 			cal_value = mapped_value[level-MIN_LEVEL];
 		else if (level > MAX_LEVEL)
