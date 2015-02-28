@@ -31,11 +31,11 @@
 #include <linux/mutex.h>
 #include <mach/board.h>
 
-#define MAX_LEVEL               0x71
-#define MIN_LEVEL               0x01
-#define DEFAULT_LEVEL           0x14
+#define MAX_LEVEL               0xFF	//255 out of 255(android)
+#define MIN_LEVEL               0x6E	//110 out of 255(android)
+#define DEFAULT_LEVEL           0xC8	//200 out of 255(android)
 
-#define DEFAULT_FTM_BRIGHTNESS  0x03
+#define DEFAULT_FTM_BRIGHTNESS  0xCB	//203 out of 255(android)
 
 #define I2C_BL_NAME             "lm3530"
 
@@ -99,23 +99,31 @@ static int lm3530_write_reg(struct i2c_client *client,
 	return 0;
 }
 
+static char mapped_value[146] = {
+	1 	,1 	,1 	,1 	,1 	,1 	,1 	,1 	,1 	,1 	,1 	,1 	,2 	,2 	,2,
+	2 	,2 	,2 	,2 	,2 	,2 	,2 	,2 	,3 	,3 	,3 	,3 	,3 	,3 	,3,
+	4 	,4 	,4 	,4 	,4 	,4 	,5 	,5 	,5 	,6 	,6 	,6 	,7	,7 	,7,
+	8 	,8 	,8 	,9 	,9 	,9 	,10	,10	,11	,11	,11	,12	,12	,13	,13,
+	14 	,14 ,15	,15	,16	,16	,16	,17	,17	,18	,18	,19	,19	,19	,20,
+	20 	,21 ,22	,22	,23	,24	,24	,25	,26	,26	,27	,28	,29	,30	,30 ,
+	31 	,32 ,33	,34	,34	,35	,36	,37	,38	,39	,40	,41	,41	,42	,43,
+	44 	,45 ,46	,47	,48	,49	,50	,51	,52	,53	,54	,56	,57	,58	,59,
+	60 	,61 ,62	,63	,65	,66	,67	,69	,70	,71	,72	,73	,74	,76	,78,
+	79 	,80 ,82	,83	,85	,87	,88	,90	,91	,92	,94 };
+
 static void lm3530_set_main_current_level(struct i2c_client *client, int level)
 {
 	struct lm3530_device *dev = i2c_get_clientdata(client);
 	int cal_value = 0;
-	int min_brightness = dev->min_brightness;
 	int max_brightness = dev->max_brightness;
 
 	dev->bl_dev->props.brightness = cur_main_lcd_level = level;
 
 	if (level != 0) {
 		if (level > 0 && level <= MIN_LEVEL)
-			cal_value = min_brightness;
+			cal_value = 0;
 		else if (level > MIN_LEVEL && level <= MAX_LEVEL)
-			cal_value = (max_brightness - min_brightness)*level
-				/(MAX_LEVEL - MIN_LEVEL)-
-				((max_brightness - min_brightness)*MIN_LEVEL
-				/(MAX_LEVEL - MIN_LEVEL) - min_brightness);
+			cal_value = mapped_value[level-MIN_LEVEL];
 		else if (level > MAX_LEVEL)
 			cal_value = max_brightness;
 
