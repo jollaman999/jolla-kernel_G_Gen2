@@ -77,7 +77,8 @@ out:
 	return ret;
 }
 
-static int mipi_lgit_lcd_on(struct platform_device *pdev)
+// static
+int mipi_lgit_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
 	int ret = 0;
@@ -143,7 +144,8 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 	return 0;
 }
 
-static int mipi_lgit_lcd_off(struct platform_device *pdev)
+// static
+int mipi_lgit_lcd_off(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
 	int ret = 0;
