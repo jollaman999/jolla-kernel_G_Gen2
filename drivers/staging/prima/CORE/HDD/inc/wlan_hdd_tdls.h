@@ -125,11 +125,6 @@ typedef struct {
 } tdls_rssi_config_t;
 
 struct _hddTdlsPeer_t;
-
-typedef struct {
-    tSirMacAddr macAddr;
-} hddTdlsForcePeer_t;
-
 typedef struct {
     struct list_head peer_list[256];
     hdd_adapter_t   *pAdapter;
@@ -145,8 +140,6 @@ typedef struct {
     struct _hddTdlsPeer_t  *curr_candidate;
     struct work_struct implicit_setup;
     v_U32_t            magic;
-    hddTdlsForcePeer_t forcePeer[HDD_MAX_NUM_TDLS_STA];
-    tANI_U8            forcePeerCnt;
 } tdlsCtx_t;
 
 typedef struct _hddTdlsPeer_t {
@@ -163,6 +156,9 @@ typedef struct _hddTdlsPeer_t {
     tANI_U16    discovery_attempt;
     tANI_U16    tx_pkt;
     tANI_U16    rx_pkt;
+    tANI_U8     uapsdQueues;
+    tANI_U8     maxSp;
+    tANI_U8     isBufSta;
     vos_timer_t     peerIdleTimer;
     vos_timer_t     initiatorWaitTimeoutTimer;
 } hddTdlsPeer_t;
@@ -188,10 +184,12 @@ int wlan_hdd_tdls_increment_pkt_count(hdd_adapter_t *pAdapter, u8 *mac, u8 tx);
 
 int wlan_hdd_tdls_set_sta_id(hdd_adapter_t *pAdapter, u8 *mac, u8 staId);
 
-hddTdlsPeer_t *wlan_hdd_tdls_find_peer(hdd_adapter_t *pAdapter, u8 *mac);
+hddTdlsPeer_t *wlan_hdd_tdls_find_peer(hdd_adapter_t *pAdapter, u8 *mac, tANI_BOOLEAN mutexLock);
 
 hddTdlsPeer_t *wlan_hdd_tdls_find_all_peer(hdd_context_t *pHddCtx, u8 *mac);
 
+int wlan_hdd_tdls_get_link_establish_params(hdd_adapter_t *pAdapter, u8 *mac,
+                                            tCsrTdlsLinkEstablishParams* tdlsLinkEstablishParams);
 hddTdlsPeer_t *wlan_hdd_tdls_get_peer(hdd_adapter_t *pAdapter, u8 *mac);
 
 int wlan_hdd_tdls_set_cap(hdd_adapter_t *pAdapter, u8* mac, tTDLSCapType cap);
@@ -201,6 +199,12 @@ void wlan_hdd_tdls_set_peer_link_status(hddTdlsPeer_t *curr_peer, tTDLSLinkStatu
 void wlan_hdd_tdls_set_link_status(hdd_adapter_t *pAdapter, u8* mac, tTDLSLinkStatus status);
 
 int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac);
+
+int wlan_hdd_tdls_set_peer_caps(hdd_adapter_t *pAdapter,
+                                u8 *mac,
+                                tANI_U8 uapsdQueues,
+                                tANI_U8 maxSp,
+                                tANI_BOOLEAN isBufSta);
 
 int wlan_hdd_tdls_set_rssi(hdd_adapter_t *pAdapter, u8 *mac, tANI_S8 rxRssi);
 
@@ -232,7 +236,7 @@ void wlan_hdd_tdls_check_bmps(hdd_adapter_t *pAdapter);
 
 u8 wlan_hdd_tdls_is_peer_progress(hdd_adapter_t *pAdapter, u8 *mac);
 
-hddTdlsPeer_t *wlan_hdd_tdls_is_progress(hdd_context_t *pHddCtx, u8* mac, u8 skip_self, tANI_BOOLEAN mutexLock);
+hddTdlsPeer_t *wlan_hdd_tdls_is_progress(hdd_context_t *pHddCtx, u8* mac, u8 skip_self);
 
 void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
                             eTDLSSupportMode tdls_mode,
@@ -267,8 +271,5 @@ void wlan_hdd_tdls_indicate_teardown(hdd_adapter_t *pAdapter,
                                            hddTdlsPeer_t *curr_peer,
                                            tANI_U16 reason);
 
-int wlan_hdd_tdls_add_force_peer(hdd_adapter_t *pAdapter, u8 *mac);
-
-int wlan_hdd_tdls_remove_force_peer(hdd_adapter_t *pAdapter, u8 *mac);
 
 #endif // __HDD_TDSL_H
