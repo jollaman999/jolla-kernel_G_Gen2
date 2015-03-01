@@ -618,7 +618,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	}
 
 	if (rinfo->prefix_len == 0)
-		rt = rt6_get_dflt_router(gwaddr, net);
+		rt = rt6_get_dflt_router(gwaddr, dev);
 	else
 		rt = rt6_get_route_info(net, prefix, rinfo->prefix_len,
 					gwaddr, dev->ifindex);
