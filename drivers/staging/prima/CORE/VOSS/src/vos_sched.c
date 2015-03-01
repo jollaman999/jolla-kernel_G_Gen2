@@ -360,7 +360,10 @@ VosMCThread
   }
   set_user_nice(current, -2);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
   daemonize("MC_Thread");
+#endif
+
   /*
   ** Ack back to the context from which the main controller thread has been
   ** created.
@@ -626,8 +629,7 @@ VosMCThread
       "%s: MC Thread exiting!!!!", __func__);
   complete_and_exit(&pSchedContext->McShutdown, 0);
 } /* VosMCThread() */
-
-v_BOOL_t isWDresetInProgress(void)
+int isWDresetInProgress(void)
 {
    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
                 "%s: Reset is in Progress...",__func__);
@@ -637,7 +639,7 @@ v_BOOL_t isWDresetInProgress(void)
    }
    else
    {
-      return FALSE;
+      return 0;
    }
 }
 /*---------------------------------------------------------------------------
@@ -665,7 +667,11 @@ VosWDThread
         "%s: Bad Args passed", __func__);
      return 0;
   }
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
   daemonize("WD_Thread");
+#endif
+
   /*
   ** Ack back to the context from which the Watchdog thread has been
   ** created.
@@ -796,7 +802,11 @@ static int VosTXThread ( void * Arg )
          "%s Bad Args passed", __func__);
      return 0;
   }
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
   daemonize("TX_Thread");
+#endif
+
   /*
   ** Ack back to the context from which the main controller thread has been
   ** created.
@@ -993,7 +1003,11 @@ static int VosRXThread ( void * Arg )
          "%s Bad Args passed", __func__);
      return 0;
   }
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
   daemonize("RX_Thread");
+#endif
+
   /*
   ** Ack back to the context from which the main controller thread has been
   ** created.
@@ -1746,6 +1760,7 @@ VOS_STATUS vos_watchdog_wlan_shutdown(void)
 
     /* Set the flags so that all future CMD53 and Wext commands get blocked right away */
     vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+    vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
     pHddCtx->isLogpInProgress = TRUE;
 
     /* Release the lock here */
