@@ -927,7 +927,7 @@ static struct msm_bus_scale_pdata usb_bus_scale_pdata = {
 };
 
 static int phy_init_seq[] = {
-	0x68, 0x81, /* update DC voltage level */
+	0x38, 0x81, /* update DC voltage level */
 	0x24, 0x82, /* set pre-emphasis and rise/fall time */
 	0x33, 0x83, /* set source impedance adjusment */
 	-1
@@ -978,77 +978,6 @@ static struct i2c_board_info smb349_charger_i2c_info[] __initdata = {
  * microphone sensitivity purpose.
  */
 
-#ifndef CONFIG_MACH_LGE
-
-static struct wcd9xxx_pdata apq8064_tabla_platform_data = {
-	.slimbus_slave_device = {
-		.name = "tabla-slave",
-		.e_addr = {0, 0, 0x10, 0, 0x17, 2},
-	},
-	.irq = MSM_GPIO_TO_INT(42),
-	.irq_base = TABLA_INTERRUPT_BASE,
-	.num_irqs = NR_WCD9XXX_IRQS,
-	.reset_gpio = PM8921_GPIO_PM_TO_SYS(34),
-	.micbias = {
-		.ldoh_v = TABLA_LDOH_2P85_V,
-		.cfilt1_mv = 1800,
-		.cfilt2_mv = 2700,
-		.cfilt3_mv = 1800,
-		.bias1_cfilt_sel = TABLA_CFILT1_SEL,
-		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
-		.bias3_cfilt_sel = TABLA_CFILT3_SEL,
-		.bias4_cfilt_sel = TABLA_CFILT3_SEL,
-	},
-	.regulator = {
-	{
-		.name = "CDC_VDD_CP",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_CDC_VDDA_CP_CUR_MAX,
-	},
-	{
-		.name = "CDC_VDDA_RX",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_CDC_VDDA_RX_CUR_MAX,
-	},
-	{
-		.name = "CDC_VDDA_TX",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_CDC_VDDA_TX_CUR_MAX,
-	},
-	{
-		.name = "VDDIO_CDC",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_VDDIO_CDC_CUR_MAX,
-	},
-	{
-		.name = "VDDD_CDC_D",
-		.min_uV = 1225000,
-		.max_uV = 1250000,
-		.optimum_uA = WCD9XXX_VDDD_CDC_D_CUR_MAX,
-	},
-	{
-		.name = "CDC_VDDA_A_1P2V",
-		.min_uV = 1225000,
-		.max_uV = 1250000,
-		.optimum_uA = WCD9XXX_VDDD_CDC_A_CUR_MAX,
-	},
-	},
-};
-
-static struct slim_device apq8064_slim_tabla = {
-	.name = "tabla-slim",
-	.e_addr = {0, 1, 0x10, 0, 0x17, 2},
-	.dev = {
-		.platform_data = &apq8064_tabla_platform_data,
-	},
-};
-
-#endif
-
 static struct wcd9xxx_pdata apq8064_tabla20_platform_data = {
 	.slimbus_slave_device = {
 		.name = "tabla-slave",
@@ -1061,7 +990,7 @@ static struct wcd9xxx_pdata apq8064_tabla20_platform_data = {
 	.micbias = {
 		.ldoh_v = TABLA_LDOH_2P85_V,
 		.cfilt1_mv = 1800,
-		.cfilt2_mv = 2700,
+		.cfilt2_mv = 1800,
 		.cfilt3_mv = 1800,
 		.bias1_cfilt_sel = TABLA_CFILT1_SEL,
 		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
@@ -1408,7 +1337,7 @@ static struct mdm_vddmin_resource mdm_vddmin_rscs = {
 
 static struct gpiomux_setting mdm2ap_status_gpio_run_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
+	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
 
@@ -1438,23 +1367,10 @@ static struct platform_device msm_tsens_device = {
 
 static struct msm_thermal_data msm_thermal_pdata = {
 	.sensor_id = 7,
-	.poll_ms = 1200,
-	.shutdown_temp = 90,
-
-	.allowed_max_high = 68,
-	.allowed_max_low = 56,
-	.allowed_max_freq = 918000,
-
-	.allowed_mid_high = 58,
-	.allowed_mid_low = 54,
-	.allowed_mid_freq = 1026000,
-
-	.allowed_low_high = 56,
-	.allowed_low_low = 50,
-	.allowed_low_freq = 1134000,
-
-	// Dynamic thermal control - By jollaman999
-	.dynamic_thermal_control = 1,
+	.poll_ms = 250,
+	.limit_temp_degC = 60,
+	.temp_hysteresis_degC = 10,
+	.freq_step = 2,
 };
 
 #define MSM_SHARED_RAM_PHYS 0x80000000
@@ -1518,13 +1434,6 @@ static struct msm_rpmrs_level msm_rpmrs_levels[] = {
 		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),
 		true,
 		1, 784, 180000, 100,
-	},
-
- 	{
-		MSM_PM_SLEEP_MODE_RETENTION,
-		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),
-		true,
-		415, 715, 340827, 475,
 	},
 
 	{
@@ -1619,11 +1528,6 @@ static uint8_t spm_power_collapse_without_rpm[] __initdata = {
 	0x24, 0x30, 0x0f,
 };
 
-static uint8_t spm_retention_cmd_sequence[] __initdata = {
-	0x00, 0x05, 0x03, 0x0D,
-	0x0B, 0x00, 0x0f,
-};
-
 static uint8_t spm_power_collapse_with_rpm[] __initdata = {
 	0x00, 0x24, 0x54, 0x10,
 	0x09, 0x07, 0x01, 0x0B,
@@ -1631,29 +1535,7 @@ static uint8_t spm_power_collapse_with_rpm[] __initdata = {
 	0x24, 0x30, 0x0f,
 };
 
-static struct msm_spm_seq_entry msm_spm_boot_cpu_seq_list[] __initdata = {
-	[0] = {
-		.mode = MSM_SPM_MODE_CLOCK_GATING,
-		.notify_rpm = false,
-		.cmd = spm_wfi_cmd_sequence,
-	},
-	[1] = {
-		.mode = MSM_SPM_MODE_POWER_RETENTION,
-		.notify_rpm = false,
-		.cmd = spm_retention_cmd_sequence,
-	},
-	[2] = {
-		.mode = MSM_SPM_MODE_POWER_COLLAPSE,
-		.notify_rpm = false,
-		.cmd = spm_power_collapse_without_rpm,
-	},
-	[3] = {
-		.mode = MSM_SPM_MODE_POWER_COLLAPSE,
-		.notify_rpm = true,
-		.cmd = spm_power_collapse_with_rpm,
-	},
-};
-static struct msm_spm_seq_entry msm_spm_nonboot_cpu_seq_list[] __initdata = {
+static struct msm_spm_seq_entry msm_spm_seq_list[] __initdata = {
 	[0] = {
 		.mode = MSM_SPM_MODE_CLOCK_GATING,
 		.notify_rpm = false,
@@ -1729,12 +1611,12 @@ static struct msm_spm_platform_data msm_spm_data[] __initdata = {
 		.reg_init_values[MSM_SPM_REG_SAW2_AVS_HYSTERESIS] = 0x00,
 #endif
 		.reg_init_values[MSM_SPM_REG_SAW2_SPM_CTL] = 0x01,
-		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DLY] = 0x03020004,
-		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_0] = 0x0084009C,
-		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_1] = 0x00A4001C,
+		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DLY] = 0x02020204,
+		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_0] = 0x0060009C,
+		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_1] = 0x0000001C,
 		.vctl_timeout_us = 50,
-		.num_modes = ARRAY_SIZE(msm_spm_boot_cpu_seq_list),
-		.modes = msm_spm_boot_cpu_seq_list,
+		.num_modes = ARRAY_SIZE(msm_spm_seq_list),
+		.modes = msm_spm_seq_list,
 	},
 	[1] = {
 		.reg_base_addr = MSM_SAW1_BASE,
@@ -1748,8 +1630,8 @@ static struct msm_spm_platform_data msm_spm_data[] __initdata = {
 		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_0] = 0x0060009C,
 		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_1] = 0x0000001C,
 		.vctl_timeout_us = 50,
-		.num_modes = ARRAY_SIZE(msm_spm_nonboot_cpu_seq_list),
-		.modes = msm_spm_nonboot_cpu_seq_list,
+		.num_modes = ARRAY_SIZE(msm_spm_seq_list),
+		.modes = msm_spm_seq_list,
 	},
 	[2] = {
 		.reg_base_addr = MSM_SAW2_BASE,
@@ -1763,8 +1645,8 @@ static struct msm_spm_platform_data msm_spm_data[] __initdata = {
 		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_0] = 0x0060009C,
 		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_1] = 0x0000001C,
 		.vctl_timeout_us = 50,
-		.num_modes = ARRAY_SIZE(msm_spm_nonboot_cpu_seq_list),
-		.modes = msm_spm_nonboot_cpu_seq_list,
+		.num_modes = ARRAY_SIZE(msm_spm_seq_list),
+		.modes = msm_spm_seq_list,
 	},
 	[3] = {
 		.reg_base_addr = MSM_SAW3_BASE,
@@ -1778,8 +1660,8 @@ static struct msm_spm_platform_data msm_spm_data[] __initdata = {
 		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_0] = 0x0060009C,
 		.reg_init_values[MSM_SPM_REG_SAW2_PMIC_DATA_1] = 0x0000001C,
 		.vctl_timeout_us = 50,
-		.num_modes = ARRAY_SIZE(msm_spm_nonboot_cpu_seq_list),
-		.modes = msm_spm_nonboot_cpu_seq_list,
+		.num_modes = ARRAY_SIZE(msm_spm_seq_list),
+		.modes = msm_spm_seq_list,
 	},
 };
 
@@ -1846,6 +1728,10 @@ static struct platform_device *common_devices[] __initdata = {
 	&apq8064_device_dmov,
 	&apq8064_device_ssbi_pmic2,
 	&apq8064_device_ext_dsv_load_vreg,
+#ifdef CONFIG_WIRELESS_CHARGER
+	&wireless_charger,
+#endif
+	&batt_temp_ctrl,
 	&msm_device_smd_apq8064,
 	&apq8064_device_otg,
 	&apq8064_device_gadget_peripheral,
@@ -1983,12 +1869,6 @@ static struct spi_board_info spi_board_info[] __initdata = {
 };
 
 static struct slim_boardinfo apq8064_slim_devices[] = {
-#ifndef CONFIG_MACH_LGE
-	{
-		.bus_num = 1,
-		.slim_slave = &apq8064_slim_tabla,
-	},
-#endif
 	{
 		.bus_num = 1,
 		.slim_slave = &apq8064_slim_tabla20,
@@ -2009,92 +1889,6 @@ static struct msm_i2c_platform_data apq8064_i2c_qup_gsbi3_pdata = {
 static struct msm_i2c_platform_data apq8064_i2c_qup_gsbi4_pdata = {
 	.clk_freq = 100000,
 	.src_clk_rate = 24000000,
-};
-
-static struct wcd9xxx_pdata apq8064_tabla_i2c_platform_data = {
-	.irq = MSM_GPIO_TO_INT(77),
-	.irq_base = TABLA_INTERRUPT_BASE,
-	.num_irqs = NR_WCD9XXX_IRQS,
-	.reset_gpio = PM8921_GPIO_PM_TO_SYS(34),
-	.micbias = {
-		.ldoh_v = TABLA_LDOH_2P85_V,
-		.cfilt1_mv = 1800,
-		.cfilt2_mv = 1800,
-		.cfilt3_mv = 1800,
-		.bias1_cfilt_sel = TABLA_CFILT1_SEL,
-		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
-		.bias3_cfilt_sel = TABLA_CFILT3_SEL,
-		.bias4_cfilt_sel = TABLA_CFILT3_SEL,
-	},
-	.regulator = {
-	{
-		.name = "CDC_VDD_CP",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_CDC_VDDA_CP_CUR_MAX,
-	},
-	{
-		.name = "CDC_VDDA_RX",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_CDC_VDDA_RX_CUR_MAX,
-	},
-	{
-		.name = "CDC_VDDA_TX",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_CDC_VDDA_TX_CUR_MAX,
-	},
-	{
-		.name = "VDDIO_CDC",
-		.min_uV = 1800000,
-		.max_uV = 1800000,
-		.optimum_uA = WCD9XXX_VDDIO_CDC_CUR_MAX,
-	},
-	{
-		.name = "VDDD_CDC_D",
-		.min_uV = 1225000,
-		.max_uV = 1250000,
-		.optimum_uA = WCD9XXX_VDDD_CDC_D_CUR_MAX,
-	},
-	{
-		.name = "CDC_VDDA_A_1P2V",
-		.min_uV = 1225000,
-		.max_uV = 1250000,
-		.optimum_uA = WCD9XXX_VDDD_CDC_A_CUR_MAX,
-	},
-	},
-};
-
-static struct i2c_board_info apq8064_tabla_i2c_device_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("tabla top level",
-				APQ_8064_TABLA_I2C_SLAVE_ADDR),
-		.platform_data = &apq8064_tabla_i2c_platform_data,
-	},
-	{
-		I2C_BOARD_INFO("tabla analog",
-				APQ_8064_TABLA_ANALOG_I2C_SLAVE_ADDR),
-		.platform_data = &apq8064_tabla_i2c_platform_data,
-	},
-	{
-		I2C_BOARD_INFO("tabla digital1",
-				APQ_8064_TABLA_DIGITAL1_I2C_SLAVE_ADDR),
-		.platform_data = &apq8064_tabla_i2c_platform_data,
-	},
-	{
-		I2C_BOARD_INFO("tabla digital2",
-				APQ_8064_TABLA_DIGITAL2_I2C_SLAVE_ADDR),
-		.platform_data = &apq8064_tabla_i2c_platform_data,
-	},
-};
-
-static struct i2c_registry apq8064_tabla_i2c_devices[] __initdata = {
-	{
-		.bus = APQ_8064_GSBI1_QUP_I2C_BUS_ID,
-		.info = apq8064_tabla_i2c_device_info,
-		.len = ARRAY_SIZE(apq8064_tabla_i2c_device_info),
-	},
 };
 
 static void __init apq8064_i2c_init(void)
@@ -2144,8 +1938,6 @@ static void __init apq8064_init_dsps(void)
 
 static void __init register_i2c_devices(void)
 {
-	int i;
-
 #ifdef CONFIG_MSM_CAMERA
 	struct i2c_registry apq8064_camera_i2c_devices = {
 		I2C_FFA,
@@ -2173,12 +1965,6 @@ static void __init register_i2c_devices(void)
 		apq8064_lge_camera_i2c_devices.info,
 		apq8064_lge_camera_i2c_devices.len);
 #endif
-	for (i = 0; i < ARRAY_SIZE(apq8064_tabla_i2c_devices);
-		 ++i)
-		i2c_register_board_info(
-		apq8064_tabla_i2c_devices[i].bus,
-		apq8064_tabla_i2c_devices[i].info,
-		apq8064_tabla_i2c_devices[i].len);
 }
 
 static void __init apq8064_common_init(void)
@@ -2240,7 +2026,6 @@ static void __init apq8064_common_init(void)
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
-	msm_pm_set_tz_retention_flag(1);
 }
 
 static void __init apq8064_allocate_memory_regions(void)
@@ -2293,12 +2078,7 @@ static void __init apq8064_mako_init(void)
 	lge_add_panic_handler_devices();
 	lge_add_backlight_devices();
 	lge_add_sound_devices();
-#ifdef CONFIG_BCM2079X
 	lge_add_bcm2079x_device();
-#endif
-#ifdef CONFIG_LGE_NFC
-	lge_add_nfc_devices();
-#endif
 #ifdef CONFIG_LGE_QFPROM_INTERFACE
 	lge_add_qfprom_devices();
 #endif

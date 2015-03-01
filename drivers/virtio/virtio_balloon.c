@@ -305,12 +305,6 @@ static int balloon(void *_vballoon)
 		else if (diff < 0)
 			leak_balloon(vb, -diff);
 		update_balloon_size(vb);
-
-		/*
-		 * For large balloon changes, we could spend a lot of time
-		 * and always have work to do.  Be nice if preempt disabled.
-		 */
-		cond_resched();
 	}
 	return 0;
 }
@@ -405,7 +399,7 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
 	kfree(vb);
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static int virtballoon_freeze(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
@@ -459,13 +453,24 @@ static struct virtio_driver virtio_balloon_driver = {
 	.probe =	virtballoon_probe,
 	.remove =	__devexit_p(virtballoon_remove),
 	.config_changed = virtballoon_changed,
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.freeze	=	virtballoon_freeze,
 	.restore =	virtballoon_restore,
 #endif
 };
 
-module_virtio_driver(virtio_balloon_driver);
+static int __init init(void)
+{
+	return register_virtio_driver(&virtio_balloon_driver);
+}
+
+static void __exit fini(void)
+{
+	unregister_virtio_driver(&virtio_balloon_driver);
+}
+module_init(init);
+module_exit(fini);
+
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio balloon driver");
 MODULE_LICENSE("GPL");

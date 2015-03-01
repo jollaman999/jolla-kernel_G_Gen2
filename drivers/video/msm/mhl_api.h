@@ -15,15 +15,11 @@
 #define __MHL_API_H__
 
 #ifdef CONFIG_FB_MSM_HDMI_MHL_8334
-bool mhl_is_enabled(void);
+bool mhl_is_connected(void);
 #else
-static bool mhl_is_enabled(void)
+static bool mhl_is_connected(void)
 {
-#ifdef CONFIG_MACH_LGE
-	return true;
-#else
 	return false;
-#endif
 }
 #endif
 

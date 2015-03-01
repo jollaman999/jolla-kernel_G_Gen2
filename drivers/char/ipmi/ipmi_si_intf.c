@@ -61,6 +61,7 @@
 #include <linux/ipmi_smi.h>
 #include <asm/io.h>
 #include "ipmi_si_sm.h"
+#include <linux/init.h>
 #include <linux/dmi.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -242,9 +243,6 @@ struct smi_info {
 
 	/* The timer for this si. */
 	struct timer_list   si_timer;
-
-	/* This flag is set, if the timer is running (timer_pending() isn't enough) */
-	bool		    timer_running;
 
 	/* The time (in jiffies) the last timeout occurred at. */
 	unsigned long       last_timeout_jiffies;
@@ -429,13 +427,6 @@ static void start_clear_flags(struct smi_info *smi_info)
 	smi_info->si_state = SI_CLEARING_FLAGS;
 }
 
-static void smi_mod_timer(struct smi_info *smi_info, unsigned long new_val)
-{
-	smi_info->last_timeout_jiffies = jiffies;
-	mod_timer(&smi_info->si_timer, new_val);
-	smi_info->timer_running = true;
-}
-
 /*
  * When we have a situtaion where we run out of memory and cannot
  * allocate messages, we just leave them in the BMC and run the system
@@ -448,7 +439,8 @@ static inline void disable_si_irq(struct smi_info *smi_info)
 		start_disable_irq(smi_info);
 		smi_info->interrupt_disabled = 1;
 		if (!atomic_read(&smi_info->stop_operation))
-			smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+			mod_timer(&smi_info->si_timer,
+				  jiffies + SI_TIMEOUT_JIFFIES);
 	}
 }
 
@@ -904,7 +896,15 @@ static void sender(void                *send_info,
 		list_add_tail(&msg->link, &smi_info->xmit_msgs);
 
 	if (smi_info->si_state == SI_NORMAL && smi_info->curr_msg == NULL) {
-		smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+		/*
+		 * last_timeout_jiffies is updated here to avoid
+		 * smi_timeout() handler passing very large time_diff
+		 * value to smi_event_handler() that causes
+		 * the send command to abort.
+		 */
+		smi_info->last_timeout_jiffies = jiffies;
+
+		mod_timer(&smi_info->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
 
 		if (smi_info->thread)
 			wake_up_process(smi_info->thread);
@@ -993,17 +993,6 @@ static int ipmi_thread(void *data)
 
 		spin_lock_irqsave(&(smi_info->si_lock), flags);
 		smi_result = smi_event_handler(smi_info, 0);
-
-		/*
-		 * If the driver is doing something, there is a possible
-		 * race with the timer.  If the timer handler see idle,
-		 * and the thread here sees something else, the timer
-		 * handler won't restart the timer even though it is
-		 * required.  So start it here if necessary.
-		 */
-		if (smi_result != SI_SM_IDLE && !smi_info->timer_running)
-			smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
-
 		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 		busy_wait = ipmi_thread_busy_wait(smi_result, smi_info,
 						  &busy_until);
@@ -1073,6 +1062,10 @@ static void smi_timeout(unsigned long data)
 		     * SI_USEC_PER_JIFFY);
 	smi_result = smi_event_handler(smi_info, time_diff);
 
+	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
+
+	smi_info->last_timeout_jiffies = jiffies_now;
+
 	if ((smi_info->irq) && (!smi_info->interrupt_disabled)) {
 		/* Running with interrupts, only do long timeouts. */
 		timeout = jiffies + SI_TIMEOUT_JIFFIES;
@@ -1094,10 +1087,7 @@ static void smi_timeout(unsigned long data)
 
  do_mod_timer:
 	if (smi_result != SI_SM_IDLE)
-		smi_mod_timer(smi_info, timeout);
-	else
-		smi_info->timer_running = false;
-	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
+		mod_timer(&(smi_info->si_timer), timeout);
 }
 
 static irqreturn_t si_irq_handler(int irq, void *data)
@@ -1145,7 +1135,8 @@ static int smi_start_processing(void       *send_info,
 
 	/* Set up the timer that drives the interface. */
 	setup_timer(&new_smi->si_timer, smi_timeout, (long)new_smi);
-	smi_mod_timer(new_smi, jiffies + SI_TIMEOUT_JIFFIES);
+	new_smi->last_timeout_jiffies = jiffies;
+	mod_timer(&new_smi->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
 
 	/*
 	 * Check if the user forcefully enabled the daemon.
@@ -2237,7 +2228,7 @@ err_free:
 	return -EINVAL;
 }
 
-static void ipmi_pnp_remove(struct pnp_dev *dev)
+static void __devexit ipmi_pnp_remove(struct pnp_dev *dev)
 {
 	struct smi_info *info = pnp_get_drvdata(dev);
 
@@ -2252,7 +2243,7 @@ static const struct pnp_device_id pnp_dev_table[] = {
 static struct pnp_driver ipmi_pnp_driver = {
 	.name		= DEVICE_NAME,
 	.probe		= ipmi_pnp_probe,
-	.remove		= ipmi_pnp_remove,
+	.remove		= __devexit_p(ipmi_pnp_remove),
 	.id_table	= pnp_dev_table,
 };
 #endif
@@ -2506,7 +2497,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static void ipmi_pci_remove(struct pci_dev *pdev)
+static void __devexit ipmi_pci_remove(struct pci_dev *pdev)
 {
 	struct smi_info *info = pci_get_drvdata(pdev);
 	cleanup_one_si(info);
@@ -2535,7 +2526,7 @@ static struct pci_driver ipmi_pci_driver = {
 	.name =         DEVICE_NAME,
 	.id_table =     ipmi_pci_devices,
 	.probe =        ipmi_pci_probe,
-	.remove =       ipmi_pci_remove,
+	.remove =       __devexit_p(ipmi_pci_remove),
 #ifdef CONFIG_PM
 	.suspend =      ipmi_pci_suspend,
 	.resume =       ipmi_pci_resume,
@@ -2628,7 +2619,7 @@ static int __devinit ipmi_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int ipmi_remove(struct platform_device *dev)
+static int __devexit ipmi_remove(struct platform_device *dev)
 {
 #ifdef CONFIG_OF
 	cleanup_one_si(dev_get_drvdata(&dev->dev));
@@ -2654,7 +2645,7 @@ static struct platform_driver ipmi_driver = {
 		.of_match_table = ipmi_match,
 	},
 	.probe		= ipmi_probe,
-	.remove		= ipmi_remove,
+	.remove		= __devexit_p(ipmi_remove),
 };
 
 static int wait_for_msg_done(struct smi_info *smi_info)
@@ -3040,7 +3031,7 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 	}
 }
 
-static struct ipmi_default_vals
+static __devinitdata struct ipmi_default_vals
 {
 	int type;
 	int port;

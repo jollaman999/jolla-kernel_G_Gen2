@@ -153,17 +153,30 @@ static int __exit tx4939_rng_remove(struct platform_device *dev)
 	struct tx4939_rng *rngdev = platform_get_drvdata(dev);
 
 	hwrng_unregister(&rngdev->rng);
+	platform_set_drvdata(dev, NULL);
 	return 0;
 }
 
 static struct platform_driver tx4939_rng_driver = {
 	.driver		= {
 		.name	= "tx4939-rng",
+		.owner	= THIS_MODULE,
 	},
 	.remove = tx4939_rng_remove,
 };
 
-module_platform_driver_probe(tx4939_rng_driver, tx4939_rng_probe);
+static int __init tx4939rng_init(void)
+{
+	return platform_driver_probe(&tx4939_rng_driver, tx4939_rng_probe);
+}
+
+static void __exit tx4939rng_exit(void)
+{
+	platform_driver_unregister(&tx4939_rng_driver);
+}
+
+module_init(tx4939rng_init);
+module_exit(tx4939rng_exit);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver for TX4939");
 MODULE_LICENSE("GPL");

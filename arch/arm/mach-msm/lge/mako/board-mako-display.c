@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/lm35xx_bl.h>
 #include <linux/bootmem.h>
-#include <linux/msm_ion.h>
+#include <linux/ion.h>
 #include <asm/mach-types.h>
 #include <mach/msm_memtypes.h>
 #include <mach/board.h>
@@ -247,9 +247,9 @@ static struct msm_bus_scale_pdata mdp_bus_scale_pdata = {
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = MDP_VSYNC_GPIO,
 	.mdp_max_clk = 266667000,
-	.mdp_max_bw = 2000000000,
-	.mdp_bw_ab_factor = 160,
-	.mdp_bw_ib_factor = 180,
+	.mdp_max_bw = 3000000000u,
+	.mdp_bw_ab_factor = 115,
+	.mdp_bw_ib_factor = 125,
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 	.mdp_rev = MDP_REV_44,
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -687,8 +687,6 @@ static int hdmi_gpio_config(int on)
 	int rc = 0;
 	static int prev_on;
 
-	pr_err("hdmi_gpio_config: enter with on=%d\n", on);
-
 	if (on == prev_on)
 		return 0;
 
@@ -711,14 +709,14 @@ static int hdmi_gpio_config(int on)
 				"HDMI_HPD", HDMI_HPD_GPIO, rc);
 			goto error3;
 		}
-		pr_info("%s(on): success\n", __func__);
+		pr_debug("%s(on): success\n", __func__);
 
 	} else {
 		gpio_free(HDMI_DDC_CLK_GPIO);
 		gpio_free(HDMI_DDC_DATA_GPIO);
 		gpio_free(HDMI_HPD_GPIO);
 
-		pr_info("%s(off): success\n", __func__);
+		pr_debug("%s(off): success\n", __func__);
 	}
 
 	prev_on = on;
@@ -758,20 +756,12 @@ static char panel_setting_2 [3] = {0xB3, 0x0A, 0x9F};
 static char display_mode1 [6] = {0xB5, 0x50, 0x20, 0x40, 0x00, 0x20};
 static char display_mode2 [8] = {0xB6, 0x00, 0x14, 0x0F, 0x16, 0x13, 0x05, 0x05};
 
-#define g_white       0x72
-#define g_mids        0x15
-#define g_black       0x76
-#define g_contrast    0x00
-#define g_brightness  0x00
-#define g_saturation  0x50
-#define g_greys       0x30
-
-static char p_gamma_r_setting[10] = {0xD0, g_white, g_mids, g_black, 0x00, g_contrast, g_brightness, g_saturation, g_greys, 0x02};
-static char n_gamma_r_setting[10] = {0xD1, g_white, g_mids, g_black, 0x00, g_contrast, g_brightness, g_saturation, g_greys, 0x02};
-static char p_gamma_g_setting[10] = {0xD2, g_white, g_mids, g_black, 0x00, g_contrast, g_brightness, g_saturation, g_greys, 0x02};
-static char n_gamma_g_setting[10] = {0xD3, g_white, g_mids, g_black, 0x00, g_contrast, g_brightness, g_saturation, g_greys, 0x02};
-static char p_gamma_b_setting[10] = {0xD4, g_white, g_mids, g_black, 0x00, g_contrast, g_brightness, g_saturation, g_greys, 0x02};
-static char n_gamma_b_setting[10] = {0xD5, g_white, g_mids, g_black, 0x00, g_contrast, g_brightness, g_saturation, g_greys, 0x02};
+static char p_gamma_r_setting[10] = {0xD0, 0x40, 0x44, 0x76, 0x01, 0x00, 0x00, 0x30, 0x20, 0x01};
+static char n_gamma_r_setting[10] = {0xD1, 0x40, 0x44, 0x76, 0x01, 0x00, 0x00, 0x30, 0x20, 0x01};
+static char p_gamma_g_setting[10] = {0xD2, 0x40, 0x44, 0x76, 0x01, 0x00, 0x00, 0x30, 0x20, 0x01};
+static char n_gamma_g_setting[10] = {0xD3, 0x40, 0x44, 0x76, 0x01, 0x00, 0x00, 0x30, 0x20, 0x01};
+static char p_gamma_b_setting[10] = {0xD4, 0x20, 0x23, 0x74, 0x00, 0x1F, 0x10, 0x50, 0x33, 0x03};
+static char n_gamma_b_setting[10] = {0xD5, 0x20, 0x23, 0x74, 0x00, 0x1F, 0x10, 0x50, 0x33, 0x03};
 
 static char ief_on_set0[2] = {0xE0, 0x00};
 static char ief_on_set4[4] = {0xE4, 0x00, 0x00, 0x00};
@@ -779,8 +769,8 @@ static char ief_on_set5[4] = {0xE5, 0x00, 0x00, 0x00};
 static char ief_on_set6[4] = {0xE6, 0x00, 0x00, 0x00};
 
 static char ief_set1[5] = {0xE1, 0x00, 0x00, 0x01, 0x01};
-static char ief_set2[3] = {0xE2, 0x01, 0x0F};
-static char ief_set3[6] = {0xE3, 0x00, 0x00, 0x31, 0x35, 0x00};
+static char ief_set2[3] = {0xE2, 0x01, 0x00};
+static char ief_set3[6] = {0xE3, 0x00, 0x00, 0x42, 0x35, 0x00};
 static char ief_set7[9] = {0xE7, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
 static char ief_set8[9] = {0xE8, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D, 0x3D};
 static char ief_set9[9] = {0xE9, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B};
@@ -790,7 +780,7 @@ static char ief_setC[9] = {0xEC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 
 static char osc_setting[4] =     {0xC0, 0x00, 0x0A, 0x10};
 static char power_setting3[13] = {0xC3, 0x00, 0x88, 0x03, 0x20, 0x01, 0x57, 0x4F, 0x33,0x02,0x38,0x38,0x00};
-static char power_setting4[6] =  {0xC4, 0x22, 0x24, 0x11, 0x11, 0x3D};
+static char power_setting4[6] =  {0xC4, 0x31, 0x24, 0x11, 0x11, 0x3D};
 static char power_setting5[4] =  {0xC5, 0x3B, 0x3B, 0x03};
 
 #ifdef CONFIG_LGIT_VIDEO_WXGA_CABC
@@ -966,7 +956,7 @@ static struct backlight_platform_data lm3530_data = {
 #endif
 	.min_brightness = 0x02,
 	.max_brightness = 0x72,
-	.default_brightness = 0x65,
+	.default_brightness = 0x11,
 	.blmap = NULL,
 	.blmap_size = 0,
 };

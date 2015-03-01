@@ -518,7 +518,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 {
 	struct virtnet_info *vi = container_of(napi, struct virtnet_info, napi);
 	void *buf;
-	unsigned int r, len, received = 0;
+	unsigned int len, received = 0;
 
 again:
 	while (received < budget &&
@@ -535,9 +535,8 @@ again:
 
 	/* Out of packets? */
 	if (received < budget) {
-		r = virtqueue_enable_cb_prepare(vi->rvq);
 		napi_complete(napi);
-		if (unlikely(virtqueue_poll(vi->rvq, r)) &&
+		if (unlikely(!virtqueue_enable_cb(vi->rvq)) &&
 		    napi_schedule_prep(napi)) {
 			virtqueue_disable_cb(vi->rvq);
 			__napi_schedule(napi);
@@ -1084,8 +1083,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* If we can receive ANY GSO packets, we must allocate large ones. */
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4) ||
 	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6) ||
-	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ECN) ||
-	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_UFO))
+	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ECN))
 		vi->big_packets = true;
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_MRG_RXBUF))
@@ -1181,7 +1179,7 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 	free_netdev(vi->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static int virtnet_freeze(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
@@ -1247,13 +1245,23 @@ static struct virtio_driver virtio_net_driver = {
 	.probe =	virtnet_probe,
 	.remove =	__devexit_p(virtnet_remove),
 	.config_changed = virtnet_config_changed,
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.freeze =	virtnet_freeze,
 	.restore =	virtnet_restore,
 #endif
 };
 
-module_virtio_driver(virtio_net_driver);
+static int __init init(void)
+{
+	return register_virtio_driver(&virtio_net_driver);
+}
+
+static void __exit fini(void)
+{
+	unregister_virtio_driver(&virtio_net_driver);
+}
+module_init(init);
+module_exit(fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio network driver");

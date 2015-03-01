@@ -3061,6 +3061,9 @@ typedef struct
   /*Self Station MAC address*/
   wpt_macAddr selfMacAddr;
 
+  /*Self STA device mode*/
+  wpt_uint32 currDeviceMode;
+
   /*Status of the operation*/
   wpt_uint32  uStatus;
 }WDI_AddSTASelfInfoType;
@@ -4589,6 +4592,9 @@ typedef struct
 
   /* Beacon Early Termination Interval */
   wpt_uint32 uBETInterval; 
+
+  /* MAX LI for modulated DTIM */
+  wpt_uint32 uMaxLIModulatedDTIM;
 
 } WDI_SetPowerParamsInfo;
 

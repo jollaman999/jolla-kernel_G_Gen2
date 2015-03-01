@@ -731,8 +731,8 @@ static const struct intel_agp_driver_description {
 	{ 0, NULL, NULL }
 };
 
-static int agp_intel_probe(struct pci_dev *pdev,
-			   const struct pci_device_id *ent)
+static int __devinit agp_intel_probe(struct pci_dev *pdev,
+				     const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr = 0;
@@ -818,7 +818,7 @@ found_gmch:
 	return err;
 }
 
-static void agp_intel_remove(struct pci_dev *pdev)
+static void __devexit agp_intel_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 
@@ -898,7 +898,6 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_B43_HB),
 	ID(PCI_DEVICE_ID_INTEL_B43_1_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB),
-	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_D2_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB),
@@ -917,7 +916,7 @@ static struct pci_driver agp_intel_pci_driver = {
 	.name		= "agpgart-intel",
 	.id_table	= agp_intel_pci_table,
 	.probe		= agp_intel_probe,
-	.remove		= agp_intel_remove,
+	.remove		= __devexit_p(agp_intel_remove),
 #ifdef CONFIG_PM
 	.resume		= agp_intel_resume,
 #endif

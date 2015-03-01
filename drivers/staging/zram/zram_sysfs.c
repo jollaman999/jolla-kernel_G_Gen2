@@ -68,12 +68,7 @@ static ssize_t disksize_store(struct device *dev,
 		pr_info("Cannot change disksize for initialized device\n");
 		return -EBUSY;
 	}
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-        if (!disksize) {
-                disksize = default_disksize_perc_ram *
-                                        ((totalram_pages << PAGE_SHIFT) / 100);
-        }
-#endif
+
 	zram->disksize = PAGE_ALIGN(disksize);
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 	up_write(&zram->init_lock);
@@ -100,9 +95,6 @@ static ssize_t reset_store(struct device *dev,
 	zram = dev_to_zram(dev);
 	bdev = bdget_disk(zram->disk, 0);
 
-	if (!bdev)
-		return -ENOMEM;
-
 	/* Do not reset an active device! */
 	if (bdev->bd_holders)
 		return -EBUSY;
@@ -115,7 +107,8 @@ static ssize_t reset_store(struct device *dev,
 		return -EINVAL;
 
 	/* Make sure all pending I/O is finished */
-	fsync_bdev(bdev);
+	if (bdev)
+		fsync_bdev(bdev);
 
 	down_write(&zram->init_lock);
 	if (zram->init_done)

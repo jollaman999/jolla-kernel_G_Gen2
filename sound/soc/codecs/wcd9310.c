@@ -42,13 +42,6 @@ static int cfilt_adjust_ms = 10;
 module_param(cfilt_adjust_ms, int, 0644);
 MODULE_PARM_DESC(cfilt_adjust_ms, "delay after adjusting cfilt voltage in ms");
 
-// intelli_plug: Force intelli_plug working when playing music while screen off
-// - jollaman999 -
-#ifdef CONFIG_INTELLI_PLUG
-bool wcd9310_is_playing;
-EXPORT_SYMBOL(wcd9310_is_playing);
-#endif
-
 #define WCD9310_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000)
@@ -451,7 +444,6 @@ static unsigned short tx_digital_gain_reg[] = {
 	TABLA_A_CDC_TX10_VOL_CTL_GAIN,
 };
 
-struct snd_soc_codec *snd_codec = NULL;
 static int tabla_codec_enable_charge_pump(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -1087,39 +1079,39 @@ static const struct snd_kcontrol_new tabla_snd_controls[] = {
 		line_gain),
 
 	SOC_SINGLE_S8_TLV("RX1 Digital Volume", TABLA_A_CDC_RX1_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX2 Digital Volume", TABLA_A_CDC_RX2_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX3 Digital Volume", TABLA_A_CDC_RX3_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX4 Digital Volume", TABLA_A_CDC_RX4_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX5 Digital Volume", TABLA_A_CDC_RX5_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX6 Digital Volume", TABLA_A_CDC_RX6_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX7 Digital Volume", TABLA_A_CDC_RX7_VOL_CTL_B2_CTL,
-		-60, 40, digital_gain),
+		-84, 40, digital_gain),
 
-	SOC_SINGLE_S8_TLV("DEC1 Volume", TABLA_A_CDC_TX1_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC1 Volume", TABLA_A_CDC_TX1_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC2 Volume", TABLA_A_CDC_TX2_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC2 Volume", TABLA_A_CDC_TX2_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC3 Volume", TABLA_A_CDC_TX3_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC3 Volume", TABLA_A_CDC_TX3_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC4 Volume", TABLA_A_CDC_TX4_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC4 Volume", TABLA_A_CDC_TX4_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC5 Volume", TABLA_A_CDC_TX5_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC5 Volume", TABLA_A_CDC_TX5_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC6 Volume", TABLA_A_CDC_TX6_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC6 Volume", TABLA_A_CDC_TX6_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC7 Volume", TABLA_A_CDC_TX7_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC7 Volume", TABLA_A_CDC_TX7_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC8 Volume", TABLA_A_CDC_TX8_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC8 Volume", TABLA_A_CDC_TX8_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC9 Volume", TABLA_A_CDC_TX9_VOL_CTL_GAIN, -81, 40,
+	SOC_SINGLE_S8_TLV("DEC9 Volume", TABLA_A_CDC_TX9_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
-	SOC_SINGLE_S8_TLV("DEC10 Volume", TABLA_A_CDC_TX10_VOL_CTL_GAIN, -81,
+	SOC_SINGLE_S8_TLV("DEC10 Volume", TABLA_A_CDC_TX10_VOL_CTL_GAIN, -84,
 		40, digital_gain),
 	SOC_SINGLE_S8_TLV("IIR1 INP1 Volume", TABLA_A_CDC_IIR1_GAIN_B1_CTL, -84,
 		40, digital_gain),
@@ -3844,7 +3836,6 @@ static int tabla_readable(struct snd_soc_codec *ssc, unsigned int reg)
 
 	return tabla_reg_readable[reg];
 }
-
 static bool tabla_is_digital_gain_register(unsigned int reg)
 {
 	bool rtn = false;
@@ -3911,18 +3902,24 @@ static int tabla_volatile(struct snd_soc_codec *ssc, unsigned int reg)
 
 	return 0;
 }
+
 #define TABLA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
+static int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int value)
+{
+	int ret;
+	BUG_ON(reg > TABLA_MAX_REGISTER);
 
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-extern int snd_hax_reg_access(unsigned int);
-extern unsigned int snd_hax_cache_read(unsigned int);
-extern void snd_hax_cache_write(unsigned int, unsigned int);
-#endif
+	if (!tabla_volatile(codec, reg)) {
+		ret = snd_soc_cache_write(codec, reg, value);
+		if (ret != 0)
+			dev_err(codec->dev, "Cache write to %x failed: %d\n",
+				reg, ret);
+	}
 
-#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
-static
-#endif
-unsigned int tabla_read(struct snd_soc_codec *codec,
+	return wcd9xxx_reg_write(codec->control_data, reg, value);
+}
+static unsigned int tabla_read(struct snd_soc_codec *codec,
 				unsigned int reg)
 {
 	unsigned int val;
@@ -3943,46 +3940,6 @@ unsigned int tabla_read(struct snd_soc_codec *codec,
 	val = wcd9xxx_reg_read(codec->control_data, reg);
 	return val;
 }
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-EXPORT_SYMBOL(tabla_read);
-#endif
-
-#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
-static
-#endif
-int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	int ret;
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-	int val;
-#endif
-
-	BUG_ON(reg > TABLA_MAX_REGISTER);
-
-	if (!tabla_volatile(codec, reg)) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret != 0)
-			dev_err(codec->dev, "Cache write to %x failed: %d\n",
-				reg, ret);
-	}
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-	if (!snd_hax_reg_access(reg)) {
-		if (!((val = snd_hax_cache_read(reg)) != -1)) {
-			val = wcd9xxx_reg_read_safe(codec->control_data, reg);
-		}
-	} else {
-		snd_hax_cache_write(reg, value);
-		val = value;
-	}
-	return wcd9xxx_reg_write(codec->control_data, reg, val);
-#else
-	return wcd9xxx_reg_write(codec->control_data, reg, value);
-#endif
-}
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-EXPORT_SYMBOL(tabla_write);
-#endif
 
 static s16 tabla_get_current_v_ins(struct tabla_priv *tabla, bool hu)
 {
@@ -4064,85 +4021,6 @@ static void tabla_codec_calibrate_hs_polling(struct snd_soc_codec *codec)
 		      n_cic[tabla_codec_mclk_index(tabla)]);
 }
 
-#ifdef CONFIG_LGE_AUX_NOISE
-/*
- * 2012-07-20, bob.cho@lge.com
- * this API control HPH PAs to remove aux noise
- */
- static int is_force_enable_pin = 0;
- void tabla_codec_hph_pa_ctl(int state)
-{
-	static int headphone_inuse = 0;
-	static int usbcharge_state = 0;
-	struct snd_soc_codec *codec = NULL;
-	if (snd_codec == NULL) {
-		pr_err("%s, Failed to init tabla codec\n", __func__);
-		return;
-	}
-
-	codec = snd_codec;
-	pr_debug("%s, enable : %d\n", __func__ , state);
-
-	switch (state)
-	{
-		case TABLA_EVENT_CHARGER_CONNECT :
-			if (headphone_inuse && !is_force_enable_pin) {
-				mutex_lock(&codec->mutex);
-				snd_soc_dapm_force_enable_pin(&codec->dapm, "HPHL");
-				snd_soc_dapm_force_enable_pin(&codec->dapm, "HPHR");
-				snd_soc_dapm_force_enable_pin(&codec->dapm, "CP");
-				snd_soc_dapm_sync(&codec->dapm);
-				is_force_enable_pin = 1;
-				mutex_unlock(&codec->mutex);
-				pr_debug("%s, hph pa is force enable \n", __func__ );
-			}
-			usbcharge_state = 1;
-			break;
-		case TABLA_EVENT_CHARGER_DISCONNECT :
-			if (is_force_enable_pin) {
-				mutex_lock(&codec->mutex);
-				snd_soc_dapm_disable_pin(&codec->dapm, "HPHL");
-				snd_soc_dapm_disable_pin(&codec->dapm, "HPHR");
-				snd_soc_dapm_disable_pin(&codec->dapm, "CP");
-				snd_soc_dapm_sync(&codec->dapm);
-				is_force_enable_pin = 0;
-				mutex_unlock(&codec->mutex);
-				pr_debug("%s, hph pa is disable \n", __func__ );
-			}
-			usbcharge_state = 0;
-			break;
-		case TABLA_EVENT_HEADSET_INSERT :
-			if (usbcharge_state && !is_force_enable_pin) {
-				mutex_lock(&codec->mutex);
-				snd_soc_dapm_force_enable_pin(&codec->dapm, "HPHL");
-				snd_soc_dapm_force_enable_pin(&codec->dapm, "HPHR");
-				snd_soc_dapm_force_enable_pin(&codec->dapm, "CP");
-				snd_soc_dapm_sync(&codec->dapm);
-				is_force_enable_pin = 1;
-				mutex_unlock(&codec->mutex);
-				pr_debug("%s, hph pa is force enable \n", __func__ );
-			}
-			headphone_inuse = 1;
-			break;
-		case TABLA_EVENT_HEADSET_REMOVAL :
-			if (is_force_enable_pin) {
-				mutex_lock(&codec->mutex);
-				snd_soc_dapm_disable_pin(&codec->dapm, "HPHL");
-				snd_soc_dapm_disable_pin(&codec->dapm, "HPHR");
-				snd_soc_dapm_disable_pin(&codec->dapm, "CP");
-				snd_soc_dapm_sync(&codec->dapm);
-				is_force_enable_pin = 0;
-				mutex_unlock(&codec->mutex);
-				pr_debug("%s, hph pa is disable \n", __func__ );
-			}
-			headphone_inuse = 0;
-			break;
-	}
-}
-
-EXPORT_SYMBOL_GPL(tabla_codec_hph_pa_ctl);
-#endif /*CONFIG_LGE_AUX_NOISE*/
-
 static int tabla_startup(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -4153,26 +4031,6 @@ static int tabla_startup(struct snd_pcm_substream *substream,
 	    (tabla_core->dev != NULL) &&
 	    (tabla_core->dev->parent != NULL))
 		pm_runtime_get_sync(tabla_core->dev->parent);
-
-#ifdef CONFIG_LGE_AUX_NOISE
-	/*
-	 * 2012-07-20, bob.cho@lge.com
-	 * when playback is start, revert force enable of HPH PAs.
-	 */
-	if(is_force_enable_pin && snd_codec) {
-		snd_soc_dapm_disable_pin(&snd_codec->dapm, "HPHL");
-		snd_soc_dapm_disable_pin(&snd_codec->dapm, "HPHR");
-		snd_soc_dapm_disable_pin(&snd_codec->dapm, "CP");
-		snd_soc_update_bits(snd_codec, TABLA_A_RX_HPH_CNP_EN, 0x80, 0x80);
-		snd_soc_update_bits(snd_codec, TABLA_A_CP_EN, 0x01 , 0x00);
-	}
-#endif /*CONFIG_LGE_AUX_NOISE*/
-
-	// intelli_plug: Force intelli_plug working when playing music while screen off
-	// - jollaman999 -
-#ifdef CONFIG_INTELLI_PLUG
-	wcd9310_is_playing = true;
-#endif
 
 	return 0;
 }
@@ -4204,27 +4062,6 @@ static void tabla_shutdown(struct snd_pcm_substream *substream,
 		pm_runtime_mark_last_busy(tabla_core->dev->parent);
 		pm_runtime_put(tabla_core->dev->parent);
 	}
-
-#ifdef CONFIG_LGE_AUX_NOISE
-	/*
-	 * 2012-07-20, bob.cho@lge.com
-	 * when playback is end, start force enable of HPH PAs.
-	 */
-	if(is_force_enable_pin && snd_codec) {
-		snd_soc_update_bits(snd_codec, TABLA_A_RX_HPH_CNP_EN, 0xB0, 0xB0);
-		snd_soc_update_bits(snd_codec, TABLA_A_CP_EN, 0x01 , 0x01);
-		snd_soc_dapm_force_enable_pin(&snd_codec->dapm, "HPHL");
-		snd_soc_dapm_force_enable_pin(&snd_codec->dapm, "HPHR");
-		snd_soc_dapm_force_enable_pin(&snd_codec->dapm, "CP");
-	}
-#endif /*CONFIG_LGE_AUX_NOISE*/
-
-	// intelli_plug: Force intelli_plug working when playing music while screen off
-	// - jollaman999 -
-#ifdef CONFIG_INTELLI_PLUG
-	wcd9310_is_playing = false;
-#endif
-
 }
 
 int tabla_mclk_enable(struct snd_soc_codec *codec, int mclk_enable, bool dapm)
@@ -8410,36 +8247,6 @@ static void tabla_update_reg_address(struct tabla_priv *priv)
 	}
 }
 
-#ifdef CONFIG_SWITCH_FSA8008
-/*
-* 2012-02-06, mint.choi@lge.com
-* Enable/disable fsa8008 mic bias when inserting and removing
-* this API called by fsa8008 driver
-*/
-
-void tabla_codec_micbias2_ctl(int enable)
-{
-	struct snd_soc_codec *codec = NULL;
-
-	if (snd_codec == NULL) {
-		pr_err("%s, Failed to init tabla codec\n", __func__);
-		return;
-	}
-
-	codec = snd_codec;
-	pr_info("%s, enable : %d\n", __func__ , enable);
-
-	if(enable){
-        snd_soc_dapm_force_enable_pin(&codec->dapm, "MIC BIAS2 External");
-        snd_soc_dapm_sync(&codec->dapm);
-	} else {
-		snd_soc_dapm_disable_pin(&codec->dapm, "MIC BIAS2 External");
-        snd_soc_dapm_sync(&codec->dapm);
-	}
-}
-EXPORT_SYMBOL_GPL(tabla_codec_micbias2_ctl);
-#endif /* CONFIG_SWITCH_FSA8008 */
-
 #ifdef CONFIG_DEBUG_FS
 static int codec_debug_open(struct inode *inode, struct file *file)
 {
@@ -8554,15 +8361,6 @@ static const struct file_operations codec_mbhc_debug_ops = {
 };
 #endif
 
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-struct snd_kcontrol_new *gpl_faux_snd_controls_ptr =
-		(struct snd_kcontrol_new *)tabla_snd_controls;
-struct snd_soc_codec *fauxsound_codec_ptr;
-EXPORT_SYMBOL(fauxsound_codec_ptr);
-int wcd9xxx_hw_revision;
-EXPORT_SYMBOL(wcd9xxx_hw_revision);
-#endif
-
 static int tabla_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wcd9xxx *control;
@@ -8572,22 +8370,10 @@ static int tabla_codec_probe(struct snd_soc_codec *codec)
 	int i;
 	int ch_cnt;
 
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-	pr_info("tabla codec probe...\n");
-	fauxsound_codec_ptr = codec;
-#endif
-
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
 	control = codec->control_data;
 
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-	if (TABLA_IS_2_0(control->version))
-		wcd9xxx_hw_revision = 1;
-	else
-		wcd9xxx_hw_revision = 2;
-#endif
 	tabla = kzalloc(sizeof(struct tabla_priv), GFP_KERNEL);
-
 	if (!tabla) {
 		dev_err(codec->dev, "Failed to allocate private data\n");
 		return -ENOMEM;
@@ -8806,7 +8592,6 @@ static int tabla_codec_probe(struct snd_soc_codec *codec)
 					NULL, tabla, &codec_mbhc_debug_ops);
 	}
 #endif
-	snd_codec = codec;
 	codec->ignore_pmdown_time = 1;
 	return ret;
 

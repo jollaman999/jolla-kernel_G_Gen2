@@ -236,10 +236,6 @@ static void default_idle(void)
 void (*pm_idle)(void) = default_idle;
 EXPORT_SYMBOL(pm_idle);
 
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-extern void could_cswap(void);
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
-
 /*
  * The idle thread, has rather strange semantics for calling pm_idle,
  * but this is what x86 does and we need to do the same, so that
@@ -256,10 +252,6 @@ void cpu_idle(void)
 		tick_nohz_idle_enter();
 		rcu_idle_enter();
 		while (!need_resched()) {
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-			could_cswap();
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
-
 #ifdef CONFIG_HOTPLUG_CPU
 			if (cpu_is_offline(smp_processor_id()))
 				cpu_die();
@@ -326,7 +318,6 @@ void machine_shutdown(void)
 void machine_halt(void)
 {
 	machine_shutdown();
-	local_irq_disable();
 	while (1);
 }
 
@@ -352,7 +343,6 @@ void machine_restart(char *cmd)
 
 	/* Whoops - the platform was unable to reboot. Tell the user! */
 	printk("Reboot failed -- System halted\n");
-	local_irq_disable();
 	while (1);
 }
 
@@ -659,7 +649,6 @@ EXPORT_SYMBOL(kernel_thread);
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct stackframe frame;
-	unsigned long stack_page;
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
@@ -668,11 +657,9 @@ unsigned long get_wchan(struct task_struct *p)
 	frame.sp = thread_saved_sp(p);
 	frame.lr = 0;			/* recovered from the stack */
 	frame.pc = thread_saved_pc(p);
-	stack_page = (unsigned long)task_stack_page(p);
 	do {
-		if (frame.sp < stack_page ||
-		    frame.sp >= stack_page + THREAD_SIZE ||
-		    unwind_frame(&frame) < 0)
+		int ret = unwind_frame(&frame);
+		if (ret < 0)
 			return 0;
 		if (!in_sched_functions(frame.pc))
 			return frame.pc;

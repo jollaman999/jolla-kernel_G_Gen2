@@ -30,7 +30,7 @@ VREG_CONSUMERS(L2) = {
 	REGULATOR_SUPPLY("8921_l2",		NULL),
 	REGULATOR_SUPPLY("dsi_vdda",		"mipi_dsi.1"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.0"),
-	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.1"),
+	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.1"), 
 };
 VREG_CONSUMERS(L3) = {
 	REGULATOR_SUPPLY("8921_l3",		NULL),
@@ -49,11 +49,7 @@ VREG_CONSUMERS(L5) = {
 };
 VREG_CONSUMERS(L6) = {
 	REGULATOR_SUPPLY("8921_l6",		NULL),
-#if defined(CONFIG_MMC_MSM_SDC3_SUPPORT)
-	REGULATOR_SUPPLY("sdc_vdd",		"msm_sdcc.3"),
-#else
 	REGULATOR_SUPPLY("earjack_debug",		NULL),
-#endif
 };
 VREG_CONSUMERS(L7) = {
 	REGULATOR_SUPPLY("8921_l7",		NULL),
@@ -87,10 +83,6 @@ VREG_CONSUMERS(L12) = {
 	REGULATOR_SUPPLY("cam2_vdig",		"4-006e"), /* GSBI4, Slave Addr: 0x6e, imx119 */
 	REGULATOR_SUPPLY("8921_l12",		NULL),
 };
-VREG_CONSUMERS(L13) = {
-	REGULATOR_SUPPLY("8921_l13",            NULL),
-	REGULATOR_SUPPLY("apq_therm",           "pm8xxx-adc"),
-};
 VREG_CONSUMERS(L14) = {
 	REGULATOR_SUPPLY("8921_l14",		NULL),
 	REGULATOR_SUPPLY("pa_therm",		"pm8xxx-adc"),
@@ -106,6 +98,7 @@ VREG_CONSUMERS(L16) = {
 	REGULATOR_SUPPLY("cam_vaf",		"4-006c"),
 	REGULATOR_SUPPLY("cam_vaf",		"4-0034"),
 	REGULATOR_SUPPLY("cam_vaf",		"4-0020"),
+	REGULATOR_SUPPLY("vibrator",		NULL),
 };
 VREG_CONSUMERS(L17) = {
 	REGULATOR_SUPPLY("8921_l17",		NULL),
@@ -115,9 +108,7 @@ VREG_CONSUMERS(L17) = {
 };
 VREG_CONSUMERS(L18) = {
 	REGULATOR_SUPPLY("8921_l18",		NULL),
-#ifdef CONFIG_SLIMPORT_ANX7808
 	REGULATOR_SUPPLY("slimport_dvdd",		NULL),
-#endif
 };
 
 /* Power setting for 13M AF */
@@ -217,9 +208,15 @@ VREG_CONSUMERS(S6) = {
 VREG_CONSUMERS(S7) = {
 	REGULATOR_SUPPLY("8921_s7",		NULL),
 };
+#if defined(CONFIG_IMX091)
 VREG_CONSUMERS(S8) = {
 	REGULATOR_SUPPLY("8921_s8",		NULL),
 };
+#else
+VREG_CONSUMERS(S8) = {
+	REGULATOR_SUPPLY("8921_s8",		NULL),
+};
+#endif
 VREG_CONSUMERS(LVS1) = {
 	REGULATOR_SUPPLY("8921_lvs1",		NULL),
 	REGULATOR_SUPPLY("iris_vddio",		"wcnss_wlan.0"),
@@ -537,23 +534,18 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L3,  0, 1, 0, 3075000, 3500000, NULL,          0,     0),
 	RPM_LDO(L4,  1, 1, 0, 1800000, 1800000, NULL,          0, 10000),
 	RPM_LDO(L5,  0, 1, 0, 2950000, 2950000, NULL,          0,     0),
-	RPM_LDO(L6,  0, 1, 0, 2950000, 2950000, NULL,          0,     0),
+	RPM_LDO(L6,  0, 1, 0, 3000000, 3000000, NULL,          0,     0),
 	RPM_LDO(L7,  0, 1, 0, 1850000, 2950000, NULL,          0,     0),
 	RPM_LDO(L8,  0, 1, 0, 2800000, 3000000, NULL,          0,     0),
 	RPM_LDO(L9,  0, 1, 0, 3000000, 3000000, NULL,          0,     0),
 	RPM_LDO(L10, 0, 1, 0, 2900000, 2900000, NULL,          0,     0),
 	RPM_LDO(L11, 0, 1, 0, 2850000, 2850000, NULL,          0,     0),
 	RPM_LDO(L12, 0, 1, 0, 1200000, 1200000, "8921_s4",     0,     0),
-	RPM_LDO(L13, 0, 0, 0, 2220000, 2220000, NULL,          0,     0),
 	RPM_LDO(L14, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
 	RPM_LDO(L15, 0, 1, 0, 3300000, 3300000, NULL,          0,    19),
 	RPM_LDO(L16, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
 	RPM_LDO(L17, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
-#ifdef CONFIG_SLIMPORT_ANX7808
 	RPM_LDO(L18, 0, 1, 0, 1100000, 1100000, NULL,          0,     0),
-#elif CONFIG_SII8334_MHL_TX
-	RPM_LDO(L18, 0, 1, 0, 1100000, 1300000, NULL,          0,     0),
-#endif
 #if defined(CONFIG_IMX091)
 	RPM_LDO(L21, 0, 1, 0, 1800000, 1800000, "8921_s8",     0,     0),
 #else
@@ -565,14 +557,8 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L25, 1, 1, 0, 1250000, 1250000, "8921_s1", 10000, 10000),
 	RPM_LDO(L27, 0, 0, 0, 1100000, 1100000, "8921_s7",     0,     0),
 	RPM_LDO(L28, 0, 1, 0, 1050000, 1050000, "8921_s7",     0,     0),
-/* LGE_CHANGE_S sungwoo.cho@lge.com
- * It is setting for HEADSET MICBIAS that is always on */
- //[LGE] seungkyu.joo, 2012-12-18 , HW Request for enabling apple headset mic
-#ifdef CONFIG_MACH_APQ8064_J1A
-	RPM_LDO(L29, 0, 1, 1, 2700000, 2700000, NULL,          0,     0), //8921_l29
-#else
 	RPM_LDO(L29, 0, 1, 0, 2500000, 2500000, NULL,          0,     0),
-#endif
+
 	/*     ID  a_on pd ss                   supply */
 	RPM_VS(LVS1, 0, 1, 0,                   "8921_s4"),
 	RPM_VS(LVS2, 0, 1, 0,                   "8921_s1"),

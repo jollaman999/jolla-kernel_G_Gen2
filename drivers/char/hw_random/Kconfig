@@ -62,7 +62,7 @@ config HW_RANDOM_AMD
 
 config HW_RANDOM_ATMEL
 	tristate "Atmel Random Number Generator support"
-	depends on HW_RANDOM && HAVE_CLK
+	depends on HW_RANDOM && ARCH_AT91SAM9G45
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -72,20 +72,6 @@ config HW_RANDOM_ATMEL
 	  module will be called atmel-rng.
 
 	  If unsure, say Y.
-
-config HW_RANDOM_BCM63XX
-	tristate "Broadcom BCM63xx Random Number Generator support"
-	depends on HW_RANDOM && BCM63XX
-	default HW_RANDOM
-	---help---
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on the Broadcom BCM63xx SoCs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bcm63xx-rng
-
-	  If unusure, say Y.
-
 
 config HW_RANDOM_GEODE
 	tristate "AMD Geode HW Random Number Generator support"
@@ -275,17 +261,5 @@ config HW_RANDOM_MSM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called msm_rng.
-
-	  If unsure, say Y.
-
-config HW_RANDOM_MSM
-	tristate "Qualcomm MSM Random Number Generator support"
-	depends on HW_RANDOM && ARCH_MSM
-	---help---
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on Qualcomm MSM SoCs.
-
-	  To compile this driver as a module, choose M here. the
-	  module will be called msm-rng.
 
 	  If unsure, say Y.

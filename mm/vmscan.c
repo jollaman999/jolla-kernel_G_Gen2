@@ -120,11 +120,6 @@ struct mem_cgroup_zone {
 	struct zone *zone;
 };
 
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-atomic_t kswapd_thread_on = ATOMIC_INIT(1);
-extern int get_soft_reclaim_status(void);
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
-
 #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
 
 #ifdef ARCH_HAS_PREFETCH
@@ -727,7 +722,7 @@ static enum page_references page_check_references(struct page *page,
 		return PAGEREF_RECLAIM;
 
 	if (referenced_ptes) {
-		if (PageSwapBacked(page))
+		if (PageAnon(page))
 			return PAGEREF_ACTIVATE;
 		/*
 		 * All mapped pages start out with page table
@@ -1343,13 +1338,6 @@ static int too_many_isolated(struct zone *zone, int file,
 		struct scan_control *sc)
 {
 	unsigned long inactive, isolated;
-
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-	if(get_soft_reclaim_status() == 1)
-	{
-		return 0;
-	}
-#endif
 
 	if (current_is_kswapd())
 		return 0;
@@ -1995,10 +1983,10 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
 	 * proportional to the fraction of recently scanned pages on
 	 * each list that were recently referenced and in active use.
 	 */
-	ap = anon_prio * (reclaim_stat->recent_scanned[0] + 1);
+	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
 	ap /= reclaim_stat->recent_rotated[0] + 1;
 
-	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
+	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
 	fp /= reclaim_stat->recent_rotated[1] + 1;
 	spin_unlock_irq(&mz->zone->lru_lock);
 
@@ -2011,7 +1999,7 @@ out:
 		unsigned long scan;
 
 		scan = zone_nr_lru_pages(mz, lru);
-		if (priority || noswap || !vmscan_swappiness(mz, sc)) {
+		if (priority || noswap) {
 			scan >>= priority;
 			if (!scan && force_scan)
 				scan = SWAP_CLUSTER_MAX;
@@ -2243,11 +2231,7 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
 {
 	struct zoneref *z;
 	struct zone *zone;
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-	unsigned long nr_soft_reclaimed = 0;
-#else
 	unsigned long nr_soft_reclaimed;
-#endif
 	unsigned long nr_soft_scanned;
 	bool aborted_reclaim = false;
 
@@ -2294,11 +2278,9 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
 			 * and balancing, not for a memcg's limit.
 			 */
 			nr_soft_scanned = 0;
-#ifndef CONFIG_ZRAM_FOR_ANDROID
 			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
 						sc->order, sc->gfp_mask,
 						&nr_soft_scanned);
-#endif
 			sc->nr_reclaimed += nr_soft_reclaimed;
 			sc->nr_scanned += nr_soft_scanned;
 			/* need some check for avoid more shrink_zone() */
@@ -2458,11 +2440,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 		.may_writepage = !laptop_mode,
 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
 		.may_unmap = 1,
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-		.may_swap = 0,
-#else
 		.may_swap = 1,
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
 		.order = order,
 		.target_mem_cgroup = NULL,
 		.nodemask = nodemask,
@@ -2591,19 +2569,6 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc,
 	} while (memcg);
 }
 
-static bool zone_balanced(struct zone *zone, int order,
-			  unsigned long balance_gap, int classzone_idx)
-{
-	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone) +
-				    balance_gap, classzone_idx, 0))
-		return false;
-
-	if (COMPACTION_BUILD && order && !compaction_suitable(zone, order))
-		return false;
-
-	return true;
-}
-
 /*
  * pgdat_balanced is used when checking if a node is balanced for high-order
  * allocations. Only zones that meet watermarks and are in a zone allowed
@@ -2663,7 +2628,8 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
 			continue;
 		}
 
-		if (!zone_balanced(zone, order, 0, i))
+		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
+							i, 0))
 			all_zones_ok = false;
 		else
 			balanced += zone->present_pages;
@@ -2711,20 +2677,12 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
 	unsigned long total_scanned;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-	unsigned long nr_soft_reclaimed = 0;
-#else
 	unsigned long nr_soft_reclaimed;
-#endif
 	unsigned long nr_soft_scanned;
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
 		.may_unmap = 1,
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-		.may_swap = 0,
-#else
 		.may_swap = 1,
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
 		/*
 		 * kswapd doesn't want to be bailed out while reclaim. because
 		 * we want to put equal scanning pressure on each zone.
@@ -2783,7 +2741,8 @@ loop_again:
 				break;
 			}
 
-			if (!zone_balanced(zone, order, 0, 0)) {
+			if (!zone_watermark_ok_safe(zone, order,
+					high_wmark_pages(zone), 0, 0)) {
 				end_zone = i;
 				break;
 			} else {
@@ -2826,11 +2785,9 @@ loop_again:
 			/*
 			 * Call soft limit reclaim before calling shrink_zone.
 			 */
-#ifndef CONFIG_ZRAM_FOR_ANDROID
 			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
 							order, sc.gfp_mask,
 							&nr_soft_scanned);
-#endif
 			sc.nr_reclaimed += nr_soft_reclaimed;
 			total_scanned += nr_soft_scanned;
 
@@ -2860,8 +2817,9 @@ loop_again:
 				testorder = 0;
 
 			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
-			    !zone_balanced(zone, testorder,
-					   balance_gap, end_zone)) {
+				    !zone_watermark_ok_safe(zone, testorder,
+					high_wmark_pages(zone) + balance_gap,
+					end_zone, 0)) {
 				shrink_zone(priority, zone, &sc);
 
 				reclaim_state->reclaimed_slab = 0;
@@ -2888,7 +2846,8 @@ loop_again:
 				continue;
 			}
 
-			if (!zone_balanced(zone, testorder, 0, end_zone)) {
+			if (!zone_watermark_ok_safe(zone, testorder,
+					high_wmark_pages(zone), end_zone, 0)) {
 				all_zones_ok = 0;
 				/*
 				 * We are still under min water mark.  This
@@ -3053,16 +3012,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 		 * per-cpu vmstat threshold while kswapd is awake and restore
 		 * them before going back to sleep.
 		 */
-
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-		atomic_set(&kswapd_thread_on,0);
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
-
 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
-
-		if (!kthread_should_stop())
-			schedule();
-
+		schedule();
 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
 	} else {
 		if (remaining)
@@ -3163,10 +3114,6 @@ static int kswapd(void *p)
 		if (kthread_should_stop())
 			break;
 
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-		atomic_set(&kswapd_thread_on, 1);
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
-
 		/*
 		 * We can speed up thawing tasks if we don't call balance_pgdat
 		 * after returning from the refrigerator
@@ -3178,11 +3125,6 @@ static int kswapd(void *p)
 						&balanced_classzone_idx);
 		}
 	}
-
-	tsk->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD);
-	current->reclaim_state = NULL;
-	lockdep_clear_current_reclaim_state();
-
 	return 0;
 }
 
@@ -3337,17 +3279,14 @@ int kswapd_run(int nid)
 }
 
 /*
- * Called by memory hotplug when all memory in a node is offlined.  Caller must
- * hold lock_memory_hotplug().
+ * Called by memory hotplug when all memory in a node is offlined.
  */
 void kswapd_stop(int nid)
 {
 	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
 
-	if (kswapd) {
+	if (kswapd)
 		kthread_stop(kswapd);
-		NODE_DATA(nid)->kswapd = NULL;
-	}
 }
 
 static int __init kswapd_init(void)
@@ -3451,11 +3390,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	struct scan_control sc = {
 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-#ifdef CONFIG_ZRAM_FOR_ANDROID
-		.may_swap = 0,
-#else
 		.may_swap = 1,
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
 		.nr_to_reclaim = max_t(unsigned long, nr_pages,
 				       SWAP_CLUSTER_MAX),
 		.gfp_mask = gfp_mask,

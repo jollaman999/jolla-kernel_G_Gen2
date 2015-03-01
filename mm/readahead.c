@@ -184,9 +184,6 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 		if (!page)
 			break;
 		page->index = page_offset;
-
-		page->flags |= (1L << PG_readahead);
-
 		list_add(&page->lru, &page_pool);
 		if (page_idx == nr_to_read - lookahead_size)
 			SetPageReadahead(page);
@@ -372,10 +369,10 @@ static int try_context_readahead(struct address_space *mapping,
 	size = count_history_pages(mapping, ra, offset, max);
 
 	/*
-	 * not enough history pages:
+	 * no history pages:
 	 * it could be a random read
 	 */
-	if (size <= req_size)
+	if (!size)
 		return 0;
 
 	/*
@@ -386,8 +383,8 @@ static int try_context_readahead(struct address_space *mapping,
 		size *= 2;
 
 	ra->start = offset;
-	ra->size = min(size + req_size, max);
-	ra->async_size = 1;
+	ra->size = get_init_ra_size(size + req_size, max);
+	ra->async_size = ra->size;
 
 	return 1;
 }

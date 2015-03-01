@@ -1066,9 +1066,6 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 	for (p = mnt; p; p = next_mnt(p, mnt))
 		list_move(&p->mnt_hash, &tmp_list);
 
-	list_for_each_entry(p, &tmp_list, mnt_hash)
-		list_del_init(&p->mnt_child);
-
 	if (propagate)
 		propagate_umount(&tmp_list);
 
@@ -1076,9 +1073,9 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
-		if (p->mnt_ns)
-			__mnt_make_shortterm(p);
 		p->mnt_ns = NULL;
+		__mnt_make_shortterm(p);
+		list_del_init(&p->mnt_child);
 		if (mnt_has_parent(p)) {
 			p->mnt_parent->mnt_ghosts++;
 			dentry_reset_mounted(p->mnt_mountpoint);
@@ -1681,7 +1678,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
 		br_write_lock(vfsmount_lock);
-		mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
+		mnt_flags |= mnt->mnt.mnt_flags & MNT_PROPAGATION_MASK;
 		mnt->mnt.mnt_flags = mnt_flags;
 		br_write_unlock(vfsmount_lock);
 	}
@@ -2154,9 +2151,9 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (retval)
 		goto dput_out;
 
-	/* Default to noatime/nodiratime unless overriden */
-	if (!(flags & MS_RELATIME))
-		mnt_flags |= MNT_NOATIME;
+	/* Default to relatime unless overriden */
+	if (!(flags & MS_NOATIME))
+		mnt_flags |= MNT_RELATIME;
 
 	/* Separate the per-mountpoint flags */
 	if (flags & MS_NOSUID)
@@ -2165,9 +2162,9 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 		mnt_flags |= MNT_NODEV;
 	if (flags & MS_NOEXEC)
 		mnt_flags |= MNT_NOEXEC;
-	/* if (flags & MS_NOATIME) */
+	if (flags & MS_NOATIME)
 		mnt_flags |= MNT_NOATIME;
-	/* if (flags & MS_NODIRATIME) */
+	if (flags & MS_NODIRATIME)
 		mnt_flags |= MNT_NODIRATIME;
 	if (flags & MS_STRICTATIME)
 		mnt_flags &= ~(MNT_RELATIME | MNT_NOATIME);
@@ -2507,9 +2504,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		goto out4; /* not attached */
 	/* make sure we can reach put_old from new_root */
 	if (!is_path_reachable(real_mount(old.mnt), old.dentry, &new))
-		goto out4;
-	/* make certain new is below the root */
-	if (!is_path_reachable(new_mnt, new.dentry, &root))
 		goto out4;
 	br_write_lock(vfsmount_lock);
 	detach_mnt(new_mnt, &parent_path);

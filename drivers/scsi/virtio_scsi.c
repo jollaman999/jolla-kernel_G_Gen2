@@ -198,7 +198,7 @@ static void virtscsi_map_sgl(struct scatterlist *sg, unsigned int *p_idx,
 	int i;
 
 	for_each_sg(table->sgl, sg_elem, table->nents, i)
-		sg[idx++] = *sg_elem;
+		sg_set_buf(&sg[idx++], sg_virt(sg_elem), sg_elem->length);
 
 	*p_idx = idx;
 }
@@ -511,7 +511,7 @@ static void __devexit virtscsi_remove(struct virtio_device *vdev)
 	scsi_host_put(shost);
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static int virtscsi_freeze(struct virtio_device *vdev)
 {
 	virtscsi_remove_vqs(vdev);
@@ -537,7 +537,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.driver.owner = THIS_MODULE,
 	.id_table = id_table,
 	.probe = virtscsi_probe,
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,
 #endif

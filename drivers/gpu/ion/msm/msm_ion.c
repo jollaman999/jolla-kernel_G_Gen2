@@ -51,11 +51,6 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.name	= ION_VMALLOC_HEAP_NAME,
 	},
 	{
-		.id	= ION_SYSTEM_CONTIG_HEAP_ID,
-		.type	= ION_HEAP_TYPE_SYSTEM_CONTIG,
-		.name	= ION_KMALLOC_HEAP_NAME,
-	},
-	{
 		.id	= ION_CP_MM_HEAP_ID,
 		.type	= ION_HEAP_TYPE_CP,
 		.name	= ION_MM_HEAP_NAME,
@@ -218,8 +213,7 @@ static void allocate_co_memory(struct ion_platform_heap *heap,
 		if (shared_heap) {
 			struct ion_cp_heap_pdata *cp_data =
 			   (struct ion_cp_heap_pdata *) shared_heap->extra_data;
-			if (cp_data->mem_is_fmem && cp_data->fixed_position
-				== FIXED_MIDDLE) {
+			if (cp_data->fixed_position == FIXED_MIDDLE) {
 				const struct fmem_data *fmem_info =
 					fmem_get_info();
 
@@ -613,7 +607,7 @@ static long msm_ion_custom_ioctl(struct ion_client *client,
 		start = (unsigned long) data.vaddr;
 		end = (unsigned long) data.vaddr + data.length;
 
-		if (start && check_vaddr_bounds(start, end)) {
+		if (check_vaddr_bounds(start, end)) {
 			pr_err("%s: virtual address %p is out of bounds\n",
 				__func__, data.vaddr);
 			return -EINVAL;

@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/mman.h>
 #include <linux/pci.h>
+#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/agp_backend.h>
 #include <linux/agpgart.h>

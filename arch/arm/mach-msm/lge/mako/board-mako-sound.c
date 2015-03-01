@@ -34,12 +34,7 @@
 #define AGC_COMPRESIION_RATE        0
 #define AGC_OUTPUT_LIMITER_DISABLE  1
 #define AGC_FIXED_GAIN              12
-#define AGC_ATK_TIME			5
-#define AGC_REL_TIME			11
-#define AGC_HOLD_TIME			0
-#define AGC_OUTPUT_LIMIT_LEVEL		26
-#define AGC_MAX_GAIN			12
-#define AGC_NOISE_GATE_THRESHOLD	1
+
 
 #define GPIO_EAR_MIC_BIAS_EN        PM8921_GPIO_PM_TO_SYS(20)
 #define GPIO_EAR_SENSE_N            82
@@ -104,12 +99,6 @@ static struct audio_amp_platform_data amp_platform_data =  {
 	.agc_compression_rate = AGC_COMPRESIION_RATE,
 	.agc_output_limiter_disable = AGC_OUTPUT_LIMITER_DISABLE,
 	.agc_fixed_gain = AGC_FIXED_GAIN,
-	.ATK_time = AGC_ATK_TIME,
-	.REL_time = AGC_REL_TIME,
-	.Hold_time = AGC_HOLD_TIME,
-	.Output_limit_level = AGC_OUTPUT_LIMIT_LEVEL,
-	.Noise_Gate_Threshold = AGC_NOISE_GATE_THRESHOLD,
-	.AGC_Max_Gain = AGC_MAX_GAIN,
 };
 #endif
 
@@ -155,17 +144,6 @@ static void enable_external_mic_bias(int status)
 						__func__);
 				reg_mic_bias = NULL;
 				return;
-			}
-
-//[LGE] seungkyu.joo, 2012-12-18 , HW Request for enabling apple headset mic
-#ifdef CONFIG_MACH_APQ8064_J1A
-			rc = regulator_set_voltage(reg_mic_bias, 2700000, 2700000);
-#else
-			rc = regulator_set_voltage(reg_mic_bias, 2000000, 2000000);
-#endif
-
-			if (rc) {
-				pr_err("%d: regulator set of reg_mic_bias failed \n", rc);
 			}
 		}
 
@@ -243,12 +221,10 @@ static __init void mako_fixed_audio(void)
 {
 	if (lge_get_board_revno() >= HW_REV_1_0)
 		lge_hs_pdata.gpio_mic_bias_en = -1;
-#ifndef CONFIG_MACH_APQ8064_J1A
 	if (lge_get_board_revno() > HW_REV_1_0) {
 		lge_hs_pdata.gpio_detect = GPIO_EAR_SENSE_N_REV11;
 		lge_hs_pdata.gpio_detect_can_wakeup = 1;
 	}
-#endif
 }
 
 static struct platform_device lge_hsd_device = {

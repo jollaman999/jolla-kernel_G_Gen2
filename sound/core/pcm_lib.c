@@ -30,8 +30,6 @@
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 
-#define STRING_LENGTH_OF_INT 12
-
 /*
  * fill ring buffer with silence
  * runtime->silence_start: starting pointer to silence area
@@ -1694,16 +1692,14 @@ static int snd_pcm_lib_ioctl_fifo_size(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_hw_params *params = arg;
 	snd_pcm_format_t format;
-	int channels;
-	ssize_t frame_size;
+	int channels, width;
 
 	params->fifo_size = substream->runtime->hw.fifo_size;
 	if (!(substream->runtime->hw.info & SNDRV_PCM_INFO_FIFO_IN_FRAMES)) {
 		format = params_format(params);
 		channels = params_channels(params);
-		frame_size = snd_pcm_format_size(format, channels);
-		if (frame_size > 0)
-			params->fifo_size /= (unsigned)frame_size;
+		width = snd_pcm_format_physical_width(format);
+		params->fifo_size /= width * channels;
 	}
 	return 0;
 }
@@ -1850,8 +1846,6 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 		case SNDRV_PCM_STATE_DISCONNECTED:
 			err = -EBADFD;
 			goto _endloop;
-		case SNDRV_PCM_STATE_PAUSED:
-			continue;
 		}
 		if (!tout) {
 			snd_printd("%s write error (DMA or IRQ trouble?)\n",
@@ -2293,92 +2287,5 @@ snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	return snd_pcm_lib_read1(substream, (unsigned long)bufs, frames, nonblock, snd_pcm_lib_readv_transfer);
 }
+
 EXPORT_SYMBOL(snd_pcm_lib_readv);
-
-static int pcm_volume_ctl_info(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 0x2000;
-	return 0;
-}
-
-static void pcm_volume_ctl_private_free(struct snd_kcontrol *kcontrol)
-{
-	struct snd_pcm_volume *info = snd_kcontrol_chip(kcontrol);
-	info->pcm->streams[info->stream].vol_kctl = NULL;
-	kfree(info);
-}
-
-/**
- * snd_pcm_add_volume_ctls - create volume control elements
- * @pcm: the assigned PCM instance
- * @stream: stream direction
- * @max_length: the max length of the volume parameter of stream
- * @private_value: the value passed to each kcontrol's private_value field
- * @info_ret: store struct snd_pcm_volume instance if non-NULL
- *
- * Create volume control elements assigned to the given PCM stream(s).
- * Returns zero if succeed, or a negative error value.
- */
-int snd_pcm_add_volume_ctls(struct snd_pcm *pcm, int stream,
-			   const struct snd_pcm_volume_elem *volume,
-			   int max_length,
-			   unsigned long private_value,
-			   struct snd_pcm_volume **info_ret)
-{
-	struct snd_pcm_volume *info;
-	struct snd_kcontrol_new knew = {
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |
-			SNDRV_CTL_ELEM_ACCESS_READWRITE,
-		.info = pcm_volume_ctl_info,
-	};
-	int err;
-	int size;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-	info->pcm = pcm;
-	info->stream = stream;
-	info->volume = volume;
-	info->max_length = max_length;
-	size = sizeof("Playback ") + sizeof(" Volume") +
-		STRING_LENGTH_OF_INT*sizeof(char) + 1;
-	knew.name = kzalloc(size, GFP_KERNEL);
-	if (!knew.name) {
-		kfree(info);
-		return -ENOMEM;
-	}
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snprintf(knew.name, size, "%s %d %s",
-			"Playback", pcm->device, "Volume");
-	else
-		snprintf(knew.name, size, "%s %d %s",
-			"Capture", pcm->device, "Volume");
-	knew.device = pcm->device;
-	knew.count = pcm->streams[stream].substream_count;
-	knew.private_value = private_value;
-	info->kctl = snd_ctl_new1(&knew, info);
-	if (!info->kctl) {
-		kfree(info);
-		kfree(knew.name);
-		return -ENOMEM;
-	}
-	info->kctl->private_free = pcm_volume_ctl_private_free;
-	err = snd_ctl_add(pcm->card, info->kctl);
-	if (err < 0) {
-		kfree(info);
-		kfree(knew.name);
-		return -ENOMEM;
-	}
-	pcm->streams[stream].vol_kctl = info->kctl;
-	if (info_ret)
-		*info_ret = info;
-	kfree(knew.name);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_pcm_add_volume_ctls);

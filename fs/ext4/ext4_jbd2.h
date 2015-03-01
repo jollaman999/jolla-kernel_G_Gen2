@@ -164,20 +164,16 @@ static inline void ext4_journal_callback_add(handle_t *handle,
  * ext4_journal_callback_del: delete a registered callback
  * @handle: active journal transaction handle on which callback was registered
  * @jce: registered journal callback entry to unregister
- * Return true if object was sucessfully removed
  */
-static inline bool ext4_journal_callback_try_del(handle_t *handle,
+static inline void ext4_journal_callback_del(handle_t *handle,
 					     struct ext4_journal_cb_entry *jce)
 {
-	bool deleted;
 	struct ext4_sb_info *sbi =
 			EXT4_SB(handle->h_transaction->t_journal->j_private);
 
 	spin_lock(&sbi->s_md_lock);
-	deleted = !list_empty(&jce->jce_list);
 	list_del_init(&jce->jce_list);
 	spin_unlock(&sbi->s_md_lock);
-	return deleted;
 }
 
 int
@@ -316,15 +312,8 @@ static inline int ext4_journal_force_commit(journal_t *journal)
 
 static inline int ext4_jbd2_file_inode(handle_t *handle, struct inode *inode)
 {
-	if (ext4_handle_valid(handle)) {
-		if (unlikely(EXT4_I(inode)->jinode == NULL)) {
-			/* Should never happen */
-			WARN(true, "inode #%lu has NULL jinode\n",
-				inode->i_ino);
-			return 0;
-		}
+	if (ext4_handle_valid(handle))
 		return jbd2_journal_file_inode(handle, EXT4_I(inode)->jinode);
-	}
 	return 0;
 }
 

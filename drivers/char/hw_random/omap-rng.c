@@ -91,7 +91,7 @@ static struct hwrng omap_rng_ops = {
 	.data_read	= omap_rng_data_read,
 };
 
-static int omap_rng_probe(struct platform_device *pdev)
+static int __devinit omap_rng_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;
@@ -115,12 +115,22 @@ static int omap_rng_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	rng_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!res) {
+		ret = -ENOENT;
+		goto err_region;
+	}
+
+	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
+		ret = -EBUSY;
+		goto err_region;
+	}
+
+	dev_set_drvdata(&pdev->dev, res);
+	rng_base = ioremap(res->start, resource_size(res));
 	if (!rng_base) {
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
-	dev_set_drvdata(&pdev->dev, res);
 
 	ret = hwrng_register(&omap_rng_ops);
 	if (ret)
@@ -135,8 +145,11 @@ static int omap_rng_probe(struct platform_device *pdev)
 	return 0;
 
 err_register:
+	iounmap(rng_base);
 	rng_base = NULL;
 err_ioremap:
+	release_mem_region(res->start, resource_size(res));
+err_region:
 	if (cpu_is_omap24xx()) {
 		clk_disable(rng_ick);
 		clk_put(rng_ick);
@@ -146,40 +159,43 @@ err_ioremap:
 
 static int __exit omap_rng_remove(struct platform_device *pdev)
 {
+	struct resource *res = dev_get_drvdata(&pdev->dev);
+
 	hwrng_unregister(&omap_rng_ops);
 
 	omap_rng_write_reg(RNG_MASK_REG, 0x0);
+
+	iounmap(rng_base);
 
 	if (cpu_is_omap24xx()) {
 		clk_disable(rng_ick);
 		clk_put(rng_ick);
 	}
 
+	release_mem_region(res->start, resource_size(res));
 	rng_base = NULL;
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 
-static int omap_rng_suspend(struct device *dev)
+static int omap_rng_suspend(struct platform_device *pdev, pm_message_t message)
 {
 	omap_rng_write_reg(RNG_MASK_REG, 0x0);
 	return 0;
 }
 
-static int omap_rng_resume(struct device *dev)
+static int omap_rng_resume(struct platform_device *pdev)
 {
 	omap_rng_write_reg(RNG_MASK_REG, 0x1);
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(omap_rng_pm, omap_rng_suspend, omap_rng_resume);
-#define	OMAP_RNG_PM	(&omap_rng_pm)
-
 #else
 
-#define	OMAP_RNG_PM	NULL
+#define	omap_rng_suspend	NULL
+#define	omap_rng_resume		NULL
 
 #endif
 
@@ -189,10 +205,12 @@ MODULE_ALIAS("platform:omap_rng");
 static struct platform_driver omap_rng_driver = {
 	.driver = {
 		.name		= "omap_rng",
-		.pm		= OMAP_RNG_PM,
+		.owner		= THIS_MODULE,
 	},
 	.probe		= omap_rng_probe,
 	.remove		= __exit_p(omap_rng_remove),
+	.suspend	= omap_rng_suspend,
+	.resume		= omap_rng_resume
 };
 
 static int __init omap_rng_init(void)

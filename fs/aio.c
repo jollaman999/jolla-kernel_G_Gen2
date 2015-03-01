@@ -35,7 +35,6 @@
 #include <linux/eventfd.h>
 #include <linux/blkdev.h>
 #include <linux/compat.h>
-#include <linux/radix-tree.h>
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
@@ -286,18 +285,10 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	aio_nr += ctx->max_reqs;
 	spin_unlock(&aio_nr_lock);
 
-	/* now insert into the radix tree */
-	err = radix_tree_preload(GFP_KERNEL);
-	if (err)
-		goto out_cleanup;
+	/* now link into global list. */
 	spin_lock(&mm->ioctx_lock);
-	err = radix_tree_insert(&mm->ioctx_rtree, ctx->user_id, ctx);
+	hlist_add_head_rcu(&ctx->list, &mm->ioctx_list);
 	spin_unlock(&mm->ioctx_lock);
-	radix_tree_preload_end();
-	if (err) {
-		WARN_ONCE(1, "aio: insert into ioctx tree failed: %d", err);
-		goto out_cleanup;
-	}
 
 	dprintk("aio: allocated ioctx %p[%ld]: mm=%p mask=0x%x\n",
 		ctx, ctx->user_id, current->mm, ctx->ring_info.nr);
@@ -375,32 +366,6 @@ ssize_t wait_on_sync_kiocb(struct kiocb *iocb)
 }
 EXPORT_SYMBOL(wait_on_sync_kiocb);
 
-static inline void exit_aio_ctx(struct mm_struct *mm, struct kioctx *ctx)
-{
-	void *ret;
-
-	ret = radix_tree_delete(&mm->ioctx_rtree, ctx->user_id);
-	BUG_ON(!ret || ret != ctx);
-
-	kill_ctx(ctx);
-
-	if (1 != atomic_read(&ctx->users))
-		pr_debug("exit_aio:ioctx still alive: %d %d %d\n",
-			 atomic_read(&ctx->users), ctx->dead, ctx->reqs_active);
-	/*
-	 * We don't need to bother with munmap() here -
-	 * exit_mmap(mm) is coming and it'll unmap everything.
-	 * Since aio_free_ring() uses non-zero ->mmap_size
-	 * as indicator that it needs to unmap the area,
-	 * just set it to 0; aio_free_ring() is the only
-	 * place that uses ->mmap_size, so it's safe.
-	 * That way we get all munmap done to current->mm -
-	 * all other callers have ctx->mm == current->mm.
-	 */
-	ctx->ring_info.mmap_size = 0;
-	put_ioctx(ctx);
-}
-
 /* exit_aio: called when the last user of mm goes away.  At this point, 
  * there is no way for any new requests to be submited or any of the 
  * io_* syscalls to be called on the context.  However, there may be 
@@ -410,17 +375,32 @@ static inline void exit_aio_ctx(struct mm_struct *mm, struct kioctx *ctx)
  */
 void exit_aio(struct mm_struct *mm)
 {
-	struct kioctx *ctx[16];
-	int count;
+	struct kioctx *ctx;
 
-	do {
-		int i;
+	while (!hlist_empty(&mm->ioctx_list)) {
+		ctx = hlist_entry(mm->ioctx_list.first, struct kioctx, list);
+		hlist_del_rcu(&ctx->list);
 
-		count = radix_tree_gang_lookup(&mm->ioctx_rtree, (void **)ctx,
-					       0, ARRAY_SIZE(ctx));
-		for (i = 0; i < count; i++)
-			exit_aio_ctx(mm, ctx[i]);
-	} while (count);
+		kill_ctx(ctx);
+
+		if (1 != atomic_read(&ctx->users))
+			printk(KERN_DEBUG
+				"exit_aio:ioctx still alive: %d %d %d\n",
+				atomic_read(&ctx->users), ctx->dead,
+				ctx->reqs_active);
+		/*
+		 * We don't need to bother with munmap() here -
+		 * exit_mmap(mm) is coming and it'll unmap everything.
+		 * Since aio_free_ring() uses non-zero ->mmap_size
+		 * as indicator that it needs to unmap the area,
+		 * just set it to 0; aio_free_ring() is the only
+		 * place that uses ->mmap_size, so it's safe.
+		 * That way we get all munmap done to current->mm -
+		 * all other callers have ctx->mm == current->mm.
+		 */
+		ctx->ring_info.mmap_size = 0;
+		put_ioctx(ctx);
+	}
 }
 
 /* aio_get_req
@@ -675,18 +655,22 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 {
 	struct mm_struct *mm = current->mm;
 	struct kioctx *ctx, *ret = NULL;
+	struct hlist_node *n;
 
 	rcu_read_lock();
 
-	ctx = radix_tree_lookup(&mm->ioctx_rtree, ctx_id);
-	/*
-	 * RCU protects us against accessing freed memory but
-	 * we have to be careful not to get a reference when the
-	 * reference count already dropped to 0 (ctx->dead test
-	 * is unreliable because of races).
-	 */
-	if (ctx && !ctx->dead && try_get_ioctx(ctx))
-		ret = ctx;
+	hlist_for_each_entry_rcu(ctx, n, &mm->ioctx_list, list) {
+		/*
+		 * RCU protects us against accessing freed memory but
+		 * we have to be careful not to get a reference when the
+		 * reference count already dropped to 0 (ctx->dead test
+		 * is unreliable because of races).
+		 */
+		if (ctx->user_id == ctx_id && !ctx->dead && try_get_ioctx(ctx)){
+			ret = ctx;
+			break;
+		}
+	}
 
 	rcu_read_unlock();
 	return ret;
@@ -1110,9 +1094,9 @@ static int aio_read_evt(struct kioctx *ioctx, struct io_event *ent)
 	spin_unlock(&info->ring_lock);
 
 out:
+	kunmap_atomic(ring);
 	dprintk("leaving aio_read_evt: %d  h%lu t%lu\n", ret,
 		 (unsigned long)ring->head, (unsigned long)ring->tail);
-	kunmap_atomic(ring);
 	return ret;
 }
 
@@ -1281,7 +1265,7 @@ static void io_destroy(struct kioctx *ioctx)
 	spin_lock(&mm->ioctx_lock);
 	was_dead = ioctx->dead;
 	ioctx->dead = 1;
-	radix_tree_delete(&mm->ioctx_rtree, ioctx->user_id);
+	hlist_del_rcu(&ioctx->list);
 	spin_unlock(&mm->ioctx_lock);
 
 	dprintk("aio_release(%p)\n", ioctx);
@@ -1472,10 +1456,6 @@ static ssize_t aio_setup_vectored_rw(int type, struct kiocb *kiocb, bool compat)
 	if (ret < 0)
 		goto out;
 
-	ret = rw_verify_area(type, kiocb->ki_filp, &kiocb->ki_pos, ret);
-	if (ret < 0)
-		goto out;
-
 	kiocb->ki_nr_segs = kiocb->ki_nbytes;
 	kiocb->ki_cur_seg = 0;
 	/* ki_nbytes/left now reflect bytes instead of segs */
@@ -1487,17 +1467,11 @@ out:
 	return ret;
 }
 
-static ssize_t aio_setup_single_vector(int type, struct file * file, struct kiocb *kiocb)
+static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
 {
-	int bytes;
-
-	bytes = rw_verify_area(type, file, &kiocb->ki_pos, kiocb->ki_left);
-	if (bytes < 0)
-		return bytes;
-
 	kiocb->ki_iovec = &kiocb->ki_inline_vec;
 	kiocb->ki_iovec->iov_base = kiocb->ki_buf;
-	kiocb->ki_iovec->iov_len = bytes;
+	kiocb->ki_iovec->iov_len = kiocb->ki_left;
 	kiocb->ki_nr_segs = 1;
 	kiocb->ki_cur_seg = 0;
 	return 0;
@@ -1522,7 +1496,10 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 		if (unlikely(!access_ok(VERIFY_WRITE, kiocb->ki_buf,
 			kiocb->ki_left)))
 			break;
-		ret = aio_setup_single_vector(READ, file, kiocb);
+		ret = security_file_permission(file, MAY_READ);
+		if (unlikely(ret))
+			break;
+		ret = aio_setup_single_vector(kiocb);
 		if (ret)
 			break;
 		ret = -EINVAL;
@@ -1537,7 +1514,10 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 		if (unlikely(!access_ok(VERIFY_READ, kiocb->ki_buf,
 			kiocb->ki_left)))
 			break;
-		ret = aio_setup_single_vector(WRITE, file, kiocb);
+		ret = security_file_permission(file, MAY_WRITE);
+		if (unlikely(ret))
+			break;
+		ret = aio_setup_single_vector(kiocb);
 		if (ret)
 			break;
 		ret = -EINVAL;
@@ -1547,6 +1527,9 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 	case IOCB_CMD_PREADV:
 		ret = -EBADF;
 		if (unlikely(!(file->f_mode & FMODE_READ)))
+			break;
+		ret = security_file_permission(file, MAY_READ);
+		if (unlikely(ret))
 			break;
 		ret = aio_setup_vectored_rw(READ, kiocb, compat);
 		if (ret)
@@ -1558,6 +1541,9 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 	case IOCB_CMD_PWRITEV:
 		ret = -EBADF;
 		if (unlikely(!(file->f_mode & FMODE_WRITE)))
+			break;
+		ret = security_file_permission(file, MAY_WRITE);
+		if (unlikely(ret))
 			break;
 		ret = aio_setup_vectored_rw(WRITE, kiocb, compat);
 		if (ret)
@@ -1696,6 +1682,7 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 	struct kioctx *ctx;
 	long ret = 0;
 	int i = 0;
+	struct blk_plug plug;
 	struct kiocb_batch batch;
 
 	if (unlikely(nr < 0))
@@ -1714,6 +1701,8 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 	}
 
 	kiocb_batch_init(&batch, nr);
+
+	blk_start_plug(&plug);
 
 	/*
 	 * AKPM: should this return a partial result if some of the IOs were
@@ -1737,6 +1726,7 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 		if (ret)
 			break;
 	}
+	blk_finish_plug(&plug);
 
 	kiocb_batch_free(ctx, &batch);
 	put_ioctx(ctx);

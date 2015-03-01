@@ -414,6 +414,7 @@ config  ARCH_MSM_KRAITMP
 	select HAVE_ARCH_HAS_CURRENT_TIMER
 	select MSM_JTAG if CORESIGHT_ETM
 	bool
+	select HAVE_HW_BRKPT_RESERVED_RW_ACCESS
 
 config  ARCH_MSM_CORTEXMP
 	select MSM_SMP
@@ -424,6 +425,7 @@ config  MSM_KRAIT_WFE_FIXUP
 
 config  ARCH_MSM_CORTEX_A5
 	bool
+	select HAVE_HW_BRKPT_RESERVED_RW_ACCESS
 
 config ARCH_MSM7X27A
 	bool
@@ -1616,24 +1618,6 @@ config MSM_CPU_FREQ_MIN
 
 endif # CPU_FREQ_MSM
 
-config CPU_OVERCLOCK
-	bool "Enable CPU Overclock"
-	default n
-	help
-	  Enable Krait CPU Overclock
-
-config GPU_OVERCLOCK
-	bool "Enable GPU Overclock"
-	default n
-	help
-	  Enable Adreno GPU Overclock
-
-config CPU_VOLTAGE_TABLE
-	bool "Enable CPU Voltage Table via sysfs for adjustements"
-	default n
-	help
-	  Krait User Votlage Control
-
 config MSM_AVS_HW
 	bool "Enable Adaptive Voltage Scaling (AVS)"
 	default n
@@ -2622,12 +2606,5 @@ config MSM_CPU_PWRCTL
 	  Droop detector mechanism can adversely affect krait plls during
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
-
-config FORCE_FAST_CHARGE
-	bool "Force AC charge mode at will"
-	default y
-	help
-		A simple sysfs interface to force adapters that
-		are detected as USB to charge as AC.
 
 endif

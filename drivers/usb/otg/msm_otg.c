@@ -51,19 +51,6 @@
 #include <mach/msm_bus.h>
 #include <mach/rpm-regulator.h>
 
-#ifdef CONFIG_FORCE_FAST_CHARGE
-#include <linux/fastchg.h>
-#define USB_FASTCHG_LOAD 1000 /* uA */
-#endif
-
-#ifdef CONFIG_LGE_AUX_NOISE
-/*
- * 2012-07-20, bob.cho@lge.com
- * extern api to remove aux noise
- */
-#include "../../../sound/soc/codecs/wcd9310.h"
-#endif /*CONFIG_LGE_AUX_NOISE*/
-
 #define MSM_USB_BASE	(motg->regs)
 #define DRIVER_NAME	"msm_otg"
 
@@ -1160,14 +1147,7 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 
 	if (motg->cur_power == mA)
 		return;
-#ifdef CONFIG_FORCE_FAST_CHARGE
-	if (force_fast_charge == 1) {
-			mA = USB_FASTCHG_LOAD;
-			pr_info("USB fast charging is ON - 1000mA.\n");
-	} else {
-		pr_info("USB fast charging is OFF.\n");
-	}
-#endif
+
 	dev_info(motg->phy.dev, "Avail curr from USB = %u\n", mA);
 
 	pm8921_charger_vbus_draw(mA);
@@ -2338,13 +2318,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			case USB_CHG_STATE_DETECTED:
 				switch (motg->chg_type) {
 				case USB_DCP_CHARGER:
-#ifdef CONFIG_LGE_AUX_NOISE
-					/*
-					 * 2012-07-20, bob.cho@lge.com
-					 * call api to remove aux noise when charger connected
-					 */
-					tabla_codec_hph_pa_ctl(TABLA_EVENT_CHARGER_CONNECT);
-#endif /*CONFIG_LGE_AUX_NOISE*/
 					/* Enable VDP_SRC */
 					ulpi_write(otg->phy, 0x2, 0x85);
 					/* fall through */
@@ -2411,13 +2384,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			cancel_delayed_work_sync(&motg->check_ta_work);
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
-#ifdef CONFIG_LGE_AUX_NOISE
-			/*
-			 * 2012-07-20, bob.cho@lge.com
-			 * call api to remove aux noise when charger connected
-			 */
-			tabla_codec_hph_pa_ctl(TABLA_EVENT_CHARGER_DISCONNECT);
-#endif /*CONFIG_LGE_AUX_NOISE*/
 			msm_otg_notify_charger(motg, 0);
 			msm_otg_reset(otg->phy);
 			/*

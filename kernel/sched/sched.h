@@ -80,7 +80,7 @@ extern struct mutex sched_domains_mutex;
 struct cfs_rq;
 struct rt_rq;
 
-extern struct list_head task_groups;
+static LIST_HEAD(task_groups);
 
 struct cfs_bandwidth {
 #ifdef CONFIG_CFS_BANDWIDTH
@@ -114,8 +114,6 @@ struct task_group {
 	unsigned long shares;
 
 	atomic_t load_weight;
-	atomic64_t load_avg;
-	atomic_t runnable_avg, usage_avg;
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -205,13 +203,7 @@ struct cfs_bandwidth { };
 /* CFS-related fields in a runqueue */
 struct cfs_rq {
 	struct load_weight load;
-	/*
-	 * The difference between nr_running and h_nr_running is:
-	 * nr_running:   present how many entity would take part in the sharing
-	 *               the cpu power of that cfs_rq
-	 * h_nr_running: present how many tasks in current cfs runqueue
-	 */
-	unsigned int nr_running, h_nr_running;
+	unsigned long nr_running, h_nr_running;
 
 	u64 exec_clock;
 	u64 min_vruntime;
@@ -232,31 +224,6 @@ struct cfs_rq {
 	unsigned int nr_spread_over;
 #endif
 
-#ifdef CONFIG_SMP
-	/*
-	 * CFS Load tracking
-	 * Under CFS, load is tracked on a per-entity basis and aggregated up.
-	 * This allows for the description of both thread and group usage (in
-	 * the FAIR_GROUP_SCHED case).
-	 */
-	u64 runnable_load_avg, blocked_load_avg;
-	atomic64_t decay_counter, removed_load;
-	u64 last_decay;
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	u32 tg_runnable_contrib, tg_usage_contrib;
-	u64 tg_load_contrib;
-#endif /* CONFIG_FAIR_GROUP_SCHED */
-
-	/*
-	 *   h_load = weight * f(tg)
-	 *
-	 * Where f(tg) is the recursive weight fraction assigned to
-	 * this group.
-	 */
-	unsigned long h_load;
-#endif /* CONFIG_SMP */
-
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
 
@@ -272,13 +239,34 @@ struct cfs_rq {
 	struct list_head leaf_cfs_rq_list;
 	struct task_group *tg;	/* group that "owns" this runqueue */
 
+#ifdef CONFIG_SMP
+	/*
+	 *   h_load = weight * f(tg)
+	 *
+	 * Where f(tg) is the recursive weight fraction assigned to
+	 * this group.
+	 */
+	unsigned long h_load;
+
+	/*
+	 * Maintaining per-cpu shares distribution for group scheduling
+	 *
+	 * load_stamp is the last time we updated the load average
+	 * load_last is the last time we updated the load average and saw load
+	 * load_unacc_exec_time is currently unaccounted execution time
+	 */
+	u64 load_avg;
+	u64 load_period;
+	u64 load_stamp, load_last, load_unacc_exec_time;
+
+	unsigned long load_contribution;
+#endif /* CONFIG_SMP */
 #ifdef CONFIG_CFS_BANDWIDTH
 	int runtime_enabled;
 	u64 runtime_expires;
 	s64 runtime_remaining;
 
-	u64 throttled_clock, throttled_clock_task;
-	u64 throttled_clock_task_time;
+	u64 throttled_timestamp;
 	int throttled, throttle_count;
 	struct list_head throttled_list;
 #endif /* CONFIG_CFS_BANDWIDTH */
@@ -293,7 +281,7 @@ static inline int rt_bandwidth_enabled(void)
 /* Real-Time classes' related field in a runqueue: */
 struct rt_rq {
 	struct rt_prio_array active;
-	unsigned int rt_nr_running;
+	unsigned long rt_nr_running;
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 	struct {
 		int curr; /* highest queued rt task prio */
@@ -367,7 +355,7 @@ struct rq {
 	 * nr_running and cpu_load should be in the same cacheline because
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
-	unsigned int nr_running;
+	unsigned long nr_running;
 	#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned long last_load_update_tick;
@@ -416,10 +404,6 @@ struct rq {
 
 	unsigned long cpu_power;
 
-	/* CPU compute capacity estimation */
-	unsigned long max_compute_capacity;
-	unsigned long curr_compute_capacity;
-
 	unsigned char idle_balance;
 	/* For active balancing */
 	int post_schedule;
@@ -436,9 +420,6 @@ struct rq {
 	u64 age_stamp;
 	u64 idle_stamp;
 	u64 avg_idle;
-
-	/* Set to max idle balance cost for any one sched domain */
-	u64 max_idle_balance_cost;
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -484,8 +465,6 @@ struct rq {
 #ifdef CONFIG_SMP
 	struct llist_head wake_list;
 #endif
-
-	struct sched_avg avg;
 };
 
 static inline int cpu_of(struct rq *rq)
@@ -504,22 +483,6 @@ DECLARE_PER_CPU(struct rq, runqueues);
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
-
-#ifdef CONFIG_INTELLI_PLUG
-struct nr_stats_s {
-	/* time-based average load */
-	u64 nr_last_stamp;
-	unsigned int ave_nr_running;
-	seqcount_t ave_seqcnt;
-};
-
-#define NR_AVE_PERIOD_EXP	28
-#define NR_AVE_SCALE(x)		((x) << FSHIFT)
-#define NR_AVE_PERIOD		(1 << NR_AVE_PERIOD_EXP)
-#define NR_AVE_DIV_PERIOD(x)	((x) >> NR_AVE_PERIOD_EXP)
-
-DECLARE_PER_CPU(struct nr_stats_s, runqueue_stats);
-#endif
 
 #ifdef CONFIG_SMP
 
@@ -563,7 +526,6 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 }
 
 DECLARE_PER_CPU(struct sched_domain *, sd_llc);
-DECLARE_PER_CPU(int, sd_llc_size);
 DECLARE_PER_CPU(int, sd_llc_id);
 
 #endif /* CONFIG_SMP */
@@ -576,19 +538,22 @@ DECLARE_PER_CPU(int, sd_llc_id);
 /*
  * Return the group to which this tasks belongs.
  *
- * We cannot use task_subsys_state() and friends because the cgroup
- * subsystem changes that value before the cgroup_subsys::attach() method
- * is called, therefore we cannot pin it and might observe the wrong value.
- *
- * The same is true for autogroup's p->signal->autogroup->tg, the autogroup
- * core changes this before calling sched_move_task().
- *
- * Instead we use a 'copy' which is updated from sched_move_task() while
- * holding both task_struct::pi_lock and rq::lock.
+ * We use task_subsys_state_check() and extend the RCU verification with
+ * pi->lock and rq->lock because cpu_cgroup_attach() holds those locks for each
+ * task it moves into the cgroup. Therefore by holding either of those locks,
+ * we pin the task to the current cgroup.
  */
 static inline struct task_group *task_group(struct task_struct *p)
 {
-	return p->sched_task_group;
+	struct task_group *tg;
+	struct cgroup_subsys_state *css;
+
+	css = task_subsys_state_check(p, cpu_cgroup_subsys_id,
+			lockdep_is_held(&p->pi_lock) ||
+			lockdep_is_held(&task_rq(p)->lock));
+	tg = container_of(css, struct task_group, css);
+
+	return autogroup_task_group(p, tg);
 }
 
 static inline bool task_notify_on_migrate(struct task_struct *p)
@@ -898,15 +863,10 @@ extern const struct sched_class idle_sched_class;
 
 extern void trigger_load_balance(struct rq *rq, int cpu);
 extern void idle_balance(int this_cpu, struct rq *this_rq);
-extern void update_packing_domain(int cpu);
 
 #else	/* CONFIG_SMP */
 
 static inline void idle_balance(int cpu, struct rq *rq)
-{
-}
-
-static inline void update_packing_domain(int cpu)
 {
 }
 
@@ -916,6 +876,7 @@ extern void sysrq_sched_debug_show(void);
 extern void sched_init_granularity(void);
 extern void update_max_interval(void);
 extern void update_group_power(struct sched_domain *sd, int cpu);
+extern int update_runtime(struct notifier_block *nfb, unsigned long action, void *hcpu);
 extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
 
@@ -925,7 +886,7 @@ extern void resched_cpu(int cpu);
 extern struct rt_bandwidth def_rt_bandwidth;
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
 
-extern void update_idle_cpu_load(struct rq *this_rq);
+extern void update_cpu_load(struct rq *this_rq);
 
 #ifdef CONFIG_CGROUP_CPUACCT
 #include <linux/cgroup.h>
@@ -963,61 +924,16 @@ extern void cpuacct_charge(struct task_struct *tsk, u64 cputime);
 static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime) {}
 #endif
 
-#ifdef CONFIG_INTELLI_PLUG
-static inline unsigned int do_avg_nr_running(struct rq *rq)
-{
-
-	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
-	unsigned int ave_nr_running = nr_stats->ave_nr_running;
-	s64 nr, deltax;
-
-	deltax = rq->clock_task - nr_stats->nr_last_stamp;
-	nr = NR_AVE_SCALE(rq->nr_running);
-
-	if (deltax > NR_AVE_PERIOD)
-		ave_nr_running = nr;
-	else
-		ave_nr_running +=
-			NR_AVE_DIV_PERIOD(deltax * (nr - ave_nr_running));
-
-	return ave_nr_running;
-}
-#endif
-
 static inline void inc_nr_running(struct rq *rq)
 {
-#ifdef CONFIG_INTELLI_PLUG
-	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
-#endif
-
 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, true);
-#ifdef CONFIG_INTELLI_PLUG
-	write_seqcount_begin(&nr_stats->ave_seqcnt);
-	nr_stats->ave_nr_running = do_avg_nr_running(rq);
-	nr_stats->nr_last_stamp = rq->clock_task;
-#endif
 	rq->nr_running++;
-#ifdef CONFIG_INTELLI_PLUG
-	write_seqcount_end(&nr_stats->ave_seqcnt);
-#endif
 }
 
 static inline void dec_nr_running(struct rq *rq)
 {
-#ifdef CONFIG_INTELLI_PLUG
-	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
-#endif
-
 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, false);
-#ifdef CONFIG_INTELLI_PLUG
-	write_seqcount_begin(&nr_stats->ave_seqcnt);
-	nr_stats->ave_nr_running = do_avg_nr_running(rq);
-	nr_stats->nr_last_stamp = rq->clock_task;
-#endif
 	rq->nr_running--;
-#ifdef CONFIG_INTELLI_PLUG
-	write_seqcount_end(&nr_stats->ave_seqcnt);
-#endif
 }
 
 extern void update_rq_clock(struct rq *rq);
@@ -1035,6 +951,8 @@ static inline u64 sched_avg_period(void)
 {
 	return (u64)sysctl_sched_time_avg * NSEC_PER_MSEC / 2;
 }
+
+void calc_load_account_idle(struct rq *this_rq);
 
 #ifdef CONFIG_SCHED_HRTICK
 
@@ -1237,9 +1155,9 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
+extern void unthrottle_offline_cfs_rqs(struct rq *rq);
 
-extern void cfs_bandwidth_usage_inc(void);
-extern void cfs_bandwidth_usage_dec(void);
+extern void account_cfs_bandwidth_used(int enabled, int was_enabled);
 
 #ifdef CONFIG_NO_HZ
 enum rq_nohz_flag_bits {
