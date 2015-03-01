@@ -2528,9 +2528,7 @@ static uint16_t msm_mpm_irqs_m2a[MSM_MPM_NR_MPM_IRQS] __initdata = {
 	[53] = MSM_GPIO_TO_INT(10),
 	[54] = MSM_GPIO_TO_INT(81),
 	[55] = MSM_GPIO_TO_INT(6),
-#ifdef CONFIG_SWITCH_FSA8008
-	[56] = MSM_GPIO_TO_INT(82),  /* add for FSA8008D's ear sense GPIO */
-#endif
+	[56] = MSM_GPIO_TO_INT(82),
 };
 
 static uint16_t msm_mpm_bypassed_apps_irqs[] __initdata = {
