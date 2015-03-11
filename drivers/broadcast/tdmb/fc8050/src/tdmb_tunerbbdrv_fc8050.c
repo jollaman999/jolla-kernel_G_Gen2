@@ -265,7 +265,7 @@ int tunerbb_drv_fc8050_fic_cb(uint32 userdata, uint8 *data, int length)
 	fic_buffer.length = length;
 	fic_buffer.valid = 1;
 
-	// FC8000 관련 code인 send_fic_int_sig_isr2task() in mbs_dshmain.c를 빼다 보니, 현재는 polling 방식이나 향후 ISR방식으로 적용시 필요하므로 feature를 추가함
+	// FC8000 \B0\FC\B7\C3 code\C0\CE send_fic_int_sig_isr2task() in mbs_dshmain.c\B8\A6 \BB\A9\B4\D9 \BA\B8\B4\CF, \C7\F6\C0\E7\B4\C2 polling \B9\E6\BD\C4\C0犬\AA \C7\E2\C8\C4 ISR\B9\E6\BD\C4\C0\B8\B7\CE \C0\FB\BF\EB\BD\C3 \C7却\E4\C7球퓐\CE feature\B8\A6 \C3煞\A1\C7\D4
 #ifndef FEATURE_GET_FIC_POLLING
 	send_fic_int_sig_isr2task();
 #endif // FEATURE_GET_FIC_POLLING
@@ -320,7 +320,7 @@ int tunerbb_drv_fc8050_msc_cb(uint32 userdata, uint8 subChId, uint8 *data, int l
 	2010/05/31	MOBIT	prajuna		Removed test code
 	2010/06/09	MOBIT	prajuna		TDMB porting(KB3 Rev. A patch)
 	2010/07/15	MOBIT	prajuna		TDMB tuning for QSC
-	2010/07/16	MOBIT	somesoo		TDMB tuning for QSC with FCI 최규원 과장
+	2010/07/16	MOBIT	somesoo		TDMB tuning for QSC with FCI \C3殮篤\F8 \B0\FA\C0\E5
 	2010/07/17	MOBIT	somesoo		TDMB porting(VG)
 	2010/08/19	MOBIT	prajuna		Code review
 	2010/09/10	MOBIT	prajuna		TDMB porting(Aloe)
@@ -366,7 +366,9 @@ int8	tunerbb_drv_fc8050_init(void)
 	if(res)
 	{
 		is_tdmb_probe = 0;
+#ifdef CONFIG_FC8050_DEBUG
 		printk("fc8050 chip id read error , so is_tdmb_probe = %d\n", is_tdmb_probe);
+#endif
 		return FC8050_RESULT_ERROR;
 	}
 	else
@@ -382,7 +384,7 @@ int8	tunerbb_drv_fc8050_init(void)
 
 	res = BBM_TUNER_SELECT(0, FC8050_TUNER, BAND3_TYPE);
 
-#if 0      //fc8050 <-> Host(MSM) 간의 Interface TEST를 위한 code
+#if 0      //fc8050 <-> Host(MSM) \B0\A3\C0\C7 Interface TEST\B8\A6 \C0\A7\C7\D1 code
 /* test */	
 	for(i=0;i<5000;i++)
 	{
@@ -424,7 +426,9 @@ int8	tunerbb_drv_fc8050_init(void)
 
 	if(res)
 	{
+#ifdef CONFIG_FC8050_DEBUG
 		printk("[FC8050] BBM_TUNER_SELECT Error = (%d)\n", res);
+#endif
 		return FC8050_RESULT_ERROR; 
 	}
 	else
@@ -511,7 +515,7 @@ static fci_u16 tunerbb_drv_fc8050_rserror_count(fci_u16 *nframe)//for dummy chan
 	rs_ctrl |= 0x20;
 	BBM_WRITE(0, BBM_RS_CONTROL, rs_ctrl);
 
-	BBM_WORD_READ(0, BBM_RS_RT_BER_PER, &rt_nframe);	//실시간으로 count 되는 frame 수
+	BBM_WORD_READ(0, BBM_RS_RT_BER_PER, &rt_nframe);	//\BD퓰챨\A3\C0\B8\B7\CE count \B5풔\C2 frame \BC\F6
 	//BBM_LONG_READ(0, BBM_RS_RT_ERR_SUM, &rt_esum);
 	BBM_WORD_READ(0, BBM_RS_RT_FAIL_CNT, &rt_rserror);
 
@@ -519,7 +523,7 @@ static fci_u16 tunerbb_drv_fc8050_rserror_count(fci_u16 *nframe)//for dummy chan
 	BBM_WRITE(0, BBM_RS_CONTROL, rs_ctrl);
 #endif
 
-	*nframe=rt_nframe; //실시간으로 count 되는 frame 수
+	*nframe=rt_nframe; //\BD퓰챨\A3\C0\B8\B7\CE count \B5풔\C2 frame \BC\F6
 	return rt_rserror;
 }
 
@@ -561,8 +565,10 @@ int8	tunerbb_drv_fc8050_get_ber(struct broadcast_tdmb_sig_info *dmb_bb_info)
 	{
 		dmb_bb_info->msc_ber = 20000;
 		dmb_bb_info->tp_err_cnt = 255;
-		
+
+#ifdef CONFIG_FC8050_DEBUG
 		printk("is_tdmb_probe 0. so msc_ber is 20000, tp_err_cnt = 255. \n");
+#endif
 		return FC8050_RESULT_SUCCESS;
 	}
 		
@@ -591,7 +597,7 @@ int8	tunerbb_drv_fc8050_get_ber(struct broadcast_tdmb_sig_info *dmb_bb_info)
 	
 	if(serviceType[0] == FC8050_DMB || serviceType[0] == FC8050_VISUAL)
 	{
-		tp_err_cnt = tunerbb_drv_fc8050_rserror_count(&nframe); //실시간 frame수 체크
+		tp_err_cnt = tunerbb_drv_fc8050_rserror_count(&nframe); //\BD퓰챨\A3 frame\BC\F6 체크
 		
 		if((dmb_bb_info->sync_lock == 0) || (tp_total_cnt == 0))
 		{
@@ -644,14 +650,14 @@ int8	tunerbb_drv_fc8050_get_ber(struct broadcast_tdmb_sig_info *dmb_bb_info)
 	}
 
 #if 0
-	//채널은 잡았으나 (sync_status == 0x3f) frame이 들어오지 않는 경우(nframe == 0) - MBN V-Radio
+	//채\B3\CE\C0\BA \C0\E2\BE\D2\C0\B8\B3\AA (sync_status == 0x3f) frame\C0\CC \B5\E9\BE\EE\BF\C0\C1\F6 \BE苛\C2 \B0\E6\BF\EC(nframe == 0) - MBN V-Radio
 	if((sync_status==0x3f)&&(nframe==0))
 	{
-		//antenna level을 0으로 만듬. 
+		//antenna level\C0\BB 0\C0\B8\B7\CE \B8\B8\B5\EB. 
 		dmb_bb_info->antenna_level = 0;
 	}
 
-	//antenna level이 0이면 약전계이므로 5분종료를 위해 dab_ok를 0으로 만듬. 
+	//antenna level\C0\CC 0\C0見\E9 \BE\E0\C0\FC\B0\E8\C0譴퓐\CE 5\BA\D0\C1\BE\B7搔� \C0\A7\C7\D8 dab_ok\B8\A6 0\C0\B8\B7\CE \B8\B8\B5\EB. 
 	if(dmb_bb_info->antenna_level == 0)
 	{
 		dmb_bb_info->dab_ok = 0; 
@@ -1489,7 +1495,9 @@ static int8 tunerbb_drv_fc8050_check_overrun(uint8 op_mode)
 
 			fc8050_isr_interruptclear();
 
+#ifdef CONFIG_FC8050_DEBUG
 			printk("======== FC8050  OvernRun and Buffer Reset Done mask (0x%X) over (0x%X) =======\n", mask,mfoverStatus );
+#endif
 		}
 	}
 

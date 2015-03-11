@@ -87,7 +87,9 @@ void tdmb_fc8050_spi_write_read_test(void)
 		BBM_WRITE(NULL, 0x05, i & 0xff);
 		BBM_READ(NULL, 0x05, (fci_u8*)&data);
 		if((i & 0xff) != data)
+#ifdef CONFIG_FC8050_DEBUG
 			printk("FC8000 byte test (0x%x,0x%x)\n", i & 0xff, data);
+#endif
 	}
 
 	for(i=0;i<TEST_CNT;i++)
@@ -95,7 +97,9 @@ void tdmb_fc8050_spi_write_read_test(void)
 		BBM_WORD_WRITE(NULL, 0x0210, i & 0xffff);
 		BBM_WORD_READ(NULL, 0x0210, (fci_u16*)&wdata);
 		if((i & 0xffff) != wdata)
+#ifdef CONFIG_FC8050_DEBUG
 			printk("FC8000 word test (0x%x,0x%x)\n", i & 0xffff, wdata);
+#endif
 	}
 
 	for(i=0;i<TEST_CNT;i++)
@@ -103,7 +107,9 @@ void tdmb_fc8050_spi_write_read_test(void)
 		BBM_LONG_WRITE(NULL, 0x0210, i & 0xffffffff);
 		BBM_LONG_READ(NULL, 0x0210, (fci_u32*)&ldata);
 		if((i & 0xffffffff) != ldata)
+#ifdef CONFIG_FC8050_DEBUG
 			printk("FC8000 long test (0x%x,0x%x)\n", i & 0xffffffff, ldata);
+#endif
 	}
 
 	data = 0;
@@ -114,7 +120,9 @@ void tdmb_fc8050_spi_write_read_test(void)
 		BBM_TUNER_WRITE(NULL, 0x12, 0x01, (fci_u8*)&temp, 0x01);
 		BBM_TUNER_READ(NULL, 0x12, 0x01, (fci_u8*)&data, 0x01);
 		if((i & 0xff) != data)
+#ifdef CONFIG_FC8050_DEBUG
 			printk("FC8000 tuner test (0x%x,0x%x)\n", i & 0xff, data);
+#endif
 	}
 	temp = 0x51;
 	BBM_TUNER_WRITE(NULL, 0x12, 0x01, (fci_u8*)&temp, 0x01 );
@@ -150,7 +158,9 @@ int tdmb_fc8050_mdelay(int32 ms)
 		mdelay(wait_ms);
 		if(user_stop_flg == 1)
 		{
+#ifdef CONFIG_FC8050_DEBUG
 			printk("~~~~~~~~ Ustop flag is set so return false ms =(%d)~~~~~~~\n", ms);
+#endif
 			rc = 0;
 			break;
 		}
@@ -180,7 +190,9 @@ int tdmb_fc8050_power_on(void)
 	int rc;
 #endif
 
+#ifdef CONFIG_FC8050_DEBUG
 	printk("tdmb_fc8050_power_on \n");
+#endif
 	if ( fc8050_ctrl_info.TdmbPowerOnState == FALSE )
 	{
 #ifdef FEATURE_DMB_USE_XO
@@ -213,14 +225,18 @@ int tdmb_fc8050_power_on(void)
 		tdmb_fc8050_interrupt_free();
 		fc8050_ctrl_info.TdmbPowerOnState = TRUE;
 
+#ifdef CONFIG_FC8050_DEBUG
 		printk("tdmb_fc8050_power_on OK\n");
+#endif
 	}
+#ifdef CONFIG_FC8050_DEBUG
 	else
 	{
 		printk("tdmb_fc8050_power_on the power already turn on \n");
 	}
 
 	printk("tdmb_fc8050_power_on completed \n");
+#endif
 
 	return TRUE;
 }
@@ -249,12 +265,15 @@ int tdmb_fc8050_power_off(void)
 		}
 #endif
 	}
+#ifdef CONFIG_FC8050_DEBUG
 	else
 	{
 		printk("tdmb_fc8050_power_on the power already turn off \n");
 	}
 
 	printk("tdmb_fc8050_power_off completed \n");
+#endif
+
 	return TRUE;
 }
 
@@ -277,6 +296,7 @@ static struct spi_driver broadcast_tdmb_driver = {
 
 void tdmb_fc8050_interrupt_lock(void)
 {
+#ifdef CONFIG_FC8050_DEBUG
 	if (fc8050_ctrl_info.spi_ptr == NULL)
 	{
 		printk("tdmb_fc8050_interrupt_lock fail\n");
@@ -285,10 +305,17 @@ void tdmb_fc8050_interrupt_lock(void)
 	{
 		disable_irq(fc8050_ctrl_info.spi_ptr->irq);
 	}
+#else
+	if (fc8050_ctrl_info.spi_ptr != NULL)
+	{
+		disable_irq(fc8050_ctrl_info.spi_ptr->irq);
+	}
+#endif
 }
 
 void tdmb_fc8050_interrupt_free(void)
 {
+#ifdef CONFIG_FC8050_DEBUG
 	if (fc8050_ctrl_info.spi_ptr == NULL)
 	{
 		printk("tdmb_fc8050_interrupt_free fail\n");
@@ -297,6 +324,12 @@ void tdmb_fc8050_interrupt_free(void)
 	{
 		enable_irq(fc8050_ctrl_info.spi_ptr->irq);
 	}
+#else
+	if (fc8050_ctrl_info.spi_ptr != NULL)
+	{
+		enable_irq(fc8050_ctrl_info.spi_ptr->irq);
+	}
+#endif
 }
 
 int tdmb_fc8050_spi_write_read(uint8* tx_data, int tx_length, uint8 *rx_data, int rx_length)
@@ -313,7 +346,9 @@ int tdmb_fc8050_spi_write_read(uint8* tx_data, int tx_length, uint8 *rx_data, in
 
 	if (fc8050_ctrl_info.spi_ptr == NULL)
 	{
+#ifdef CONFIG_FC8050_DEBUG
 		printk("tdmb_fc8050_spi_write_read error txdata=0x%x, length=%d\n", (unsigned int)tx_data, tx_length+rx_length);
+#endif
 		return FALSE;
 	}
 
@@ -323,10 +358,12 @@ int tdmb_fc8050_spi_write_read(uint8* tx_data, int tx_length, uint8 *rx_data, in
 	spi_message_add_tail(&t, &m);
 	rc = spi_sync(fc8050_ctrl_info.spi_ptr, &m);
 
+#ifdef CONFIG_FC8050_DEBUG
 	if ( rc < 0 )
 	{
 		printk("tdmb_fc8050_spi_read_burst result(%d), actual_len=%d\n",rc, m.actual_length);
 	}
+#endif
 
 	mutex_unlock(&fc8050_ctrl_info.mutex);
 
@@ -344,7 +381,9 @@ static irqreturn_t broadcast_tdmb_spi_isr(int irq, void *handle)
 	{
 		if (fc8050_info_p->spi_irq_status)
 		{
+#ifdef CONFIG_FC8050_DEBUG
 			printk("######### spi read function is so late skip #########\n");			
+#endif
 			return IRQ_HANDLED;
 		}
 //		printk("***** broadcast_tdmb_spi_isr coming *******\n");
@@ -352,10 +391,12 @@ static irqreturn_t broadcast_tdmb_spi_isr(int irq, void *handle)
 		queue_work(fc8050_info_p->spi_wq, &fc8050_info_p->spi_work);
 		spin_unlock_irqrestore(&fc8050_info_p->spin_lock, flag);
 	}
+#ifdef CONFIG_FC8050_DEBUG
 	else
 	{
 		printk("broadcast_tdmb_spi_isr is called, but device is off state\n");
 	}
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -373,10 +414,12 @@ static void broacast_tdmb_spi_work(struct work_struct *tdmb_work)
 		pTdmbWorkData->spi_irq_status = FALSE;
 		fc8050_isr_control(1);
 	}
+#ifdef CONFIG_FC8050_DEBUG
 	else
 	{
 		printk("~~~~~~~broadcast_tdmb_spi_work call but pTdmbworkData is NULL ~~~~~~~\n");
 	}
+#endif
 }
 #else
 static irqreturn_t broadcast_tdmb_spi_event_handler(int irq, void *handle)
@@ -388,7 +431,9 @@ static irqreturn_t broadcast_tdmb_spi_event_handler(int irq, void *handle)
 	{
 		if (fc8050_info_p->spi_irq_status)
 		{
+#ifdef CONFIG_FC8050_DEBUG
 			printk("######### spi read function is so late skip ignore #########\n");
+#endif
 			return IRQ_HANDLED;
 		}
 
@@ -398,10 +443,12 @@ static irqreturn_t broadcast_tdmb_spi_event_handler(int irq, void *handle)
 		fc8050_info_p->spi_irq_status = FALSE;
 		fc8050_isr_control(1);
 	}
+#ifdef CONFIG_FC8050_DEBUG
 	else
 	{
 		printk("broadcast_tdmb_spi_isr is called, but device is off state\n");
 	}
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -445,7 +492,9 @@ static int broadcast_tdmb_fc8050_probe(struct spi_device *spi)
 
 	if(spi == NULL)
 	{
+#ifdef CONFIG_FC8050_DEBUG
 		printk("broadcast_fc8050_probe spi is NULL, so spi can not be set\n");
+#endif
 		return -1;
 	}
 
@@ -456,7 +505,9 @@ static int broadcast_tdmb_fc8050_probe(struct spi_device *spi)
 	fc8050_ctrl_info.spi_ptr->bits_per_word 	= 8;
 	fc8050_ctrl_info.spi_ptr->max_speed_hz 	= (24000*1000);
 	rc = spi_setup(spi);
+#ifdef CONFIG_FC8050_DEBUG
 	printk("broadcast_tdmb_fc8050_probe spi_setup=%d\n", rc);
+#endif
 	BBM_HOSTIF_SELECT(NULL, 1);
 
 #ifdef FEATURE_DMB_USE_XO
@@ -485,7 +536,9 @@ static int broadcast_tdmb_fc8050_probe(struct spi_device *spi)
 	rc = request_threaded_irq(spi->irq, NULL, broadcast_tdmb_spi_event_handler, IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 	                   spi->dev.driver->name, &fc8050_ctrl_info);
 #endif
+#ifdef CONFIG_FC8050_DEBUG
 	printk("broadcast_tdmb_fc8050_probe request_irq=%d\n", rc);
+#endif
 
 	tdmb_fc8050_interrupt_lock();
 
@@ -497,14 +550,18 @@ static int broadcast_tdmb_fc8050_probe(struct spi_device *spi)
 #ifdef FEATURE_DMB_USE_PM_QOS
 	pm_qos_add_request(&fc8050_ctrl_info.pm_req_list, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 #endif
+#ifdef CONFIG_FC8050_DEBUG
 	printk("broadcast_fc8050_probe End\n");
+#endif
 
 	return rc;
 }
 
 static int broadcast_tdmb_fc8050_remove(struct spi_device *spi)
 {
+#ifdef CONFIG_FC8050_DEBUG
 	printk("broadcast_tdmb_fc8050_remove \n");
+#endif
 
 #ifdef FEATURE_DMB_USE_WORKQUEUE
 	if (fc8050_ctrl_info.spi_wq)
@@ -528,13 +585,17 @@ static int broadcast_tdmb_fc8050_remove(struct spi_device *spi)
 
 static int broadcast_tdmb_fc8050_suspend(struct spi_device *spi, pm_message_t mesg)
 {
+#ifdef CONFIG_FC8050_DEBUG
 	printk("broadcast_tdmb_fc8050_suspend \n");
+#endif
 	return 0;
 }
 
 static int broadcast_tdmb_fc8050_resume(struct spi_device *spi)
 {
+#ifdef CONFIG_FC8050_DEBUG
 	printk("broadcast_tdmb_fc8050_resume \n");
+#endif
 	return 0;
 }
 

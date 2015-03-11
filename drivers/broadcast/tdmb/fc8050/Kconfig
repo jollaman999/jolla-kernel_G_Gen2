@@ -11,4 +11,9 @@ config FC8050_TDMB
 	  keyboard and mouse device driver.  It communicates with a back-end
 	  in another domain.
 
+config FC8050_DEBUG
+	default n
+	---help---
+	  Enable TDMB fc8050 debug messages.
+
 #endmenu
