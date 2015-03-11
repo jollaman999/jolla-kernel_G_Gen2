@@ -119,6 +119,32 @@ struct pm8xxx_mpp_init {
 
 /* Initial PM8921 GPIO configurations */
 static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
+// LGE_BROADCAST_ONESEG {
+// TDMBG, 1-Seg & MMBi different RF S/W problem
+#if defined(CONFIG_LGE_BROADCAST_TDMB)
+	PM8921_GPIO_OUTPUT(11, 0, HIGH), /* DMB Retractble Ant. Select */
+	PM8921_GPIO_OUTPUT(12, 1, HIGH), /* Ear Retractble Ant. Select */
+#endif
+
+// eric0.kim@lge.com [2012.08.07]
+#if 0
+#if defined(CONFIG_LGE_BROADCAST_ONESEG) && defined(CONFIG_LGE_BROADCAST_ONESEG_FC8150) //GJ_KDDI
+#if 1 	/* Oneseg Retractble Ant. Select */
+	PM8921_GPIO_OUTPUT(11, 0, HIGH),
+	PM8921_GPIO_OUTPUT(12, 1, HIGH),
+#else 	/* Oneseg Earjack Ant. Select */
+	PM8921_GPIO_OUTPUT(11, 1, HIGH),
+	PM8921_GPIO_OUTPUT(12, 0, HIGH),
+#endif
+#endif //defined(CONFIG_LGE_BROADCAST_ONESEG) && defined(CONFIG_LGE_BROADCAST_ONESEG_FC8150)
+#endif
+
+
+#if defined(CONFIG_LGE_BROADCAST_ONESEG) && defined(CONFIG_LGE_BROADCAST_ONESEG_MB86A35S) //GJ_DCM
+	PM8921_GPIO_OUTPUT(11, 1, HIGH), /* DMB Retractble Ant. Select */
+#endif //defined(CONFIG_LGE_BROADCAST_ONESEG) && defined(CONFIG_LGE_BROADCAST_ONESEG_MB86A35S)
+// LGE_BROADCAST_ONESEG }
+
 	PM8921_GPIO_INPUT(13, PM_GPIO_PULL_DN), /* EARJACK_DEBUGGER */
 	PM8921_GPIO_INPUT(14, PM_GPIO_PULL_DN), /* SLIMPORT_CBL_DET */
 	PM8921_GPIO_OUTPUT(15, 0, HIGH), /* ANX_P_DWN_CTL */

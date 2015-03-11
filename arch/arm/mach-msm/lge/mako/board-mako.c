@@ -1844,6 +1844,9 @@ static struct platform_device *common_not_mpq_devices[] __initdata = {
 static struct platform_device *common_devices[] __initdata = {
 	&apq8064_device_acpuclk,
 	&apq8064_device_dmov,
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+	&apq8064_device_qup_spi_gsbi5,
+#endif /* CONFIG_LGE_BROADCAST */
 	&apq8064_device_ssbi_pmic2,
 	&apq8064_device_ext_dsv_load_vreg,
 	&msm_device_smd_apq8064,
@@ -1978,6 +1981,64 @@ static struct platform_device rc_input_loopback_pdev = {
 static struct platform_device *uart_devices[] __initdata = {
 	&apq8064_device_uart_gsbi4,
 };
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+#define DMB_IRQ_GPIO    77
+static struct msm_spi_platform_data apq8064_qup_spi_gsbi5_pdata = {
+
+#ifdef CONFIG_LGE_BROADCAST_TDMB_FC8050
+	.max_clock_speed = (24*1000*1000),
+	.infinite_mode = 0xFFC0, //chnage 1 to 0xFFC0
+#endif /* CONFIG_LGE_BROADCAST_TDMB_FC8050 */
+
+#ifdef CONFIG_LGE_BROADCAST_ONESEG_MB86A35S
+	.max_clock_speed = (32*1000*1000),
+	.infinite_mode = 0xFFC0, //chnage 1 to 0xFFC0
+#endif /* CONFIG_LGE_BROADCAST_ONESEG_MB86A35S */
+
+#ifdef CONFIG_LGE_BROADCAST_ONESEG_FC8150
+	.max_clock_speed = (24*1000*1000),
+#endif /* CONFIG_LGE_BROADCAST_ONESEG_FC8150 */
+
+};
+
+static struct spi_board_info spi_broadcast_board_info[] __initdata = {
+
+#ifdef CONFIG_LGE_BROADCAST_TDMB_FC8050
+	{
+		.modalias               = "tdmb_fc8050",
+		.irq                    = MSM_GPIO_TO_INT(DMB_IRQ_GPIO),
+		.max_speed_hz           = (24*1000*1000),
+		.bus_num                = 0,
+		.chip_select            = 0,
+		.mode                   = SPI_MODE_0,
+	},
+#endif /* CONFIG_LGE_BROADCAST_TDMB_FC8050 */
+
+#ifdef CONFIG_LGE_BROADCAST_ONESEG_MB86A35S
+	{
+		.modalias                    = "mb86a35s",
+		.irq                                 = MSM_GPIO_TO_INT(DMB_IRQ_GPIO),
+		.max_speed_hz          = (32*1000*1000),
+		.bus_num                = 0,
+		.chip_select            = 0,
+		.mode                   = SPI_MODE_0,
+	},
+#endif /* CONFIG_LGE_BROADCAST_ONESEG_MB86A35S */
+
+#ifdef CONFIG_LGE_BROADCAST_ONESEG_FC8150
+	{
+		.modalias               = "isdbt",
+		.irq                    = MSM_GPIO_TO_INT(DMB_IRQ_GPIO),
+		.max_speed_hz           = (24*1000*1000),
+		.bus_num                = 0,
+		.chip_select            = 0,
+		.mode                   = SPI_MODE_0,
+	},
+#endif /* CONFIG_LGE_BROADCAST_ONESEG_FC8150 */
+
+};
+#endif /* CONFIG_LGE_BROADCAST */
 
 static struct spi_board_info spi_board_info[] __initdata = {
 };
@@ -2315,6 +2376,14 @@ static void __init apq8064_mako_init(void)
 	}
 	pr_info("[NORMAL-DEBUG] apq8064_device_uart_gsbi4.id : %d",  apq8064_device_uart_gsbi4.id);
 	pr_info("[DEBUG] uart_enable : %d", lge_get_uart_mode() );
+
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+	apq8064_device_qup_spi_gsbi5.dev.platform_data =
+						&apq8064_qup_spi_gsbi5_pdata;
+
+	spi_register_board_info(spi_broadcast_board_info,
+					 ARRAY_SIZE(spi_broadcast_board_info));
+#endif /* CONFIG_LGE_BROADCAST */
 
 	apq8064_init_fb();
 	apq8064_init_gpu();

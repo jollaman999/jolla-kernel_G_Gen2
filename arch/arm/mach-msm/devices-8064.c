@@ -398,6 +398,46 @@ static struct resource resources_qup_spi_gsbi5[] = {
 		.end    = GSBI5_QUP_IRQ,
 		.flags  = IORESOURCE_IRQ,
 	},
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+	{
+		.name = "spi_clk",
+		.start = 54,
+		.end = 54,
+		.flags = IORESOURCE_IO,
+	},
+	{
+		.name = "spi_cs",
+		.start = 53,
+		.end = 53,
+		.flags = IORESOURCE_IO,
+	},
+	{
+		.name = "spi_miso",
+		.start = 52,
+		.end = 52,
+		.flags = IORESOURCE_IO,
+	},
+	{
+		.name = "spi_mosi",
+		.start = 51,
+		.end =51,
+		.flags = IORESOURCE_IO,
+	},
+
+	/* For DMA enabled */
+	{
+		.name = "spidm_channels",
+		.start = 6,
+		.end   = 7,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.name = "spidm_crci",
+		.start = 9,
+		.end = 10,
+		.flags = IORESOURCE_DMA,
+	},
+#endif /* CONFIG_LGE_BROADCAST */
 };
 
 struct platform_device apq8064_device_qup_spi_gsbi5 = {

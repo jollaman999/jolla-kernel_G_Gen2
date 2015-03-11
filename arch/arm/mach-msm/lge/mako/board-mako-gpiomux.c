@@ -26,6 +26,28 @@
 #include "devices.h"
 #include "board-mako.h"
 
+// LGE_BROADCAST_ONESEG {
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+static struct gpiomux_setting gsbi5_spi_config= {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting dmb_ctrl_pin = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting dmb_int_pin = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+#endif /* CONFIG_LGE_BROADCAST */
+// LGE_BROADCAST_ONESEG }
+
 static struct gpiomux_setting mbhc_hs_detect = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_2MA,
@@ -263,6 +285,52 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 			[GPIOMUX_ACTIVE] = &gsbi4_uart_active
 		},
 	},
+// LGE_BROADCAST_ONESEG {
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+	{
+		.gpio	   = 51,		/* GSBI5 QUP DMB SPI_MOSI */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_config,
+		},
+	},
+	{
+		.gpio	   = 52,		/* GSBI5 QUP DMB SPI_MISO */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_config,
+		},
+	},
+	{
+		.gpio	   = 53,		/* GSBI5 QUP DMB SPI_CS */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_config,
+		},
+	},
+	{
+		.gpio	   = 54,		/* GSBI5 QUP SPI_CLK */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_config,
+		},
+	},
+	{
+		.gpio = 1,                       /* T-DMB_RESET && ONESEG_RESET*/
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &dmb_ctrl_pin,
+		},
+	},
+	{
+		.gpio	   = 77,                     /* DMB_INT */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &dmb_int_pin,
+		},
+	},
+	{
+		.gpio = 85,                        /* DMB_EN */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &dmb_ctrl_pin,
+		},
+	},
+#endif /* CONFIG_LGE_BROADCAST */
+// LGE_BROADCAST_ONESEG }
 };
 
 static struct msm_gpiomux_config apq8064_slimbus_config[] __initdata = {

@@ -151,6 +151,11 @@ enum msm_spi_state {
 #define SPI_QUP_VERSION_NONE      0x0
 #define SPI_QUP_VERSION_BFAM      0x2
 
+#if defined(CONFIG_LGE_BROADCAST_TDMB) || defined(CONFIG_LGE_BROADCAST_ONESEG)
+/* Improvement SPI latency */
+/*#define SPI_LGE_THREAD_FEATURE*/ /* use 1seg/mmbi LGE ring buffer*/
+#endif /* CONFIG_LGE_BROADCAST */
+
 static char const * const spi_rsrcs[] = {
 	"spi_clk",
 	"spi_miso",
