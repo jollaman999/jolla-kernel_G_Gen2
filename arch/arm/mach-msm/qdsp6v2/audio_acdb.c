@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <mach/qdsp6v2/audio_acdb.h>
 
-
 #define MAX_NETWORKS		15
 
 struct sidetone_atomic_cal {
@@ -868,7 +867,7 @@ done:
 static int acdb_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int result = 0;
-	int size = vma->vm_end - vma->vm_start;
+	uint32_t size = vma->vm_end - vma->vm_start;
 
 	pr_debug("%s\n", __func__);
 
