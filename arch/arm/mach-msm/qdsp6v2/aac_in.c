@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -125,6 +125,7 @@ static long aac_in_ioctl(struct file *file,
 	case AUDIO_GET_AAC_ENC_CONFIG: {
 		struct msm_audio_aac_enc_config cfg;
 		struct msm_audio_aac_enc_config *enc_cfg;
+		memset(&cfg, 0, sizeof(cfg));
 		enc_cfg = audio->enc_cfg;
 		if (enc_cfg->channels == CH_MODE_MONO)
 			cfg.channels = 1;
@@ -178,7 +179,7 @@ static long aac_in_ioctl(struct file *file,
 		/* For aac-lc, min_bit_rate = min(24Kbps, 0.5*SR*num_chan);
 		max_bi_rate = min(192Kbps, 6*SR*num_chan);
 		min_sample_rate = 8000Hz, max_rate=48000 */
-		if ((cfg.bit_rate < 4000) || (cfg.bit_rate > 320000)) {
+		if ((cfg.bit_rate < 4000) || (cfg.bit_rate > 192000)) {
 			pr_err("%s: ERROR in setting bitrate = %d\n",
 				__func__, cfg.bit_rate);
 			rc = -EINVAL;

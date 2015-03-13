@@ -1640,4 +1640,36 @@ struct srs_trumedia_params {
 int srs_trumedia_open(int port_id, int srs_tech_id, void *srs_params);
 /* SRS TruMedia end */
 
+/* SRS Studio Sound 3D start */
+#define SRS_ID_SS3D_GLOBAL	0x00000001
+#define SRS_ID_SS3D_CTRL	0x00000002
+#define SRS_ID_SS3D_FILTER	0x00000003
+
+struct srs_SS3D_params_GLOBAL {
+	uint8_t                  v1;
+	uint8_t                  v2;
+	uint8_t                  v3;
+	uint8_t                  v4;
+	uint8_t                  v5;
+	uint8_t                  v6;
+	uint8_t                  v7;
+	uint8_t                  v8;
+} __packed;
+
+struct srs_SS3D_ctrl_params {
+	uint8_t				v[236];
+} __packed;
+
+struct srs_SS3D_filter_params {
+	uint8_t				v[28 + 2752];
+} __packed;
+
+struct srs_SS3D_params {
+	struct srs_SS3D_params_GLOBAL   global;
+	struct srs_SS3D_ctrl_params     ss3d;
+	struct srs_SS3D_filter_params   ss3d_f;
+} __packed;
+
+int srs_ss3d_open(int port_id, int srs_tech_id, void *srs_params);
+/* SRS Studio Sound 3D end */
 #endif /*_APR_AUDIO_H_*/
