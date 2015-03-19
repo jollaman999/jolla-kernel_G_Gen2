@@ -128,7 +128,9 @@ static int vibrator_power_set(int enable)
 {
 	int rc = 0;
 	static struct regulator *vreg_l16 = NULL;
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 	int enabled = 0;
+#endif
 
 	if (unlikely(!vreg_l16)) {
 		vreg_l16 = regulator_get(NULL, "8921_l16"); /* 2.6 ~ 3V */
@@ -141,6 +143,7 @@ static int vibrator_power_set(int enable)
 		}
 	}
 
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 	/* fix the unbalanced disables */
 	enabled = regulator_is_enabled(vreg_l16);
 	if (enabled > 0) {
@@ -156,15 +159,20 @@ static int vibrator_power_set(int enable)
 	} else { /*  (enabled < 0) */
 		pr_warn("%s: regulator_is_enabled failed\n", __func__);
 	}
+#endif
 
 	rc = regulator_set_voltage(vreg_l16, 2800000, 2800000);
 
 	if(enable) {
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 		printk("vibrator_power_set() : vibrator enable\n");
+#endif
 		rc = regulator_enable(vreg_l16);
 	}
 	else {
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 		printk("vibrator_power_set() : vibrator disable\n");
+#endif
 		rc = regulator_disable(vreg_l16);
 	}
 
@@ -243,7 +251,9 @@ static VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex)
 {
 
 	if (g_bAmpEnabled) {
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 		DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpDisable.\n"));
+#endif
 
 		g_bAmpEnabled = false;
 
@@ -262,7 +272,9 @@ static VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 {
 
 	if (!g_bAmpEnabled) {
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 		DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpEnable.\n"));
+#endif
 
 		g_bAmpEnabled = true;
 
@@ -271,7 +283,9 @@ static VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 		vibrator_ic_enable_set(1);
 	}
 	else {
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 		DbgOut((KERN_DEBUG "[ImmVibeSPI] : ImmVibeSPI_ForceOut_AmpEnable [%d]\n", g_bAmpEnabled ));
+#endif
 	}
 
 	return VIBE_S_SUCCESS;
@@ -286,7 +300,9 @@ static VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
 	int gpio_motor_en = 0;
 	int gpio_motor_pwm = 0;
 
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 	DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Initialize.\n"));
+#endif
 
 	/* to force ImmVibeSPI_ForceOut_AmpDisable disabling the amp */
 	g_bAmpEnabled = true;
@@ -332,7 +348,9 @@ static VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
 static VibeStatus ImmVibeSPI_ForceOut_Terminate(void)
 {
 
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 	DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Terminate.\n"));
+#endif
 
 	/*
 	** Disable amp.

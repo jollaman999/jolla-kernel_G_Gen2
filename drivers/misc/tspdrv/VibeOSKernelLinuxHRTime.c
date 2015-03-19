@@ -205,9 +205,11 @@ static void VibeOSKernelLinuxStartTimer(void)
 	 * wait for the mutex to be freed by the timer
 	 */
 	res = down_interruptible(&g_hMutex);
+#ifdef CONFIG_TOUCHSENSE_VIBRATOR_DEBUG
 	if (res != 0) {
 		DbgOut((KERN_INFO "VibeOSKernelLinuxStartTimer: down_interruptible interrupted by a signal.\n"));
 	}
+#endif
 }
 
 static void VibeOSKernelLinuxStopTimer(void)

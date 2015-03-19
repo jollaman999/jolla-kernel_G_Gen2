@@ -1,0 +1,20 @@
+#
+# Immersion Touchsense vibrator
+#
+
+menu "Immersion Touchsense vibrator"
+
+config TOUCHSENSE_VIBRATOR
+	bool "Immersion Touchsense vibrator support"
+	help
+	  This option enables device driver support for Immersion Touchsense
+	  vibrator.
+
+config TOUCHSENSE_VIBRATOR_DEBUG
+	bool "Immersion Touchsense vibrator debug option"
+	depends on TOUCHSENSE_VIBRATOR
+	default n
+	help
+	  Enable debug messages of Immersion Touchsense vibrator driver.
+
+endmenu
