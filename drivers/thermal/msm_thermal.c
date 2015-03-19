@@ -35,11 +35,6 @@
 
 static DEFINE_MUTEX(emergency_shutdown_mutex);
 
-// msm_thermal: Add early suspend handler - by jollaman999
-#ifdef CONFIG_HAS_EARLYSUSPEND
-bool screen_suspended;
-#endif
-
 static int enabled;
 
 //Throttling indicator, 0=not throttled, 1=low, 2=mid, 3=max
@@ -224,12 +219,6 @@ static void __cpuinit check_temp(struct work_struct *work)
     uint32_t max_freq = 0;
     bool update_policy = false;
     int i = 0, cpu = 0, ret = 0;
-
-    // msm_thermal: Add early suspend handler - by jollaman999
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    if(screen_suspended)
-        goto reschedule;
-#endif
 
     tsens_dev.sensor_num = msm_thermal_info.sensor_id;
     ret = tsens_get_temp(&tsens_dev, &temp);
@@ -634,11 +623,23 @@ static struct attribute *msm_thermal_attributes[] = {
 // msm_thermal: Add early suspend handler - by jollaman999
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void msm_thermal_early_suspend(struct early_suspend *h) {
-	screen_suspended = true;
+	// msm_thermal: Permanently disable check_temp_work when screen turned off
+	if (enabled) {
+		/* make sure check_temp is no longer running */
+		cancel_delayed_work(&check_temp_work);
+		flush_scheduled_work();
+		pr_info("msm_thermal: Thermal guard suspended.");
+	}
 }
 
 static void msm_thermal_late_resume(struct early_suspend *h) {
-	screen_suspended = false;
+	// msm_thermal: Permanently disable check_temp_work when screen turned off
+	if (enabled) {
+		/* make sure check_temp is running */
+		queue_delayed_work(check_temp_workq, &check_temp_work,
+				msecs_to_jiffies(msm_thermal_info.poll_ms));
+		pr_info("msm_thermal: Thermal guard resumed.");
+	}
 }
 
 static struct early_suspend msm_thermal_early_suspend_handler = {
