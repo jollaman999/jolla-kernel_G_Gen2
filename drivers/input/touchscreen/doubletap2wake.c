@@ -336,18 +336,15 @@ static int lcd_notifier_callback(struct notifier_block *this,
 	default:
 		break;
 	}
-
 	return 0;
 }
 #else
 static void dt2w_early_suspend(struct early_suspend *h) {
 	scr_suspended = true;
 }
-
 static void dt2w_late_resume(struct early_suspend *h) {
 	scr_suspended = false;
 }
-
 static struct early_suspend dt2w_early_suspend_handler = {
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
 	.suspend = dt2w_early_suspend,
@@ -451,6 +448,7 @@ static int __init doubletap2wake_init(void)
 #else
 	register_early_suspend(&dt2w_early_suspend_handler);
 #endif
+*/
 
 #ifndef ANDROID_TOUCH_DECLARED
 	android_touch_kobj = kobject_create_and_add("android_touch", NULL) ;
