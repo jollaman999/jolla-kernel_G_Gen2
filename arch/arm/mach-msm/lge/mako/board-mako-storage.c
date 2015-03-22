@@ -267,6 +267,7 @@ void __init apq8064_init_mmc(void)
 	if (apq8064_sdc1_pdata) {
 		mako_fixup_sdc1();
 		apq8064_add_sdcc(1, apq8064_sdc1_pdata);
+		apq8064_add_uio();
 	}
 
 	if (apq8064_sdc3_pdata) {

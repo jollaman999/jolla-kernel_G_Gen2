@@ -44,6 +44,7 @@
 #include "msm_watchdog.h"
 #include "rpm_stats.h"
 #include "rpm_log.h"
+#include "board-8064.h"
 #include <mach/mpm.h>
 #include <mach/iommu_domains.h>
 #include <mach/msm_cache_dump.h>
@@ -1718,6 +1719,30 @@ int __init apq8064_add_sdcc(unsigned int controller,
 	pdev = apq8064_sdcc_devices[controller-1];
 	pdev->dev.platform_data = plat;
 	return platform_device_register(pdev);
+}
+
+#define MSM_UIO_RMTFS_BASE	0x8FF00000
+#define MSM_UIO_RMTFS_END	(MSM_UIO_RMTFS_BASE + 0x40000)
+
+static struct resource msm_device_uio_rmtfs_rsc[] = {
+	{
+		.name	= "rmtfs",
+		.flags	= IORESOURCE_MEM,
+		.start	= MSM_UIO_RMTFS_BASE,
+		.end	= MSM_UIO_RMTFS_END - 1,
+	},
+};
+
+struct platform_device apq8064_device_uio_rmtfs = {
+	.name		= "msm_sharedmem",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(msm_device_uio_rmtfs_rsc),
+	.resource	= msm_device_uio_rmtfs_rsc,
+};
+
+int __init apq8064_add_uio()
+{
+	return platform_device_register(&apq8064_device_uio_rmtfs);
 }
 
 static struct resource resources_sps[] = {
