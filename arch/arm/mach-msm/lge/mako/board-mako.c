@@ -1849,6 +1849,10 @@ static struct platform_device *common_devices[] __initdata = {
 #endif /* CONFIG_LGE_BROADCAST */
 	&apq8064_device_ssbi_pmic2,
 	&apq8064_device_ext_dsv_load_vreg,
+#ifdef CONFIG_WIRELESS_CHARGER
+	&wireless_charger,
+#endif
+	&batt_temp_ctrl,
 	&msm_device_smd_apq8064,
 	&apq8064_device_otg,
 	&apq8064_device_gadget_peripheral,
