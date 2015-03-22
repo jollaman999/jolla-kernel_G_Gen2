@@ -1345,22 +1345,11 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 	if (ret < 0)
 		printk(KERN_WARNING "asoc: failed to add pmdown_time sysfs\n");
 
-	if (cpu_dai->driver->compress_dai) {
-		/*create compress_device"*/
-		ret = soc_new_compress(rtd, num);
-		if (ret < 0) {
-		  printk(KERN_ERR "asoc: can't create compress %s\n",
-					 dai_link->stream_name);
-			return ret;
-		}
-	} else {
-		/* create the pcm */
-		ret = soc_new_pcm(rtd, num);
-		if (ret < 0) {
-		  printk(KERN_ERR "asoc: can't create pcm %s :%d\n",
-			       dai_link->stream_name, ret);
-			return ret;
-		}
+	/* create the pcm */
+	ret = soc_new_pcm(rtd, num);
+	if (ret < 0) {
+		printk(KERN_ERR "asoc: can't create pcm %s\n", dai_link->stream_name);
+		return ret;
 	}
 
 	/* add platform data for AC97 devices */
@@ -3243,6 +3232,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	mutex_init(&card->mutex);
 	mutex_init(&card->dpcm_mutex);
 	mutex_init(&card->dapm_power_mutex);
+	mutex_init(&card->dapm_mutex);
 
 	mutex_lock(&client_mutex);
 	list_add(&card->list, &card_list);

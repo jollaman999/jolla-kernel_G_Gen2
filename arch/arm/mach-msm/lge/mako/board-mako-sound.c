@@ -16,9 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/pm8xxx/pm8921.h>
 #include <linux/regulator/consumer.h>
-#include <linux/platform_data/hds_fsa8008.h>
-#include <linux/console.h>
-#include <mach/board_lge.h>
 #include "devices.h"
 
 #ifdef CONFIG_SND_SOC_TPA2028D
@@ -26,7 +23,11 @@
 #endif
 
 #include "board-mako.h"
-#include "board-mako-earjack-debugger.h"
+#ifdef CONFIG_SWITCH_FSA8008
+#include <linux/platform_data/hds_fsa8008.h>
+#include <mach/board_lge.h>
+#endif
+#include "../../../../sound/soc/codecs/wcd9310.h"
 
 
 #define TPA2028D_ADDRESS (0xB0>>1)
@@ -34,16 +35,7 @@
 #define AGC_COMPRESIION_RATE        0
 #define AGC_OUTPUT_LIMITER_DISABLE  1
 #define AGC_FIXED_GAIN              12
-#define AGC_ATK_TIME			5
-#define AGC_REL_TIME			11
-#define AGC_HOLD_TIME			0
-#define AGC_OUTPUT_LIMIT_LEVEL		26
-#define AGC_MAX_GAIN			12
-#define AGC_NOISE_GATE_THRESHOLD	1
-
-#define GPIO_EAR_MIC_BIAS_EN        PM8921_GPIO_PM_TO_SYS(20)
 #define GPIO_EAR_SENSE_N            82
-#define GPIO_EAR_SENSE_N_REV11      81
 #define GPIO_EAR_MIC_EN             PM8921_GPIO_PM_TO_SYS(31)
 #define GPIO_EARPOL_DETECT          PM8921_GPIO_PM_TO_SYS(32)
 #define GPIO_EAR_KEY_INT            83
@@ -104,12 +96,6 @@ static struct audio_amp_platform_data amp_platform_data =  {
 	.agc_compression_rate = AGC_COMPRESIION_RATE,
 	.agc_output_limiter_disable = AGC_OUTPUT_LIMITER_DISABLE,
 	.agc_fixed_gain = AGC_FIXED_GAIN,
-	.ATK_time = AGC_ATK_TIME,
-	.REL_time = AGC_REL_TIME,
-	.Hold_time = AGC_HOLD_TIME,
-	.Output_limit_level = AGC_OUTPUT_LIMIT_LEVEL,
-	.Noise_Gate_Threshold = AGC_NOISE_GATE_THRESHOLD,
-	.AGC_Max_Gain = AGC_MAX_GAIN,
 };
 #endif
 
@@ -138,79 +124,7 @@ static void __init lge_add_i2c_tpa2028d_devices(void)
 				msm_i2c_audiosubsystem.len);
 }
 
-static void enable_external_mic_bias(int status)
-{
-	static struct regulator *reg_mic_bias = NULL;
-	static int prev_on;
-	int rc = 0;
-
-	if (status == prev_on)
-		return;
-
-	if (lge_get_board_revno() > HW_REV_C) {
-		if (!reg_mic_bias) {
-			reg_mic_bias = regulator_get(NULL, "mic_bias");
-			if (IS_ERR(reg_mic_bias)) {
-				pr_err("%s: could not regulator_get\n",
-						__func__);
-				reg_mic_bias = NULL;
-				return;
-			}
-		}
-
-		if (status) {
-			rc = regulator_enable(reg_mic_bias);
-			if (rc)
-				pr_err("%s: regulator enable failed\n",
-						__func__);
-			pr_debug("%s: mic_bias is on\n", __func__);
-		} else {
-			rc = regulator_disable(reg_mic_bias);
-			if (rc)
-				pr_warn("%s: regulator disable failed\n",
-						__func__);
-			pr_debug("%s: mic_bias is off\n", __func__);
-		}
-	}
-
-	if (lge_get_board_revno() < HW_REV_1_0)
-		gpio_set_value_cansleep(GPIO_EAR_MIC_BIAS_EN, status);
-	prev_on = status;
-}
-
-static int console_enabled = 1;
-int mako_console_stopped(void)
-{
-	return !console_enabled;
-}
-
-static void set_uart_console(int enable)
-{
-	static struct console *uart_con = NULL;
-
-	console_enabled = enable;
-
-	if (!uart_con) {
-		struct console *con;
-		for_each_console(con) {
-			if (!strcmp(con->name, "ttyHSL")) {
-				uart_con = con;
-				break;
-			}
-		}
-	}
-
-	if (!uart_con) {
-		pr_debug("%s: no uart console\n", __func__);
-		return;
-	}
-
-	if (enable)
-		console_start(uart_con);
-	else
-		console_stop(uart_con);
-}
-
+#ifdef CONFIG_SWITCH_FSA8008
 static struct fsa8008_platform_data lge_hs_pdata = {
 	.switch_name = "h2w",
 	.keypad_name = "hs_detect",
@@ -219,26 +133,14 @@ static struct fsa8008_platform_data lge_hs_pdata = {
 
 	.gpio_detect = GPIO_EAR_SENSE_N,
 	.gpio_mic_en = GPIO_EAR_MIC_EN,
-	.gpio_mic_bias_en = GPIO_EAR_MIC_BIAS_EN,
 	.gpio_jpole  = GPIO_EARPOL_DETECT,
 	.gpio_key    = GPIO_EAR_KEY_INT,
 
-	.latency_for_detection = 75,
-	.set_headset_mic_bias = enable_external_mic_bias,
-	.set_uart_console = set_uart_console,
-};
+	.set_headset_mic_bias = NULL,
+	.gpio_detect_can_wakeup = true,
 
-static __init void mako_fixed_audio(void)
-{
-	if (lge_get_board_revno() >= HW_REV_1_0)
-		lge_hs_pdata.gpio_mic_bias_en = -1;
-#ifndef CONFIG_MACH_APQ8064_J1A
-	if (lge_get_board_revno() > HW_REV_1_0) {
-		lge_hs_pdata.gpio_detect = GPIO_EAR_SENSE_N_REV11;
-		lge_hs_pdata.gpio_detect_can_wakeup = 1;
-	}
-#endif
-}
+	.latency_for_detection = 75,
+};
 
 static struct platform_device lge_hsd_device = {
 	.name = "fsa8008",
@@ -248,28 +150,24 @@ static struct platform_device lge_hsd_device = {
 	},
 };
 
-#define GPIO_EARJACK_DEBUGGER_TRIGGER       PM8921_GPIO_PM_TO_SYS(13)
-static struct earjack_debugger_platform_data earjack_debugger_pdata = {
-	.gpio_trigger = GPIO_EARJACK_DEBUGGER_TRIGGER,
-	.set_uart_console = set_uart_console,
-};
+static int __init lge_hsd_fsa8008_init(void)
+{
+	//[AUDIO_BSP], 20120730, sehwan.lee@lge.com PMIC L29 Control(because headset noise)
+	lge_hs_pdata.set_headset_mic_bias = set_headset_mic_bias_l29;
 
-static struct platform_device earjack_debugger_device = {
-	.name = "earjack-debugger-trigger",
-	.id = -1,
-	.dev = {
-		.platform_data = &earjack_debugger_pdata,
-	},
-};
+	return platform_device_register(&lge_hsd_device);
+}
 
-static struct platform_device *sound_devices[] __initdata = {
-	&lge_hsd_device,
-	&earjack_debugger_device,
-};
+static void __exit lge_hsd_fsa8008_exit(void)
+{
+	platform_device_unregister(&lge_hsd_device);
+}
+#endif
 
 void __init lge_add_sound_devices(void)
 {
-	mako_fixed_audio();
 	lge_add_i2c_tpa2028d_devices();
-	platform_add_devices(sound_devices, ARRAY_SIZE(sound_devices));
+#ifdef CONFIG_SWITCH_FSA8008
+       lge_hsd_fsa8008_init();
+#endif
 }

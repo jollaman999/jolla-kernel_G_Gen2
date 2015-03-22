@@ -184,6 +184,24 @@ struct tabla_mbhc_config {
 extern int tabla_hs_detect(struct snd_soc_codec *codec,
 			   const struct tabla_mbhc_config *cfg);
 
+#ifdef CONFIG_SWITCH_MAX1462X
+extern void set_headset_mic_bias_l10(int on); //[AUDIO_BSP], 20121025, gyuhwa.park@lge.com PMIC L10 Control
+#endif
+#ifdef CONFIG_SWITCH_FSA8008
+/*
+* 2012-02-06, mint.choi@lge.com
+* Enable/disable fsa8008 mic bias when inserting and removing
+* this API called by fsa8008 driver
+*/
+extern void set_headset_mic_bias_l29(int on); //[AUDIO_BSP], 20120730, sehwan.lee@lge.com PMIC L29 Control(because headset noise)
+extern void tabla_codec_micbias2_ctl(int enable); 
+#endif
+//2013-04-18 Ilda_jung(ilda.jung@lge.com) [AWIFI/AUDIO BSP] Add micbias3 for AWIFI [START]
+#ifdef CONFIG_SWITCH_FSA8008
+void tabla_codec_micbias3_ctl(int enable);
+#endif
+//2013-04-17 Ilda_jung(ilda.jung@lge.com) [AWIFI/AUDIO BSP] Add micbias3 for AWIFI [END]
+
 struct anc_header {
 	u32 reserved[3];
 	u32 num_anc_slots;
