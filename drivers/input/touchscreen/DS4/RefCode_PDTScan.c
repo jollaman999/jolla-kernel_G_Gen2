@@ -166,7 +166,7 @@ void SYNA_PDTScan(void)
 				F1A_Control_Base = (i << 8) | in[2];
 				F1A_Data_Base = (i << 8) | in[3];
 
-#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GVDCM) || defined(CONFIG_MACH_APQ8064_GV_KR) || defined(CONFIG_MACH_APQ8064_GKGLOBAL)
+#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GVDCM) || defined(CONFIG_MACH_APQ8064_GKGLOBAL) || defined(CONFIG_MACH_APQ8064_GV_KR)
 				F1A_Button_Mapping = F1A_Control_Base + 2;
 #else
 				F1A_Button_Mapping = F1A_Control_Base + 3;

@@ -21,16 +21,19 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/async.h>
 
 #include <linux/input/lge_touch_core.h>
 #include <linux/input/touch_synaptics.h>
 
-#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL)
+#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL) || defined(CONFIG_MACH_APQ8064_OMEGAR_KR) || defined(CONFIG_MACH_APQ8064_OMEGA_KR)
 #include "SynaImage_for_GK.h"
 #elif defined(CONFIG_MACH_APQ8064_GVDCM)
 #include "SynaImage_for_DCM.h"
 #elif defined(CONFIG_MACH_APQ8064_J1D) || defined(CONFIG_MACH_APQ8064_J1KD)
 #include "SynaImage_for_GJ.h"
+#elif defined(CONFIG_MACH_APQ8064_GV_KR)
+#include "SynaImage_for_GVKR.h"
 #else
 #include "SynaImage.h"
 #define G_ONLY
@@ -199,11 +202,9 @@
 u8 pressure_zero = 0;
 extern int ts_charger_plug;
 extern int ts_charger_type;
-#ifdef CUST_G_TOUCH_FREQ_HOPPING
 extern int cur_hopping_idx;
 int cns_en = 0;
 u8 hopping = 0;
-#endif
 #endif
 
 /* wrapper function for i2c communication - except defalut page
@@ -278,18 +279,22 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 	u8 index=0;
 	u8 buf=0;
 	u8 cnt;
+
 	u8 buf2=0;
 	u16 alpha = 0;
 	u8 cns = 0;
 	u16 im = 0;
 	u16 vm = 0;
 	u16 aim = 0;
+#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL) || defined(CONFIG_MACH_APQ8064_OMEGAR_KR) || defined(CONFIG_MACH_APQ8064_OMEGA_KR)
+	int z_30_cnt = 0; /*multi ghost and home key ghost algorithm*/
+#endif
+#ifdef G_ONLY
+	hopping = 0;
+#endif
 	data->total_num = 0;
 #ifdef CUST_G_TOUCH
 	pressure_zero = 0;
-#ifdef CUST_G_TOUCH_FREQ_HOPPING
-	hopping = 0;
-#endif
 #endif
 
 	if (unlikely(touch_debug_mask & DEBUG_TRACE))
@@ -390,7 +395,11 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 				if(data->curr_data[finger_index].pressure == 0) pressure_zero = 1;
 			}
 #endif
-
+#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL) || defined(CONFIG_MACH_APQ8064_OMEGAR_KR) || defined(CONFIG_MACH_APQ8064_OMEGA_KR)
+			if(data->curr_data[finger_index].pressure == 30) {
+				z_30_cnt++; /*multi ghost and home key ghost algorithm*/
+			}
+#endif
 			if (unlikely(touch_debug_mask & DEBUG_GET_DATA))
 				TOUCH_INFO_MSG("<%d> pos(%4d,%4d) w_m[%2d] w_n[%2d] w_o[%2d] p[%2d]\n",
 								finger_index, data->curr_data[finger_index].x_position, data->curr_data[finger_index].y_position,
@@ -400,6 +409,9 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 			index++;
 		}
 		data->total_num = index;
+#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL) || defined(CONFIG_MACH_APQ8064_OMEGAR_KR) || defined(CONFIG_MACH_APQ8064_OMEGA_KR)
+		z_30_num = z_30_cnt; /*multi ghost and home key ghost algorithm*/
+#endif
 		if (unlikely(touch_debug_mask & DEBUG_GET_DATA))
 			TOUCH_INFO_MSG("Total_num: %d\n", data->total_num);
 	}
@@ -469,9 +481,10 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 			TOUCH_ERR_MSG("Current Noise State REG read fail\n");
 			goto err_synaptics_getdata;
 		}
-#ifdef CUST_G_TOUCH_FREQ_HOPPING
+
 		if(ts_charger_plug && cns >= 1) {
 			cns_en = 1;
+#ifdef G_ONLY
 			if(cur_hopping_idx != 4){
 				buf = 0x84;
 				synaptics_ts_page_data_write(client, 0x01, 0x04, 1, &buf);
@@ -481,8 +494,9 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 			} else {
 				hopping = 0;
 			}
-		}
 #endif
+		}
+
 		if (unlikely(synaptics_ts_page_data_read(client, ANALOG_PAGE, 0x05, 1, &buf) < 0)) {
 			TOUCH_ERR_MSG("Interference Metric REG read fail\n");
 			goto err_synaptics_getdata;
@@ -599,12 +613,6 @@ static int read_page_description_table(struct i2c_client* client)
 	ts->interrupt_mask.button = 0x20;
 #endif
 
-	if(ts->common_fc.dsc.id == 0 || ts->finger_fc.dsc.id == 0
-			|| ts->analog_fc.dsc.id == 0 || ts->flash_fc.dsc.id == 0){
-		TOUCH_ERR_MSG("common/finger/analog/flash are not initiailized\n");
-		return -EPERM;
-	}
-
 	if (touch_debug_mask & DEBUG_BASE_INFO)
 		TOUCH_INFO_MSG("common[%dP:0x%02x] finger[%dP:0x%02x] button[%dP:0x%02x] analog[%dP:0x%02x] flash[%dP:0x%02x]\n",
 				ts->common_fc.function_page, ts->common_fc.dsc.id,
@@ -612,6 +620,13 @@ static int read_page_description_table(struct i2c_client* client)
 				ts->button_fc.function_page, ts->button_fc.dsc.id,
 				ts->analog_fc.function_page, ts->analog_fc.dsc.id,
 				ts->flash_fc.function_page, ts->flash_fc.dsc.id);
+
+	if(ts->common_fc.dsc.id == 0 || ts->finger_fc.dsc.id == 0
+			|| ts->analog_fc.dsc.id == 0 || ts->flash_fc.dsc.id == 0){
+		TOUCH_ERR_MSG("common/finger/analog/flash are not initiailized\n");
+		return -EPERM;
+	}
+
 
 	return 0;
 }
@@ -759,7 +774,7 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 			}
 #endif
 
-#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL)
+#if defined(CONFIG_MACH_APQ8064_GK_KR) || defined(CONFIG_MACH_APQ8064_GKATT) || defined(CONFIG_MACH_APQ8064_GKGLOBAL) || defined(CONFIG_MACH_APQ8064_OMEGAR_KR) || defined(CONFIG_MACH_APQ8064_OMEGA_KR)
 	switch(ts->ic_panel_type){
 		case GK_IC7020_G1F:
 			memcpy(&SynaFirmware[0], &SynaFirmware_PLG124[0], sizeof(SynaFirmware));
@@ -777,7 +792,7 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 			TOUCH_ERR_MSG("UNKNOWN PANEL(GK). SynaImage set error");
 			break;
 	}
-#elif defined(CONFIG_MACH_APQ8064_GVDCM)
+#elif defined(CONFIG_MACH_APQ8064_GVDCM) || defined(CONFIG_MACH_APQ8064_GV_KR)
 	switch(ts->ic_panel_type){
 		case GV_IC7020_G2_H_PTN_LGIT:
 			memcpy(&SynaFirmware[0], &SynaFirmware_PLG121[0], sizeof(SynaFirmware));
@@ -862,7 +877,7 @@ int synaptics_ts_init(struct i2c_client* client, struct touch_fw_info* fw_info)
 			TOUCH_ERR_MSG("DEVICE_CONTROL_REG write fail\n");
 			return -EIO;
 		}
-#ifdef CUST_G_TOUCH_FREQ_HOPPING
+#ifdef G_ONLY
 		if (unlikely(synaptics_ts_page_data_read(client, 0x01, 0x04, 1, &buf) < 0)) {
 			TOUCH_ERR_MSG("Current Hopping Index read fail\n");
 			return -EIO;
@@ -1358,12 +1373,21 @@ struct touch_device_driver synaptics_ts_driver = {
 	.ic_ctrl	= synaptics_ts_ic_ctrl,
 };
 
+static void async_touch_init(void *data, async_cookie_t cookie)
+{
+	if (touch_debug_mask & DEBUG_TRACE)
+		TOUCH_DEBUG_MSG("\n");
+
+	touch_driver_register(&synaptics_ts_driver);
+}
+
 static int __devinit touch_init(void)
 {
 	if (touch_debug_mask & DEBUG_TRACE)
 		TOUCH_DEBUG_MSG("\n");
 
-	return touch_driver_register(&synaptics_ts_driver);
+	async_schedule(async_touch_init, NULL);
+	return 0;
 }
 
 static void __exit touch_exit(void)
