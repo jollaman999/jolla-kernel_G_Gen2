@@ -422,6 +422,7 @@ done:
 	return;
 }
 
+/*
 static int afe_send_hw_delay(u16 port_id, u32 rate)
 {
 	struct hw_delay_entry delay_entry;
@@ -498,6 +499,7 @@ done:
 		__func__, port_id, rate, delay_entry.delay_usec, ret);
 	return ret;
 }
+*/
 
 void afe_send_cal(u16 port_id)
 {
@@ -647,7 +649,7 @@ int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 
 	/* send AFE cal */
 	afe_send_cal(port_id);
-	afe_send_hw_delay(port_id, rate);
+	// afe_send_hw_delay(port_id, rate);
 
 	start.hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
 				APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);

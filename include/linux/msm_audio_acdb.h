@@ -60,6 +60,7 @@ struct hw_delay {
 	uint32_t num_entries;
 	void *delay_info;
 };
+
 /* For Real-Time Audio Calibration */
 #define AUDIO_GET_RTAC_ADM_INFO		_IOR(AUDIO_IOCTL_MAGIC, \
 			(AUDIO_MAX_ACDB_IOCTL+1), unsigned)

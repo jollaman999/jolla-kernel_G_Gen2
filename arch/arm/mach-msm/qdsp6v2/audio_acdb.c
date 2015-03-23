@@ -18,10 +18,10 @@
 #include <linux/msm_ion.h>
 #include <linux/mm.h>
 #include <mach/qdsp6v2/audio_acdb.h>
-#include <linux/slab.h>
+// #include <linux/slab.h>
 
 #define MAX_NETWORKS		15
-#define MAX_HW_DELAY_ENTRIES	25
+// #define MAX_HW_DELAY_ENTRIES	25
 
 struct sidetone_atomic_cal {
 	atomic_t	enable;
@@ -71,8 +71,8 @@ struct acdb_data {
 	atomic64_t			kvaddr;
 	atomic64_t			mem_len;
 	/* Av sync delay info */
-	struct hw_delay hw_delay_rx;
-	struct hw_delay hw_delay_tx;
+	// struct hw_delay hw_delay_rx;
+	// struct hw_delay hw_delay_tx;
 };
 
 static struct acdb_data		acdb_data;
@@ -181,6 +181,7 @@ void get_all_vocvol_cal(struct acdb_cal_block *cal_block)
 		atomic_read(&acdb_data.vocvol_total_cal_size);
 }
 
+/*
 int get_hw_delay(int32_t path, struct hw_delay_entry *entry)
 {
 	int i, result = 0;
@@ -298,6 +299,7 @@ int store_hw_delay(int32_t path, void *arg)
 done:
 	return result;
 }
+*/
 
 void get_anc_cal(struct acdb_cal_block *cal_block)
 {
@@ -737,10 +739,11 @@ static int acdb_open(struct inode *inode, struct file *f)
 
 }
 
+/*
 static void allocate_hw_delay_entries(void)
 {
 
-	/* Allocate memory for hw delay entries */
+	// Allocate memory for hw delay entries
 
 	acdb_data.hw_delay_rx.num_entries = 0;
 	acdb_data.hw_delay_tx.num_entries = 0;
@@ -763,13 +766,14 @@ static void allocate_hw_delay_entries(void)
 
 	return;
 }
+*/
 
 static int deregister_memory(void)
 {
-	mutex_lock(&acdb_data.acdb_mutex);
-	kfree(acdb_data.hw_delay_tx.delay_info);
-	kfree(acdb_data.hw_delay_rx.delay_info);
-	mutex_unlock(&acdb_data.acdb_mutex);
+	// mutex_lock(&acdb_data.acdb_mutex);
+	// kfree(acdb_data.hw_delay_tx.delay_info);
+	// kfree(acdb_data.hw_delay_rx.delay_info);
+	// mutex_unlock(&acdb_data.acdb_mutex);
 
 	if (atomic64_read(&acdb_data.mem_len)) {
 		mutex_lock(&acdb_data.acdb_mutex);
@@ -794,7 +798,7 @@ static int register_memory(void)
 	unsigned long		mem_len;
 
 	mutex_lock(&acdb_data.acdb_mutex);
-	allocate_hw_delay_entries();
+	// allocate_hw_delay_entries();
 	acdb_data.ion_client =
 		msm_ion_client_create(UINT_MAX, "audio_acdb_client");
 	if (IS_ERR_OR_NULL(acdb_data.ion_client)) {
@@ -920,10 +924,10 @@ static long acdb_ioctl(struct file *f,
 		store_asm_topology(topology);
 		goto done;
 	case AUDIO_SET_HW_DELAY_RX:
-		result = store_hw_delay(RX_CAL, (void *)arg);
+		result = 0; // store_hw_delay(RX_CAL, (void *)arg);
 		goto done;
 	case AUDIO_SET_HW_DELAY_TX:
-		result = store_hw_delay(TX_CAL, (void *)arg);
+		result = 0; // store_hw_delay(TX_CAL, (void *)arg);
 		goto done;
 	}
 
